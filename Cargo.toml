@@ -2,5 +2,13 @@
 name = "verifiable-elections-core"
 version = "0.1.0"
 edition = "2024"
+readme = "README.md"
+description = "Collection of cryptographic primitives for verifiable elections."
 
 [dependencies]
+curve25519-dalek = { version = "4.1.3", features = ["rand_core"] } # Curve25519/Ristretto
+rand_core = "0.6.4"   # version used in the EC implementations
+zeroize = { version = "1.8.1", default-features = false, features = ["alloc"] }
+
+[dev-dependencies]
+rand = { version = "^0.8", default-features = true }            # only used in tests
