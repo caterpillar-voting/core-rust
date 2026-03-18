@@ -1,108 +1,39 @@
-use std::ops;
 use crate::group::lib::group::Group;
 
-/// Public parameters for Pedersen commitments.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Parameters<G: Group> {
-    pub point: G::Point, // blinding base H
-    pub generators: Vec<G::Point>,
-    pub list_len: usize,
-}
-
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Pedersen<G: Group> {
-    pub commitment: G::Point,
+    pub point: G::Point, // blinding base
+    pub generators: Vec<G::Point>,
 }
 
 impl<G: Group> Pedersen<G> {
-    pub fn commit(
-        params: &Parameters<G>,
-        messages: &[G::Scalar],
-        randomness: &G::Scalar,
-    ) -> Self {
-        debug_assert!(messages.len() <= params.list_len);
-
-        let mut scalars = Vec::with_capacity(1 + messages.len());
-        let mut points = Vec::with_capacity(1 + messages.len());
-
-        scalars.push(randomness);
-        points.push(params.point);
-        scalars.extend(messages);
-        points.extend_from_slice(&params.generators[..messages.len()]);
-
-        let commitment = G::vartime_multi_mul(scalars, points);
-        Self { commitment }
+    pub fn new(point: G::Point, generators: Vec<G::Point>) -> Self {
+        Self { point, generators }
     }
 
-    /// Verify that `(messages, randomness)` open this commitment under
-    /// `params`.
+    pub fn commit(
+        &self,
+        randomness: &G::Scalar,
+        messages: &[G::Scalar],
+    ) -> G::Point {
+        assert!(messages.len() <= self.generators.len());
+
+        let hiding_factor = self.point * randomness;
+        self.generators.iter()
+            .zip(messages.iter())
+            .fold(hiding_factor, |acc, (g, m)| acc + &(*g * m))
+    }
+
     pub fn verify(
         &self,
-        params: &Parameters<G>,
         messages: &[G::Scalar],
         randomness: &G::Scalar,
-    ) -> Result<(), Error> {
-        if messages.len() > params.list_len {
-            return Err(Error::LengthMismatch);
-        }
-        let recomputed =
-            Self::commit(params, messages, randomness).commitment;
-        if self.commitment == recomputed {
-            Ok(())
-        } else {
-            Err(Error::PedersenCommitmentMismatch)
-        }
-    }
+        commitment: &G::Point,
+    ) -> bool {
+        assert!(messages.len() <= self.generators.len());
 
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = vec![0u8; G::POINT_SIZE];
-        G::point_to_bytes(&mut bytes, &self.commitment);
-        bytes
-    }
-
-    pub fn from_bytes<A: AsRef<[u8]>>(bytes: A) -> Option<Self> {
-        let p = G::point_from_bytes(&bytes.as_ref()[..G::POINT_SIZE])?;
-        if G::is_id(&p) {
-            None
-        } else {
-            Some(Pedersen { commitment: p })
-        }
-    }
-}
-
-impl<G: Group> ops::Add for Pedersen<G> {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            commitment: self.commitment + &rhs.commitment,
-        }
-    }
-}
-impl<G: Group> ops::AddAssign for Pedersen<G> {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs;
-    }
-}
-impl<G: Group> ops::Sub for Pedersen<G> {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self {
-        Self {
-            commitment: self.commitment - &rhs.commitment,
-        }
-    }
-}
-impl<G: Group> ops::SubAssign for Pedersen<G> {
-    fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs;
-    }
-}
-impl<G: Group> ops::Mul<&G::Scalar> for Pedersen<G> {
-    type Output = Self;
-    fn mul(self, rhs: &G::Scalar) -> Self {
-        Self {
-            commitment: self.commitment * rhs,
-        }
+        self.commit(randomness, messages) == *commitment
     }
 }
 
@@ -111,76 +42,62 @@ impl<G: Group> ops::Mul<&G::Scalar> for Pedersen<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::thread_rng;
+    use crate::group::lib::group::Group;
+    use crate::group::ristretto::RistrettoGroup;
+    use rand::{rngs::StdRng, SeedableRng};
 
-    type Scalar = <Curve as GroupScalar>::Scalar;
+    type Curve = RistrettoGroup;
+    type Scalar = <Curve as Group>::Scalar;
 
-    #[test]
-    fn commit_and_open() {
-        let mut rng = thread_rng();
-        let params = Parameters::<Curve>::new(5, &mut rng);
-        let messages: Vec<Scalar> = (0..5).map(|_| Curve::scalar_random(&mut rng)).collect();
+    fn seeded_rng() -> StdRng {
+        let mut seed = [0u8; 32];
+        seed[..5].copy_from_slice(b"hello");
+        StdRng::from_seed(seed)
+    }
 
-        let commitment = ExtendedPedersen::var_commit(&params, &messages, &mut rng).unwrap();
-        let res = commitment
-            .inner
-            .verify(&params, &messages, commitment.randomness.expose());
-        assert!(res.is_ok());
+    fn new_pedersen(n: usize, rng: &mut StdRng) -> Pedersen<Curve> {
+        let point = Curve::point_random(rng);
+        let generators = (0..n).map(|_| Curve::point_random(rng)).collect();
+        Pedersen::new(point, generators) // TODO: instead insert verifiable generators
     }
 
     #[test]
-    fn serialize_commitment() {
-        {
-            use serde_json;
+    fn commit_and_open() {
+        let mut rng = seeded_rng();
+        let pedersen = new_pedersen(5, &mut rng);
 
-            let mut rng = thread_rng();
-            let params = Parameters::<Curve>::new(3, &mut rng);
-            let messages: Vec<Scalar> = (0..3).map(|_| Curve::scalar_random(&mut rng)).collect();
-            let commitment = ExtendedPedersen::const_commit(&params, &messages, &mut rng).unwrap();
+        let messages: Vec<Scalar> = (0..5).map(|_| Curve::scalar_random(&mut rng)).collect();
+        let randomness = Curve::scalar_random(&mut rng);
 
-            let json = serde_json::to_string(&params).unwrap();
-            let de_params: Parameters<Curve> = serde_json::from_str(&json).unwrap();
+        let commitment = pedersen.commit(&randomness, &messages);
 
-            let json = serde_json::to_string(&commitment.inner).unwrap();
-            let de_commitment: Pedersen<Curve> = serde_json::from_str(&json).unwrap();
-
-            let res = de_commitment.verify(&de_params, &messages, commitment.randomness.expose());
-            assert!(res.is_ok());
-        }
+        assert!(pedersen.verify(&messages, &randomness, &commitment));
     }
 
     #[test]
     fn homomorphic_properties() {
-        let mut rng = thread_rng();
-        let params = Parameters::<Curve>::new(3, &mut rng);
-        let msgs1: Vec<Scalar> = (0..3).map(|_| Curve::scalar_random(&mut rng)).collect();
-        let msgs2: Vec<Scalar> = (0..3).map(|_| Curve::scalar_random(&mut rng)).collect();
+        let mut rng = seeded_rng();
+        let pedersen = new_pedersen(4, &mut rng);
 
-        let c1 = ExtendedPedersen::var_commit(&params, &msgs1, &mut rng).unwrap();
-        let c2 = ExtendedPedersen::var_commit(&params, &msgs2, &mut rng).unwrap();
+        let messages1: Vec<Scalar> = (0..4).map(|_| Curve::scalar_random(&mut rng)).collect();
+        let messages2: Vec<Scalar> = (0..4).map(|_| Curve::scalar_random(&mut rng)).collect();
+        let r1 = Curve::scalar_random(&mut rng);
+        let r2 = Curve::scalar_random(&mut rng);
 
-        let expected_r = c1.randomness.expose() + c2.randomness.expose();
-        let c_sum = c1 + c2;
+        let c1 = pedersen.commit(&r1, &messages1);
+        let c2 = pedersen.commit(&r2, &messages2);
 
-        let expected_msgs: Vec<Scalar> = msgs1.iter().zip(&msgs2).map(|(a, b)| *a + b).collect();
+        let summed_messages: Vec<Scalar> = messages1
+            .iter()
+            .zip(&messages2)
+            .map(|(a, b)| *a + b)
+            .collect();
+        let summed_randomness = r1 + &r2;
 
-        assert!(c_sum
-            .inner
-            .verify(&params, &expected_msgs, &expected_r)
-            .is_ok());
-    }
+        let expected = pedersen.commit(&summed_randomness, &summed_messages);
 
-    #[test]
-    fn const_vs_var_commitment_equivalence() {
-        let mut rng = thread_rng();
-        let params = Parameters::<Curve>::new(4, &mut rng);
-        let messages: Vec<Scalar> = (0..4).map(|_| Curve::scalar_random(&mut rng)).collect();
-        let r = Curve::scalar_random(&mut rng);
-
-        let c_var = Pedersen::var_commit_with_randomness(&params, &messages, &r);
-        let c_const = Pedersen::const_commit_with_randomness(&params, &messages, &r);
-
-        assert_eq!(c_var, c_const, "var_commit and const_commit mismatch");
+        assert_eq!(c1 + &c2, expected);
+        assert!(pedersen.verify(&summed_messages, &summed_randomness, &expected));
     }
 }
 
