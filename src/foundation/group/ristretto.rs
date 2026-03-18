@@ -10,7 +10,7 @@ use curve25519_dalek::{
 };
 use rand_core::{CryptoRng, RngCore};
 
-use crate::group::lib::group::{ByteSerialize, Group, Invertible};
+use crate::foundation::group::group::{ByteSerialize, Group, Invertible};
 
 pub struct RistrettoGroup(());
 

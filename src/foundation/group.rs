@@ -1,5 +1,7 @@
 //! Wrapper around different rust implementations of prime-order groups
 
+pub mod ristretto;
+
 /// Define a Trait for a generic Elliptic Curve Group
 pub mod group {
     use core::{fmt, ops};
@@ -52,13 +54,13 @@ pub mod group {
             + ByteSerialize
             + fmt::Debug;
 
-        /// Initialize Point as a generator of the group
+        /// Initialize Point as a generator of the foundation
         fn generator() -> Self::Point;
 
         /// Generate a random Point.
         fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point;
 
-        /// Return the identity Point of the group.
+        /// Return the identity Point of the foundation.
         fn identity() -> Self::Point;
 
         /// Generate a random scalar.

@@ -1,5 +1,5 @@
-mod group;
-mod pedersen;
+mod foundation;
+mod primitives;
 
 #[cfg(test)]
 mod tests {

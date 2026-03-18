@@ -1,4 +1,4 @@
-use crate::group::lib::group::Group;
+use crate::foundation::group::group::Group;
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Clone, Debug, PartialEq)]
@@ -42,8 +42,8 @@ impl<G: Group> Pedersen<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::group::lib::group::Group;
-    use crate::group::ristretto::RistrettoGroup;
+    use crate::foundation::group::group::Group;
+    use crate::foundation::group::ristretto::RistrettoGroup;
     use rand::{rngs::StdRng, SeedableRng};
 
     type Curve = RistrettoGroup;
