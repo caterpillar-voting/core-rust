@@ -113,6 +113,18 @@ mod tests {
     }
 
     #[test]
+    fn neg_vs_add_sub() {
+        // check that neg, add, sub are compatible
+        let mut rng = thread_rng();
+        let x = RistrettoPointRaw::random(&mut rng);
+        let y = RistrettoPointRaw::random(&mut rng);
+        let z1 = x - y;
+        let minus_y = -y;
+        let z2 = x + minus_y;
+        assert_eq!(z1, z2);
+    }
+
+    #[test]
     fn point_isid() {
         let mut rng = rand::thread_rng();
         let scalar = RistrettoGroup::scalar_random(&mut rng);
