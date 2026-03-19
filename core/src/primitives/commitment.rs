@@ -12,15 +12,12 @@ impl<G: Group> Pedersen<G> {
         Self { point, generators }
     }
 
-    pub fn commit(
-        &self,
-        randomness: &G::Scalar,
-        messages: &[G::Scalar],
-    ) -> G::Point {
+    pub fn commit(&self, randomness: &G::Scalar, messages: &[G::Scalar]) -> G::Point {
         assert!(messages.len() <= self.generators.len());
 
         let hiding_factor = self.point * randomness;
-        self.generators.iter()
+        self.generators
+            .iter()
             .zip(messages.iter())
             .fold(hiding_factor, |acc, (g, m)| acc + &(*g * m))
     }
@@ -44,7 +41,7 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{SeedableRng, rngs::StdRng};
 
     type Curve = RistrettoGroup;
     type Scalar = <Curve as Group>::Scalar;

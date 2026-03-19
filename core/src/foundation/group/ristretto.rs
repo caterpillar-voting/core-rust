@@ -2,15 +2,15 @@
 //!
 //! [`ristretto`]: https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/index.html
 
+use crate::foundation::group::Group;
+use crate::foundation::group::{ByteSerialize, Invertible};
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_POINT,
     ristretto::{CompressedRistretto, RistrettoPoint as RistrettoPointRaw},
     scalar::Scalar as RistrettoScalarRaw,
-    traits::{Identity},
+    traits::Identity,
 };
 use rand_core::{CryptoRng, RngCore};
-use crate::foundation::group::Group;
-use crate::foundation::group::{ByteSerialize, Invertible};
 
 pub struct RistrettoGroup(());
 
@@ -28,7 +28,7 @@ impl ByteSerialize for RistrettoPointRaw {
 impl Invertible for RistrettoPointRaw {
     fn invert(&self) -> Option<Self>
     where
-        Self: Sized
+        Self: Sized,
     {
         Some(-self)
     }
@@ -42,7 +42,7 @@ impl ByteSerialize for RistrettoScalarRaw {
 
     fn from_bytes(buffer: &[u8]) -> Option<Self>
     where
-        Self: Sized
+        Self: Sized,
     {
         let bytes: &[u8; 32] = buffer.try_into().expect("Incorrect byte size");
         Self::from_canonical_bytes(*bytes).into()
@@ -52,12 +52,11 @@ impl ByteSerialize for RistrettoScalarRaw {
 impl Invertible for RistrettoScalarRaw {
     fn invert(&self) -> Option<Self>
     where
-        Self: Sized
+        Self: Sized,
     {
         Some(self.invert())
     }
 }
-
 
 impl Group for RistrettoGroup {
     type Point = RistrettoPointRaw;
@@ -87,7 +86,7 @@ impl Group for RistrettoGroup {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::{thread_rng};
+    use rand::thread_rng;
 
     type Point = <RistrettoGroup as Group>::Point;
     type Scalar = <RistrettoGroup as Group>::Scalar;

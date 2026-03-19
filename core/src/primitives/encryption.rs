@@ -23,11 +23,7 @@ impl<G: Group> ElGamal<G> {
         (alpha, beta)
     }
 
-    pub fn decrypt(
-        &self,
-        secret_key: &G::Scalar,
-        ciphertext: (&G::Point, &G::Point),
-    ) -> G::Point {
+    pub fn decrypt(&self, secret_key: &G::Scalar, ciphertext: (&G::Point, &G::Point)) -> G::Point {
         let (alpha, beta) = ciphertext;
 
         *beta - &(*alpha * secret_key)
@@ -67,7 +63,7 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{SeedableRng, rngs::StdRng};
 
     type Curve = RistrettoGroup;
 
@@ -109,11 +105,8 @@ mod tests {
         let message = Curve::point_random(&mut rng);
 
         let ciphertext = el_gamal.encrypt(&public_key, &randomness, &message);
-        let decrypted = el_gamal.decrypt_randomness(
-            &public_key,
-            &randomness,
-            (&ciphertext.0, &ciphertext.1),
-        );
+        let decrypted =
+            el_gamal.decrypt_randomness(&public_key, &randomness, (&ciphertext.0, &ciphertext.1));
 
         assert_eq!(decrypted, message);
     }
