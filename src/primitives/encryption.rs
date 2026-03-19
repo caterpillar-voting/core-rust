@@ -29,7 +29,6 @@ impl<G: Group> ElGamal<G> {
         ciphertext: (&G::Point, &G::Point),
     ) -> G::Point {
         let (alpha, beta) = ciphertext;
-        
 
         *beta - &(*alpha * secret_key)
     }
@@ -42,7 +41,6 @@ impl<G: Group> ElGamal<G> {
     ) -> G::Point {
         let (_, beta) = ciphertext;
         let hiding_factor = *public_key * randomness;
-        
 
         *beta - &hiding_factor
     }

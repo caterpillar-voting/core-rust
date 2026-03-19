@@ -1,5 +1,5 @@
-mod foundation;
-mod primitives;
+pub mod foundation;
+pub mod primitives;
 
 #[cfg(test)]
 mod tests {
