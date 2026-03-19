@@ -5,9 +5,9 @@ readme = "README.md"
 description = "Collection of cryptographic primitives for verifiable elections."
 
 [dependencies]
-curve25519-dalek = { workspace = true }
-rand_core = { workspace = true }
-zeroize = { workspace = true }
+curve25519-dalek.workspace =  true
+rand_core.workspace = true
+zeroize.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true }
