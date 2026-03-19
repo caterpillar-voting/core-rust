@@ -23,9 +23,9 @@ name = "caterpillar-voting-core-wasm"
 version = "0.1.0"
 dependencies = [
  "caterpillar-voting-core",
+ "curve25519-dalek",
  "getrandom",
- "rand_chacha",
- "rand_core",
+ "rand",
  "wasm-bindgen",
 ]
 

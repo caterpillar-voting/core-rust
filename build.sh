@@ -1,0 +1,2 @@
+cargo build -p caterpillar-voting-core-wasm --target wasm32-unknown-unknown --release
+wasm-bindgen --target web --out-dir core-wasm/demo/pkg target/wasm32-unknown-unknown/release/caterpillar_voting_core_wasm.wasm

@@ -3,9 +3,13 @@ name = "caterpillar-voting-core"
 version = "0.1.0"
 readme = "README.md"
 description = "Collection of cryptographic primitives for verifiable elections."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [dependencies]
-curve25519-dalek.workspace =  true
+curve25519-dalek.workspace = true
 rand_core.workspace = true
 zeroize.workspace = true
 

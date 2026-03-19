@@ -1,112 +1,88 @@
-use std::sync::OnceLock;
+use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
+use caterpillar_voting_core::foundation::group::{ByteSerialize, Group};
+use caterpillar_voting_core::primitives::encryption::ElGamal;
+use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
+use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 
-type Scalar = <Curve as GroupScalar>::Scalar;
-const MAX_RECOVERABLE_SCALAR: u16 = u16::MAX;
+type GroupPoint = RistrettoPoint;
+type GroupScalar = Scalar;
 
-fn rng() -> Result<ChaCha20Rng, JsValue> {
-    let mut seed = [0u8; 32];
-    getrandom::getrandom(&mut seed)
-        .map_err(|e| JsValue::from_str(&format!("randomness error: {e}")))?;
-    Ok(ChaCha20Rng::from_seed(seed))
-}
-
-fn js_err(msg: &str) -> JsValue {
-    JsValue::from_str(msg)
-}
-
-fn dlog_table() -> &'static DiscreteLogTable<Curve> {
-    static TABLE: OnceLock<DiscreteLogTable<Curve>> = OnceLock::new();
-    TABLE.get_or_init(|| DiscreteLogTable::<Curve>::new(1..=u64::from(MAX_RECOVERABLE_SCALAR)))
+fn el_gamal() -> ElGamal<RistrettoGroup> {
+    ElGamal::new(RistrettoGroup::generator())
 }
 
 #[wasm_bindgen]
 pub struct WasmSecretKey {
-    inner: SecretKey<Curve>,
-    params: ElGamalParams<Curve>,
+    inner: GroupScalar,
 }
 
 #[wasm_bindgen]
 pub struct WasmPublicKey {
-    inner: PublicKey<Curve>,
-    params: ElGamalParams<Curve>,
-}
-
-#[wasm_bindgen]
-pub struct WasmScalar {
-    value: u16,
+    inner: GroupPoint,
 }
 
 #[wasm_bindgen]
 pub struct WasmCiphertext {
-    inner: Ciphertext<Curve>,
+    alpha: GroupPoint,
+    beta: GroupPoint,
+}
+
+#[wasm_bindgen]
+#[derive(Debug)]
+pub struct WasmMessage {
+    inner: GroupPoint,
 }
 
 #[wasm_bindgen]
 impl WasmSecretKey {
     #[wasm_bindgen(js_name = random)]
     pub fn random() -> Result<WasmSecretKey, JsValue> {
-        let mut rng = rng()?;
-        let params = ElGamalParams::<Curve>::new(&mut rng);
-        let inner = SecretKey::<Curve>::new(&mut rng);
-        Ok(Self { inner, params })
-    }
-
-    #[wasm_bindgen(js_name = derivePublicKey)]
-    pub fn derive_public_key(&self) -> WasmPublicKey {
-        WasmPublicKey {
-            inner: self.inner.to_public(&self.params),
-            params: self.params.clone(),
-        }
-    }
-
-    #[wasm_bindgen(js_name = decryptScalar)]
-    pub fn decrypt_scalar(&self, ciphertext: &WasmCiphertext) -> Result<WasmScalar, JsValue> {
-        let point = self.inner.decrypt(&ciphertext.inner);
-        let value = dlog_table()
-            .get(&point)
-            .ok_or_else(|| js_err("decrypted scalar is outside the supported range"))?;
-
-        if value > u64::from(MAX_RECOVERABLE_SCALAR) {
-            return Err(js_err("decrypted scalar is outside the supported range"));
-        }
-
-        Ok(WasmScalar {
-            value: value as u16,
+        let mut rng = OsRng;
+        Ok(Self {
+            inner: RistrettoGroup::scalar_random(&mut rng),
         })
+    }
+
+    #[wasm_bindgen(js_name = derive_public_key)]
+    pub fn derive_public_key(&self) -> WasmPublicKey {
+        let public_key = RistrettoGroup::generator() * &self.inner;
+        WasmPublicKey { inner: public_key }
+    }
+
+    #[wasm_bindgen(js_name = decrypt)]
+    pub fn decrypt(&self, ciphertext: &WasmCiphertext) -> Result<WasmMessage, JsValue> {
+        let inner = el_gamal().decrypt(&self.inner, (&ciphertext.alpha, &ciphertext.beta));
+        Ok(WasmMessage { inner })
     }
 }
 
 #[wasm_bindgen]
 impl WasmPublicKey {
-    #[wasm_bindgen(js_name = encryptScalar)]
-    pub fn encrypt_scalar(&self, scalar: &WasmScalar) -> Result<WasmCiphertext, JsValue> {
-        let mut rng = rng()?;
-        let scalar = Scalar::from(u64::from(scalar.value));
-        Ok(WasmCiphertext {
-            inner: ExtendedCiphertext::<Curve>::exp_new(
-                &scalar,
-                &self.inner,
-                &self.params,
-                &mut rng,
-            )
-                .to_inner(),
-        })
+    #[wasm_bindgen(js_name = encrypt)]
+    pub fn encrypt(&self, message: &WasmMessage) -> Result<WasmCiphertext, JsValue> {
+        let mut rng = OsRng;
+        let randomness = RistrettoGroup::scalar_random(&mut rng);
+
+        let (alpha, beta) = el_gamal().encrypt(&self.inner, &randomness, &message.inner);
+        Ok(WasmCiphertext { alpha, beta })
     }
 }
 
 #[wasm_bindgen]
-impl WasmScalar {
-    #[wasm_bindgen(js_name = random)]
-    pub fn random() -> Result<WasmScalar, JsValue> {
-        let mut rng = rng()?;
-        Ok(Self {
-            value: (rng.next_u32() % (u32::from(MAX_RECOVERABLE_SCALAR) + 1)) as u16,
-        })
+impl WasmMessage {
+    #[wasm_bindgen(js_name = from_bytes)]
+    pub fn from_bytes(message: Vec<u8>) -> Result<WasmMessage, JsValue> {
+        let inner = GroupPoint::from_bytes(&message)
+            .ok_or_else(|| JsValue::from_str("invalid message bytes"))?;
+
+        Ok(WasmMessage { inner })
     }
 
-    #[wasm_bindgen(js_name = toBytes)]
+    #[wasm_bindgen(js_name = to_bytes)]
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.value.to_be_bytes().to_vec()
+        let mut bytes = [0u8; 32];
+        ByteSerialize::to_bytes(&self.inner, &mut bytes);
+        bytes.to_vec()
     }
 }

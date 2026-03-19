@@ -72,7 +72,6 @@ mod tests {
     type Curve = RistrettoGroup;
 
     fn seeded_rng() -> StdRng {
-        // TODO remove here; move centrally
         let mut seed = [0u8; 32];
         seed[..5].copy_from_slice(b"hello");
         StdRng::from_seed(seed)
