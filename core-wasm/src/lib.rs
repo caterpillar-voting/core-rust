@@ -71,10 +71,10 @@ impl WasmPublicKey {
 
 #[wasm_bindgen]
 impl WasmMessage {
-    #[wasm_bindgen(js_name = from_bytes)]
-    pub fn from_bytes(message: Vec<u8>) -> Result<WasmMessage, JsValue> {
-        let inner = GroupPoint::from_bytes(&message)
-            .ok_or_else(|| JsValue::from_str("invalid message bytes"))?;
+    #[wasm_bindgen(js_name = random)]
+    pub fn random() -> Result<WasmMessage, JsValue> {
+        let mut rng = OsRng;
+        let inner = GroupPoint::random(&mut rng);
 
         Ok(WasmMessage { inner })
     }

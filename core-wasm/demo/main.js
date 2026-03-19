@@ -5,10 +5,8 @@ import init, {
 
 async function main() {
     await init();
-    
-    const payload = new Uint8Array(32);
-    payload.fill(1);
-    const scalar = WasmMessage.from_bytes(payload);
+
+    const scalar = WasmMessage.random();
 
     const sk = WasmSecretKey.random();
     const pk = sk.derive_public_key();
