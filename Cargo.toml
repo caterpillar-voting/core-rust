@@ -1,14 +1,28 @@
-[package]
-name = "verifiable-elections-core"
-version = "0.1.0"
-edition = "2024"
-readme = "README.md"
-description = "Collection of cryptographic primitives for verifiable elections."
+[workspace]
+members = [
+	"core",
+	"core-wasm",
+]
+resolver = "2"
 
-[dependencies]
+[workspace.package]
+edition = "2024"
+license = "MIT"
+authors = [
+	"Pierrick Gaudry",
+	"Florian Moser <research@famoser.ch>"
+]
+repository = "https://github.com/caterpillar-voting/core-rust"
+documentation = "https://github.com/caterpillar-voting/core-docs"
+readme = "README.md"
+keywords = ["cryptography", "verifiable", "pedersen", "el-gamal"]
+categories = ["cryptography"]
+rust-version = "1.94.0"
+
+[workspace.dependencies]
 curve25519-dalek = { version = "4.1.3", features = ["rand_core"] } # Curve25519/Ristretto
 rand_core = "0.6.4"   # version used in the EC implementations
 zeroize = { version = "1.8.1", default-features = false, features = ["alloc"] }
 
-[dev-dependencies]
 rand = { version = "^0.8", default-features = true }            # only used in tests
+
