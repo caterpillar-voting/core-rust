@@ -9,11 +9,10 @@ use curve25519_dalek::{
     traits::{Identity},
 };
 use rand_core::{CryptoRng, RngCore};
-
-use crate::foundation::group::group::{ByteSerialize, Group, Invertible};
+use crate::foundation::group::Group;
+use crate::foundation::group::{ByteSerialize, Invertible};
 
 pub struct RistrettoGroup(());
-
 
 impl ByteSerialize for RistrettoPointRaw {
     fn to_bytes(&self, out: &mut [u8]) {

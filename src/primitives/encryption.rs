@@ -1,4 +1,4 @@
-use crate::foundation::group::group::Group;
+use crate::foundation::group::Group;
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Clone, Debug, PartialEq)]
@@ -29,9 +29,9 @@ impl<G: Group> ElGamal<G> {
         ciphertext: (&G::Point, &G::Point),
     ) -> G::Point {
         let (alpha, beta) = ciphertext;
-        let message = *beta - &(*alpha * secret_key);
+        
 
-        message
+        *beta - &(*alpha * secret_key)
     }
 
     pub fn decrypt_randomness(
@@ -42,9 +42,9 @@ impl<G: Group> ElGamal<G> {
     ) -> G::Point {
         let (_, beta) = ciphertext;
         let hiding_factor = *public_key * randomness;
-        let message = *beta - &hiding_factor;
+        
 
-        message
+        *beta - &hiding_factor
     }
 
     pub fn reencrypt(
@@ -67,7 +67,7 @@ impl<G: Group> ElGamal<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::foundation::group::group::Group;
+    use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use rand::{rngs::StdRng, SeedableRng};
 
