@@ -30,6 +30,7 @@ pub mod group {
             + ops::AddAssign
             + for<'a> ops::Sub<&'a Self::Point, Output = Self::Point>
             + ops::SubAssign
+            + for<'a> ops::Neg<Output = Self::Point>
             + for<'a> ops::Mul<&'a Self::Scalar, Output = Self::Point>
             + Invertible
             + Zeroize

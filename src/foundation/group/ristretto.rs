@@ -87,6 +87,7 @@ impl Group for RistrettoGroup {
 
 #[cfg(test)]
 mod tests {
+    use curve25519_dalek::RistrettoPoint;
     use super::*;
     use rand::{thread_rng};
 
@@ -111,6 +112,18 @@ mod tests {
         scalar_operation!(rng, +);
         scalar_operation!(rng, -);
         scalar_operation!(rng, *);
+    }
+
+    #[test]
+    fn neg_vs_add_sub() {
+        // check that neg, add, sub are compatible
+        let mut rng = thread_rng();
+        let x = RistrettoPoint::random(&mut rng);
+        let y = RistrettoPoint::random(&mut rng);
+        let z1 = x - y;
+        let minus_y = -y;
+        let z2 = x + minus_y;
+        assert_eq!(z1, z2);
     }
 
     #[test]
