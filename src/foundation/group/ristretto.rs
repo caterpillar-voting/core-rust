@@ -87,7 +87,6 @@ impl Group for RistrettoGroup {
 
 #[cfg(test)]
 mod tests {
-    use curve25519_dalek::RistrettoPoint;
     use super::*;
     use rand::{thread_rng};
 
@@ -118,8 +117,8 @@ mod tests {
     fn neg_vs_add_sub() {
         // check that neg, add, sub are compatible
         let mut rng = thread_rng();
-        let x = RistrettoPoint::random(&mut rng);
-        let y = RistrettoPoint::random(&mut rng);
+        let x = RistrettoPointRaw::random(&mut rng);
+        let y = RistrettoPointRaw::random(&mut rng);
         let z1 = x - y;
         let minus_y = -y;
         let z2 = x + minus_y;
