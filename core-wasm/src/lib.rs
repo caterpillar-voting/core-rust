@@ -1,9 +1,9 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
 use caterpillar_voting_core::foundation::group::{ByteSerialize, Group};
-use caterpillar_voting_core::primitives::encryption::ElGamal;
 use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
+use caterpillar_voting_core::primitives::encryption::el_gamal::ElGamal;
 
 type GroupPoint = RistrettoPoint;
 type GroupScalar = Scalar;
