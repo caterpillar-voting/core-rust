@@ -3,7 +3,7 @@ use crate::primitives::encryption::el_gamal::ElGamal;
 
 #[derive(Debug, PartialEq)]
 pub struct ExponentialElGamal<G: Group> {
-    el_gamal: ElGamal<G>
+    el_gamal: ElGamal<G>,
 }
 
 impl<G: Group> ExponentialElGamal<G> {
@@ -23,10 +23,16 @@ impl<G: Group> ExponentialElGamal<G> {
         message: &G::Scalar,
     ) -> (G::Point, G::Point) {
         let message_point = *self.generator() * message;
-        self.el_gamal.encrypt(public_key, randomness, &message_point)
+        self.el_gamal
+            .encrypt(public_key, randomness, &message_point)
     }
 
-    pub fn decrypt(&self, secret_key: &G::Scalar, ciphertext: (&G::Point, &G::Point), plaintext_range: (&G::Scalar, &G::Scalar)) -> Option<G::Scalar> {
+    pub fn decrypt(
+        &self,
+        secret_key: &G::Scalar,
+        ciphertext: (&G::Point, &G::Point),
+        plaintext_range: (&G::Scalar, &G::Scalar),
+    ) -> Option<G::Scalar> {
         let message_point = self.el_gamal.decrypt(secret_key, ciphertext);
 
         self.decode_point(&message_point, plaintext_range)
@@ -37,14 +43,20 @@ impl<G: Group> ExponentialElGamal<G> {
         public_key: &G::Point,
         randomness: &G::Scalar,
         ciphertext: (&G::Point, &G::Point),
-        plaintext_range: (&G::Scalar, &G::Scalar)
+        plaintext_range: (&G::Scalar, &G::Scalar),
     ) -> Option<G::Scalar> {
-        let message_point = self.el_gamal.decrypt_randomness(public_key, randomness, ciphertext);
+        let message_point = self
+            .el_gamal
+            .decrypt_randomness(public_key, randomness, ciphertext);
 
         self.decode_point(&message_point, plaintext_range)
     }
 
-    fn decode_point(&self, point: &G::Point, plaintext_range: (&G::Scalar, &G::Scalar)) -> Option<G::Scalar> {
+    fn decode_point(
+        &self,
+        point: &G::Point,
+        plaintext_range: (&G::Scalar, &G::Scalar),
+    ) -> Option<G::Scalar> {
         let mut current = *plaintext_range.0;
         loop {
             if *self.generator() * &current == *point {
@@ -100,11 +112,14 @@ mod tests {
         let message = Scalar::from(1u64);
 
         let ciphertext = exponential_el_gamal.encrypt(&public_key, &randomness, &message);
-        let decrypted = exponential_el_gamal.decrypt(&secret_key, (&ciphertext.0, &ciphertext.1), (&message, &message));
+        let decrypted = exponential_el_gamal.decrypt(
+            &secret_key,
+            (&ciphertext.0, &ciphertext.1),
+            (&message, &message),
+        );
 
         assert_eq!(decrypted, Some(message));
     }
-
 
     #[test]
     fn encrypt_and_decrypt_randomness() {

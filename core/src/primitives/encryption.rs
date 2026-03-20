@@ -1,9 +1,9 @@
-use std::ops;
 use crate::foundation::group::Group;
 use crate::primitives::encryption::el_gamal::ElGamal;
-use rand_core::{CryptoRng, RngCore};
-use zeroize::{Zeroize, ZeroizeOnDrop};
 use crate::primitives::encryption::exponential_el_gamal::ExponentialElGamal;
+use rand_core::{CryptoRng, RngCore};
+use std::ops;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub mod el_gamal;
 pub mod exponential_el_gamal;
@@ -166,11 +166,15 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
         }
     }
 
-    pub fn encrypt(&mut self, public_key: &PublicKey<G>, message: &HomomorphicMessage<G>) -> HomomorphicCiphertext<G> {
+    pub fn encrypt(
+        &mut self,
+        public_key: &PublicKey<G>,
+        message: &HomomorphicMessage<G>,
+    ) -> HomomorphicCiphertext<G> {
         let randomness = G::scalar_random(self.rng);
-        let (alpha, beta) = self
-            .exponential_el_gamal
-            .encrypt(&public_key.inner, &randomness, &message.inner);
+        let (alpha, beta) =
+            self.exponential_el_gamal
+                .encrypt(&public_key.inner, &randomness, &message.inner);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -179,10 +183,17 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
         HomomorphicCiphertext { alpha, beta }
     }
 
-    pub fn decrypt(&self, secret_key: &SecretKey<G>, ciphertext: &HomomorphicCiphertext<G>, message_range: &HomomorphicMessageRange<G>) -> Option<HomomorphicMessage<G>> {
-        let inner = self
-            .exponential_el_gamal
-            .decrypt(&secret_key.inner, (&ciphertext.alpha, &ciphertext.beta), (&message_range.start, &message_range.end))?;
+    pub fn decrypt(
+        &self,
+        secret_key: &SecretKey<G>,
+        ciphertext: &HomomorphicCiphertext<G>,
+        message_range: &HomomorphicMessageRange<G>,
+    ) -> Option<HomomorphicMessage<G>> {
+        let inner = self.exponential_el_gamal.decrypt(
+            &secret_key.inner,
+            (&ciphertext.alpha, &ciphertext.beta),
+            (&message_range.start, &message_range.end),
+        )?;
 
         Some(HomomorphicMessage { inner })
     }
@@ -209,7 +220,7 @@ impl<G: Group> ops::Add<&Ciphertext<G>> for &Ciphertext<G> {
     fn add(self, rhs: &Ciphertext<G>) -> Self::Output {
         Ciphertext {
             alpha: self.alpha + &rhs.alpha,
-            beta: self.beta + &rhs.beta
+            beta: self.beta + &rhs.beta,
         }
     }
 }

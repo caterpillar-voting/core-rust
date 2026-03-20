@@ -1,8 +1,8 @@
 mod pedersen;
 
-use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
 use crate::primitives::commitment::pedersen::Pedersen;
+use rand_core::{CryptoRng, RngCore};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
@@ -13,14 +13,14 @@ pub struct HidingCommitment<'a, G: Group, R: RngCore + CryptoRng> {
 }
 
 pub struct Message<G: Group> {
-    inner: G::Scalar
+    inner: G::Scalar,
 }
 pub struct Commitment<G: Group> {
-    inner: G::Point
+    inner: G::Point,
 }
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SecretRandomness<G: Group> {
-    inner: G::Scalar
+    inner: G::Scalar,
 }
 
 impl<'a, G: Group, R: RngCore + CryptoRng> HidingCommitment<'a, G, R> {
@@ -32,28 +32,32 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HidingCommitment<'a, G, R> {
     pub fn commit(&mut self, messages: &[Message<G>]) -> (Commitment<G>, SecretRandomness<G>) {
         let randomness = G::scalar_random(self.rng);
         let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.inner).collect();
-        let commitment = self.pedersen.commit(&G::scalar_random(self.rng), &scalar_messages);
+        let commitment = self
+            .pedersen
+            .commit(&G::scalar_random(self.rng), &scalar_messages);
 
-        (Commitment { inner: commitment }, SecretRandomness { inner: randomness })
+        (
+            Commitment { inner: commitment },
+            SecretRandomness { inner: randomness },
+        )
     }
 
     pub fn verify(
         &self,
         messages: &[Message<G>],
         commitment: &Commitment<G>,
-        randomness: &SecretRandomness<G>
+        randomness: &SecretRandomness<G>,
     ) -> bool {
         let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.inner).collect();
         self.pedersen.commit(&randomness.inner, &scalar_messages) == commitment.inner
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{SeedableRng, rngs::StdRng};
 
     type Curve = RistrettoGroup;
     type Scalar = <Curve as Group>::Scalar;
@@ -76,9 +80,15 @@ mod tests {
         ];
 
         let messages = vec![
-            Message::<Curve> { inner: Scalar::from(10u64) },
-            Message::<Curve> { inner: Scalar::from(20u64) },
-            Message::<Curve> { inner: Scalar::from(30u64) },
+            Message::<Curve> {
+                inner: Scalar::from(10u64),
+            },
+            Message::<Curve> {
+                inner: Scalar::from(20u64),
+            },
+            Message::<Curve> {
+                inner: Scalar::from(30u64),
+            },
         ];
 
         let mut hiding = HidingCommitment::new(point, generators, &mut rng);
