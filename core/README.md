@@ -1,5 +1,8 @@
 # Core
 
+TODO:
+- remove .mod
+
 ## Curve
 
 TODO:
