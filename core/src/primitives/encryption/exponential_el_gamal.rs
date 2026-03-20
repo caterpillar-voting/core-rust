@@ -13,7 +13,7 @@ impl<G: Group> ExponentialElGamal<G> {
     }
 
     pub fn generator(&self) -> &G::Point {
-        &self.el_gamal.generator()
+        self.el_gamal.generator()
     }
 
     pub fn encrypt(

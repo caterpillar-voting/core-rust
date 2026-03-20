@@ -1,4 +1,4 @@
-mod pedersen;
+pub mod pedersen;
 
 use crate::foundation::group::Group;
 use crate::primitives::commitment::pedersen::Pedersen;

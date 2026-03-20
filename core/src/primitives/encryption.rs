@@ -85,40 +85,12 @@ impl<'a, G: Group, R: RngCore + CryptoRng> Encryption<'a, G, R> {
         let randomness = G::scalar_random(self.rng);
 
         let (alpha, beta) = self.el_gamal.reencrypt(
-            public_key.inner(),
+            &public_key.inner,
             &randomness,
             (&ciphertext.alpha, &ciphertext.beta),
         );
 
         Ciphertext { alpha, beta }
-    }
-}
-
-impl<G: Group> SecretKey<G> {
-    fn inner(&self) -> &G::Scalar {
-        &self.inner
-    }
-}
-
-impl<G: Group> PublicKey<G> {
-    fn inner(&self) -> &G::Point {
-        &self.inner
-    }
-}
-
-impl<G: Group> Message<G> {
-    fn inner(&self) -> &G::Point {
-        &self.inner
-    }
-}
-
-impl<G: Group> Ciphertext<G> {
-    fn alpha(&self) -> &G::Point {
-        &self.alpha
-    }
-
-    fn beta(&self) -> &G::Point {
-        &self.beta
     }
 }
 
@@ -206,7 +178,7 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
         let randomness = G::scalar_random(self.rng);
 
         let (alpha, beta) = self.exponential_el_gamal.reencrypt(
-            public_key.inner(),
+            &public_key.inner,
             &randomness,
             (&ciphertext.alpha, &ciphertext.beta),
         );
