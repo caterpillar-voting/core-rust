@@ -1,8 +1,9 @@
 use crate::foundation::group::Group;
 use crate::primitives::encryption::el_gamal::ElGamal;
 
+#[derive(Debug, PartialEq)]
 pub struct ExponentialElGamal<G: Group> {
-    pub el_gamal: ElGamal<G>
+    el_gamal: ElGamal<G>
 }
 
 impl<G: Group> ExponentialElGamal<G> {
@@ -11,13 +12,17 @@ impl<G: Group> ExponentialElGamal<G> {
         Self { el_gamal }
     }
 
+    pub fn generator(&self) -> &G::Point {
+        &self.el_gamal.generator()
+    }
+
     pub fn encrypt(
         &self,
         public_key: &G::Point,
         randomness: &G::Scalar,
         message: &G::Scalar,
     ) -> (G::Point, G::Point) {
-        let message_point = self.el_gamal.point * message;
+        let message_point = *self.generator() * message;
         self.el_gamal.encrypt(public_key, randomness, &message_point)
     }
 
@@ -42,7 +47,7 @@ impl<G: Group> ExponentialElGamal<G> {
     fn decode_point(&self, point: &G::Point, plaintext_range: (&G::Scalar, &G::Scalar)) -> Option<G::Scalar> {
         let mut current = *plaintext_range.0;
         loop {
-            if self.el_gamal.point * &current == *point {
+            if *self.generator() * &current == *point {
                 return Some(current);
             }
 
@@ -90,7 +95,7 @@ mod tests {
         let exponential_el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.el_gamal.point * &secret_key;
+        let public_key = exponential_el_gamal.generator() * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Scalar::from(1u64);
 
@@ -107,7 +112,7 @@ mod tests {
         let exponential_el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.el_gamal.point * &secret_key;
+        let public_key = exponential_el_gamal.generator() * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Scalar::from(2u64);
 
@@ -128,7 +133,7 @@ mod tests {
         let exponential_el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.el_gamal.point * &secret_key;
+        let public_key = exponential_el_gamal.generator() * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Scalar::from(3u64);
 
@@ -156,7 +161,7 @@ mod tests {
         let exponential_el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.el_gamal.point * &secret_key;
+        let public_key = exponential_el_gamal.generator() * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Scalar::from(4u64);
 
