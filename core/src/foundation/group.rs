@@ -14,12 +14,6 @@ pub trait ByteSerialize {
         Self: Sized;
 }
 
-pub trait Invertible {
-    fn invert(&self) -> Option<Self>
-    where
-        Self: Sized;
-}
-
 pub trait Group {
     type Point: Clone
         + Copy
@@ -31,7 +25,6 @@ pub trait Group {
         + ops::SubAssign
         + for<'a> ops::Neg<Output = Self::Point>
         + for<'a> ops::Mul<&'a Self::Scalar, Output = Self::Point>
-        + Invertible
         + Zeroize
         + ByteSerialize
         + fmt::Debug;
@@ -49,7 +42,6 @@ pub trait Group {
         + ops::SubAssign
         + for<'a> ops::Mul<&'a Self::Scalar, Output = Self::Scalar>
         + ops::MulAssign
-        + Invertible
         + Zeroize
         + ByteSerialize
         + fmt::Debug;

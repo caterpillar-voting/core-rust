@@ -3,7 +3,7 @@
 //! [`ristretto`]: https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/index.html
 
 use crate::foundation::group::Group;
-use crate::foundation::group::{ByteSerialize, Invertible};
+use crate::foundation::group::{ByteSerialize};
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_POINT,
     ristretto::{CompressedRistretto, RistrettoPoint as RistrettoPointRaw},
@@ -25,15 +25,6 @@ impl ByteSerialize for RistrettoPointRaw {
     }
 }
 
-impl Invertible for RistrettoPointRaw {
-    fn invert(&self) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        Some(-self)
-    }
-}
-
 impl ByteSerialize for RistrettoScalarRaw {
     fn to_bytes(&self, out: &mut [u8]) {
         let bytes = self.to_bytes();
@@ -46,15 +37,6 @@ impl ByteSerialize for RistrettoScalarRaw {
     {
         let bytes: &[u8; 32] = buffer.try_into().expect("Incorrect byte size");
         Self::from_canonical_bytes(*bytes).into()
-    }
-}
-
-impl Invertible for RistrettoScalarRaw {
-    fn invert(&self) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        Some(self.invert())
     }
 }
 
@@ -109,18 +91,6 @@ mod tests {
         scalar_operation!(rng, +);
         scalar_operation!(rng, -);
         scalar_operation!(rng, *);
-    }
-
-    #[test]
-    fn neg_vs_add_sub() {
-        // check that neg, add, sub are compatible
-        let mut rng = thread_rng();
-        let x = RistrettoPointRaw::random(&mut rng);
-        let y = RistrettoPointRaw::random(&mut rng);
-        let z1 = x - y;
-        let minus_y = -y;
-        let z2 = x + minus_y;
-        assert_eq!(z1, z2);
     }
 
     #[test]
