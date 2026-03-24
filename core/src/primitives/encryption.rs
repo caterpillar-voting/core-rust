@@ -1,12 +1,10 @@
 use crate::foundation::group::Group;
-use crate::primitives::encryption::el_gamal::ElGamal;
-use crate::primitives::encryption::exponential_el_gamal::ExponentialElGamal;
+use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
 use rand_core::{CryptoRng, RngCore};
 use std::ops;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub mod el_gamal;
-pub mod exponential_el_gamal;
 
 #[derive(Debug)]
 pub struct Encryption<'a, G: Group, R: RngCore + CryptoRng> {
@@ -52,7 +50,7 @@ impl<'a, G: Group, R: RngCore + CryptoRng> Encryption<'a, G, R> {
 
     pub fn derive_public_key(&self, secret_key: &SecretKey<G>) -> PublicKey<G> {
         PublicKey {
-            inner: *self.el_gamal.g() * &secret_key.inner,
+            inner: self.el_gamal.derive_public_key(&secret_key.inner),
         }
     }
 
@@ -134,7 +132,7 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
 
     pub fn derive_public_key(&self, secret_key: &SecretKey<G>) -> PublicKey<G> {
         PublicKey {
-            inner: *self.exponential_el_gamal.g() * &secret_key.inner,
+            inner: self.exponential_el_gamal.derive_public_key(&secret_key.inner),
         }
     }
 
