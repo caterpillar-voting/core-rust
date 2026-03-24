@@ -1,13 +1,5 @@
 # Core
 
-TODO:
-- remove .mod
-
-## Curve
-
-TODO:
-- Move to wrapper types?
-
 ## Commitment
 
 Implementation of commitment as pedersen.
