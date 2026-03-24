@@ -12,6 +12,7 @@ rust-version.workspace = true
 curve25519-dalek.workspace = true
 rand_core.workspace = true
 zeroize.workspace = true
+sha2.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true }

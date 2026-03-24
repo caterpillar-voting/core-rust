@@ -56,6 +56,10 @@ impl Group for RistrettoGroup {
         Self::Point::random(rng)
     }
 
+    fn hash_to_point(payload: &[u8]) -> Self::Point {
+        RistrettoPointRaw::hash_from_bytes::<Sha512>(payload)
+    }
+
     fn scalar_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Scalar {
         let mut uniform_bytes = [0u8; 64];
         rng.try_fill_bytes(&mut uniform_bytes).unwrap();

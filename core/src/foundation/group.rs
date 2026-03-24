@@ -55,6 +55,9 @@ pub trait Group {
     /// Generate a random Point.
     fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point;
 
+    /// Hash to group point.
+    fn hash_to_point(payload: &[u8]) -> Self::Point;
+
     /// Generate a random scalar.
     fn scalar_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Scalar;
 }
