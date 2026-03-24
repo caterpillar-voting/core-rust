@@ -8,6 +8,7 @@ use rand_core::{CryptoRng, RngCore};
 use zeroize::Zeroize;
 
 pub trait ByteSerialize {
+    const BUFFER_SIZE: usize;
     fn to_bytes(&self, buffer: &mut [u8]);
     fn from_bytes(buffer: &[u8]) -> Option<Self>
     where

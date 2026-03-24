@@ -15,6 +15,8 @@ use rand_core::{CryptoRng, RngCore};
 pub struct RistrettoGroup(());
 
 impl ByteSerialize for RistrettoPointRaw {
+    const BUFFER_SIZE: usize = 32;
+
     fn to_bytes(&self, out: &mut [u8]) {
         let bytes = &self.compress().to_bytes();
         out.copy_from_slice(bytes);
@@ -26,6 +28,8 @@ impl ByteSerialize for RistrettoPointRaw {
 }
 
 impl ByteSerialize for RistrettoScalarRaw {
+    const BUFFER_SIZE: usize = 32;
+
     fn to_bytes(&self, out: &mut [u8]) {
         let bytes = self.to_bytes();
         out.copy_from_slice(&bytes)
