@@ -1,6 +1,5 @@
 use crate::foundation::group::Group;
 
-/// A Pedersen commitment: `C = [r]g + Σ [mᵢ]hᵢ`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pedersen<G: Group> {
     pub g: G::Point,

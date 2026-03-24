@@ -1,9 +1,8 @@
 use crate::foundation::group::Group;
 
-/// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ElGamal<G: Group> {
-    g: G::Point, // blinding base
+    g: G::Point,
 }
 
 impl<G: Group> ElGamal<G> {
@@ -58,8 +57,6 @@ impl<G: Group> ElGamal<G> {
 
         (alpha, beta)
     }
-
-    // todo: add homomorph op; same for exponential_el_gamal
 }
 
 #[derive(Debug, PartialEq)]
