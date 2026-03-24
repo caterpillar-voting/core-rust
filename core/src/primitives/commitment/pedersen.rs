@@ -44,30 +44,32 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use rand::{SeedableRng, rngs::StdRng};
+    use rand::{SeedableRng, rngs::StdRng, thread_rng};
+    use rand_core::{CryptoRng, RngCore};
+    use crate::primitives::commitment::pedersen;
 
     type Curve = RistrettoGroup;
     type Scalar = <Curve as Group>::Scalar;
 
-    fn seeded_rng() -> StdRng {
-        let mut seed = [0u8; 32];
-        seed[..5].copy_from_slice(b"hello");
-        StdRng::from_seed(seed)
+    fn new_pedersen<R: RngCore + CryptoRng>(n: usize, rng: &mut R) -> (Pedersen<Curve>) {
+        let point = Curve::point_random(rng);
+        let generators = (0..n).map(|_| Curve::point_random(rng)).collect(); // TODO: use verifiable generators
+
+        Pedersen::new(point, generators)
     }
 
-    fn new_pedersen(n: usize, rng: &mut StdRng) -> Pedersen<Curve> {
-        let point = Curve::point_random(rng);
-        let generators = (0..n).map(|_| Curve::point_random(rng)).collect();
-        Pedersen::new(point, generators) // TODO: instead insert verifiable generators
+    fn new_pedersen_sample<R: RngCore + CryptoRng>(n: usize, rng: &mut R) -> (Scalar, Vec<Scalar>) {
+        let randomness = Curve::scalar_random(rng);
+        let messages: Vec<Scalar> = (0..n).map(|_| Curve::scalar_random(rng)).collect();
+
+        (randomness, messages)
     }
 
     #[test]
     fn commit_and_open() {
-        let mut rng = seeded_rng();
-        let pedersen = new_pedersen(5, &mut rng);
-
-        let messages: Vec<Scalar> = (0..5).map(|_| Curve::scalar_random(&mut rng)).collect();
-        let randomness = Curve::scalar_random(&mut rng);
+        let mut rng = thread_rng();
+        let pedersen  = new_pedersen(5, &mut rng);
+        let (randomness, messages)  = new_pedersen_sample(5, &mut rng);
 
         let commitment = pedersen.commit(&randomness, &messages);
 
@@ -76,27 +78,25 @@ mod tests {
 
     #[test]
     fn homomorphic_properties() {
-        let mut rng = seeded_rng();
-        let pedersen = new_pedersen(4, &mut rng);
+        let mut rng = thread_rng();
+        let pedersen  = new_pedersen(5, &mut rng);
 
-        let messages1: Vec<Scalar> = (0..4).map(|_| Curve::scalar_random(&mut rng)).collect();
-        let messages2: Vec<Scalar> = (0..4).map(|_| Curve::scalar_random(&mut rng)).collect();
-        let r1 = Curve::scalar_random(&mut rng);
-        let r2 = Curve::scalar_random(&mut rng);
+        let (r_1, m_1)  = new_pedersen_sample(5, &mut rng);
+        let (r_2, m_2)  = new_pedersen_sample(5, &mut rng);
 
-        let c1 = pedersen.commit(&r1, &messages1);
-        let c2 = pedersen.commit(&r2, &messages2);
+        let commitment_1 = pedersen.commit(&r_1, &m_1);
+        let commitment_2 = pedersen.commit(&r_2, &m_2);
 
-        let summed_messages: Vec<Scalar> = messages1
+        let summed_messages: Vec<Scalar> = m_1
             .iter()
-            .zip(&messages2)
+            .zip(&m_2)
             .map(|(a, b)| *a + b)
             .collect();
-        let summed_randomness = r1 + &r2;
+        let summed_randomness = r_1 + &r_2;
 
         let expected = pedersen.commit(&summed_randomness, &summed_messages);
 
-        assert_eq!(c1 + &c2, expected);
+        assert_eq!(commitment_1 + &commitment_2, expected);
         assert!(pedersen.verify(&summed_randomness, &summed_messages, &expected));
     }
 }
