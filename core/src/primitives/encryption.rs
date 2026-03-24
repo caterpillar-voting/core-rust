@@ -70,7 +70,7 @@ impl<'a, G: Group, R: RngCore + CryptoRng> Encryption<'a, G, R> {
     pub fn decrypt(&self, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> Message<G> {
         let inner = self
             .el_gamal
-            .decrypt(&secret_key.inner, (&ciphertext.alpha, &ciphertext.beta));
+            .decrypt(&secret_key.inner, &(ciphertext.alpha, ciphertext.beta));
 
         Message { inner }
     }
@@ -85,7 +85,7 @@ impl<'a, G: Group, R: RngCore + CryptoRng> Encryption<'a, G, R> {
         let (alpha, beta) = self.el_gamal.reencrypt(
             &public_key.inner,
             &randomness,
-            (&ciphertext.alpha, &ciphertext.beta),
+            &(ciphertext.alpha, ciphertext.beta),
         );
 
         Ciphertext { alpha, beta }
@@ -161,8 +161,8 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
     ) -> Option<HomomorphicMessage<G>> {
         let inner = self.exponential_el_gamal.decrypt(
             &secret_key.inner,
-            (&ciphertext.alpha, &ciphertext.beta),
-            (&message_range.start, &message_range.end),
+            &(ciphertext.alpha, ciphertext.beta),
+            &(message_range.start, message_range.end),
         )?;
 
         Some(HomomorphicMessage { inner })
@@ -178,7 +178,7 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
         let (alpha, beta) = self.exponential_el_gamal.reencrypt(
             &public_key.inner,
             &randomness,
-            (&ciphertext.alpha, &ciphertext.beta),
+            &(ciphertext.alpha, ciphertext.beta),
         );
 
         HomomorphicCiphertext { alpha, beta }

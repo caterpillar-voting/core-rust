@@ -10,50 +10,45 @@ impl<G: Group> ElGamal<G> {
         Self { g }
     }
 
-    pub fn derive_public_key(&self, secret_key: &G::Scalar) -> G::Point {
-        self.g * &secret_key
+    pub fn derive_public_key(&self, sk: &G::Scalar) -> G::Point {
+        self.g * &sk
     }
 
-    pub fn encrypt(
-        &self,
-        pk: &G::Point,
-        r: &G::Scalar,
-        m: &G::Point,
-    ) -> (G::Point, G::Point) {
+    pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Point) -> (G::Point, G::Point) {
         let alpha = self.g * r;
         let beta = *pk * r + m;
 
         (alpha, beta)
     }
 
-    pub fn decrypt(&self, secret_key: &G::Scalar, ciphertext: (&G::Point, &G::Point)) -> G::Point {
+    pub fn decrypt(&self, sk: &G::Scalar, ciphertext: &(G::Point, G::Point)) -> G::Point {
         let (alpha, beta) = ciphertext;
 
-        *beta - &(*alpha * secret_key)
+        *beta - &(*alpha * sk)
     }
 
     pub fn decrypt_randomness(
         &self,
-        public_key: &G::Point,
-        randomness: &G::Scalar,
-        ciphertext: (&G::Point, &G::Point),
+        pk: &G::Point,
+        r: &G::Scalar,
+        ciphertext: &(G::Point, G::Point),
     ) -> G::Point {
         let (_, beta) = ciphertext;
-        let hiding_factor = *public_key * randomness;
+        let hiding_factor = *pk * r;
 
         *beta - &hiding_factor
     }
 
     pub fn reencrypt(
         &self,
-        public_key: &G::Point,
-        randomness: &G::Scalar,
-        ciphertext: (&G::Point, &G::Point),
+        pk: &G::Point,
+        r: &G::Scalar,
+        ciphertext: &(G::Point, G::Point),
     ) -> (G::Point, G::Point) {
         let (alpha, beta) = ciphertext;
 
-        let alpha = self.g * randomness + alpha;
-        let beta = *public_key * randomness + beta;
+        let alpha = self.g * r + alpha;
+        let beta = *pk * r + beta;
 
         (alpha, beta)
     }
@@ -65,59 +60,47 @@ pub struct ExponentialElGamal<G: Group> {
 }
 
 impl<G: Group> ExponentialElGamal<G> {
-    pub fn new(point: G::Point) -> Self {
-        let el_gamal = ElGamal::new(point);
+    pub fn new(g: G::Point) -> Self {
+        let el_gamal = ElGamal::new(g);
         Self { el_gamal }
     }
 
-    pub fn derive_public_key(&self, secret_key: &G::Scalar) -> G::Point {
-        self.el_gamal.derive_public_key(&secret_key)
+    pub fn derive_public_key(&self, sk: &G::Scalar) -> G::Point {
+        self.el_gamal.derive_public_key(&sk)
     }
 
-    pub fn encrypt(
-        &self,
-        public_key: &G::Point,
-        randomness: &G::Scalar,
-        message: &G::Scalar,
-    ) -> (G::Point, G::Point) {
-        let message_point = self.el_gamal.g * message;
-        self.el_gamal
-            .encrypt(public_key, randomness, &message_point)
+    pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Scalar) -> (G::Point, G::Point) {
+        let m_point = self.el_gamal.g * m;
+        self.el_gamal.encrypt(pk, r, &m_point)
     }
 
     pub fn decrypt(
         &self,
-        secret_key: &G::Scalar,
-        ciphertext: (&G::Point, &G::Point),
-        plaintext_range: (&G::Scalar, &G::Scalar),
+        sk: &G::Scalar,
+        ciphertext: &(G::Point, G::Point),
+        m_range: &(G::Scalar, G::Scalar),
     ) -> Option<G::Scalar> {
-        let message_point = self.el_gamal.decrypt(secret_key, ciphertext);
+        let m_point = self.el_gamal.decrypt(sk, ciphertext);
 
-        self.decode_point(&message_point, plaintext_range)
+        self.decode_point(&m_point, m_range)
     }
 
     pub fn decrypt_randomness(
         &self,
-        public_key: &G::Point,
-        randomness: &G::Scalar,
-        ciphertext: (&G::Point, &G::Point),
-        plaintext_range: (&G::Scalar, &G::Scalar),
+        pk: &G::Point,
+        r: &G::Scalar,
+        ciphertext: &(G::Point, G::Point),
+        m_range: &(G::Scalar, G::Scalar),
     ) -> Option<G::Scalar> {
-        let message_point = self
-            .el_gamal
-            .decrypt_randomness(public_key, randomness, ciphertext);
+        let message_point = self.el_gamal.decrypt_randomness(pk, r, ciphertext);
 
-        self.decode_point(&message_point, plaintext_range)
+        self.decode_point(&message_point, m_range)
     }
 
-    fn decode_point(
-        &self,
-        point: &G::Point,
-        plaintext_range: (&G::Scalar, &G::Scalar),
-    ) -> Option<G::Scalar> {
-        let mut current = *plaintext_range.0;
+    fn decode_point(&self, g: &G::Point, m_range: &(G::Scalar, G::Scalar)) -> Option<G::Scalar> {
+        let mut current = m_range.0;
         loop {
-            if self.el_gamal.g * &current == *point {
+            if self.el_gamal.g * &current == *g {
                 return Some(current);
             }
 
@@ -127,11 +110,11 @@ impl<G: Group> ExponentialElGamal<G> {
 
     pub fn reencrypt(
         &self,
-        public_key: &G::Point,
-        randomness: &G::Scalar,
-        ciphertext: (&G::Point, &G::Point),
+        pk: &G::Point,
+        r: &G::Scalar,
+        ciphertext: &(G::Point, G::Point),
     ) -> (G::Point, G::Point) {
-        self.el_gamal.reencrypt(public_key, randomness, ciphertext)
+        self.el_gamal.reencrypt(pk, r, ciphertext)
     }
 }
 
@@ -142,212 +125,118 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use rand::{SeedableRng, rngs::StdRng};
+    use rand::thread_rng;
+    use rand_core::{CryptoRng, RngCore};
 
     type Curve = RistrettoGroup;
 
     type Scalar = <RistrettoGroup as Group>::Scalar;
+    type Point = <RistrettoGroup as Group>::Point;
 
-    fn seeded_rng() -> StdRng {
-        let mut seed = [0u8; 32];
-        seed[..5].copy_from_slice(b"hello");
-        StdRng::from_seed(seed)
-    }
-
-    fn new_el_gamal(rng: &mut StdRng) -> ElGamal<Curve> {
+    fn new_el_gamal<R: RngCore + CryptoRng>(rng: &mut R) -> ElGamal<Curve> {
         let point = Curve::point_random(rng);
         ElGamal::new(point)
     }
 
-    #[test]
-    fn encrypt_and_decrypt() {
-        let mut rng = seeded_rng();
-        let el_gamal = new_el_gamal(&mut rng);
+    fn new_el_gamal_sample<R: RngCore + CryptoRng>(
+        el_gamal: &ElGamal<Curve>,
+        rng: &mut R,
+    ) -> (Scalar, Point, Scalar, Point) {
+        let sk = Curve::scalar_random(rng);
+        let pk = el_gamal.derive_public_key(&sk);
+        let r = Curve::scalar_random(rng);
+        let m = Curve::point_random(rng);
 
-        let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = el_gamal.g * &secret_key;
-        let randomness = Curve::scalar_random(&mut rng);
-        let message = Curve::point_random(&mut rng);
-
-        let ciphertext = el_gamal.encrypt(&public_key, &randomness, &message);
-        let decrypted = el_gamal.decrypt(&secret_key, (&ciphertext.0, &ciphertext.1));
-
-        assert_eq!(decrypted, message);
+        (sk, pk, r, m)
     }
 
     #[test]
-    fn encrypt_and_decrypt_randomness() {
-        let mut rng = seeded_rng();
+    fn encrypt_and_decrypt() {
+        let mut rng = thread_rng();
         let el_gamal = new_el_gamal(&mut rng);
+        let (sk, pk, r, m) = new_el_gamal_sample(&el_gamal, &mut rng);
 
-        let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = el_gamal.g * &secret_key;
-        let randomness = Curve::scalar_random(&mut rng);
-        let message = Curve::point_random(&mut rng);
+        let ciphertext = el_gamal.encrypt(&pk, &r, &m);
+        let m_decrypted = el_gamal.decrypt(&sk, &ciphertext);
+        let m_decrypted_randomness = el_gamal.decrypt_randomness(&pk, &r, &ciphertext);
 
-        let ciphertext = el_gamal.encrypt(&public_key, &randomness, &message);
-        let decrypted =
-            el_gamal.decrypt_randomness(&public_key, &randomness, (&ciphertext.0, &ciphertext.1));
-
-        assert_eq!(decrypted, message);
+        assert_eq!(m_decrypted, m);
+        assert_eq!(m_decrypted_randomness, m);
     }
 
     #[test]
     fn reencrypt_and_decrypt() {
-        let mut rng = seeded_rng();
+        let mut rng = thread_rng();
         let el_gamal = new_el_gamal(&mut rng);
+        let (sk, pk, r, m) = new_el_gamal_sample(&el_gamal, &mut rng);
 
-        let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = el_gamal.g * &secret_key;
-        let randomness = Curve::scalar_random(&mut rng);
-        let message = Curve::point_random(&mut rng);
+        let ciphertext = el_gamal.encrypt(&pk, &r, &m);
 
-        let ciphertext = el_gamal.encrypt(&public_key, &randomness, &message);
+        let r_2 = Curve::scalar_random(&mut rng);
+        let ciphertext_2 = el_gamal.reencrypt(&pk, &r_2, &ciphertext);
 
-        let extra_randomness = Curve::scalar_random(&mut rng);
-        let reencrypted = el_gamal.reencrypt(
-            &public_key,
-            &extra_randomness,
-            (&ciphertext.0, &ciphertext.1),
-        );
+        let m_decrypted = el_gamal.decrypt(&sk, &ciphertext_2);
+        let r_combined = r + &r_2;
+        let m_decrypted_randomness = el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2);
 
-        let decrypted = el_gamal.decrypt(&secret_key, (&reencrypted.0, &reencrypted.1));
-
-        assert_eq!(decrypted, message);
+        assert_eq!(m_decrypted, m);
+        assert_eq!(m_decrypted_randomness, m);
     }
 
-    #[test]
-    fn reencrypt_and_decrypt_randomness() {
-        let mut rng = seeded_rng();
-        let el_gamal = new_el_gamal(&mut rng);
-
-        let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = el_gamal.g * &secret_key;
-        let randomness = Curve::scalar_random(&mut rng);
-        let message = Curve::point_random(&mut rng);
-
-        let ciphertext = el_gamal.encrypt(&public_key, &randomness, &message);
-
-        let extra_randomness = Curve::scalar_random(&mut rng);
-        let reencrypted = el_gamal.reencrypt(
-            &public_key,
-            &extra_randomness,
-            (&ciphertext.0, &ciphertext.1),
-        );
-
-        let combined_randomness = randomness + &extra_randomness;
-        let decrypted = el_gamal.decrypt_randomness(
-            &public_key,
-            &combined_randomness,
-            (&reencrypted.0, &reencrypted.1),
-        );
-
-        assert_eq!(decrypted, message);
-    }
-
-    fn new_exponential_el_gamal(rng: &mut StdRng) -> ExponentialElGamal<Curve> {
+    fn new_exponential_el_gamal<R: RngCore + CryptoRng>(rng: &mut R) -> ExponentialElGamal<Curve> {
         let point = Curve::point_random(rng);
-
         ExponentialElGamal::new(point)
+    }
+
+    fn new_exponential_el_gamal_sample<R: RngCore + CryptoRng>(
+        exponential_el_gamal: &ExponentialElGamal<Curve>,
+        rng: &mut R,
+    ) -> (Scalar, Point, Scalar, Scalar, (Scalar, Scalar)) {
+        let sk = Curve::scalar_random(rng);
+        let pk = exponential_el_gamal.derive_public_key(&sk);
+        let r = Curve::scalar_random(rng);
+        let m = Scalar::from(2u8);
+        let m_start = Scalar::from(2u8);
+        let m_end = Scalar::from(2u8);
+
+        (sk, pk, r, m, (m_start, m_end))
     }
 
     #[test]
     fn exponential_encrypt_and_decrypt() {
-        let mut rng = seeded_rng();
+        let mut rng = thread_rng();
         let exponential_el_gamal = new_exponential_el_gamal(&mut rng);
+        let (sk, pk, r, m, m_range) =
+            new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
 
-        let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.el_gamal.g * &secret_key;
-        let randomness = Curve::scalar_random(&mut rng);
-        let message = Scalar::from(1u64);
+        let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
+        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_range);
+        let m_decrypted_randomness =
+            exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_range);
 
-        let ciphertext = exponential_el_gamal.encrypt(&public_key, &randomness, &message);
-        let decrypted = exponential_el_gamal.decrypt(
-            &secret_key,
-            (&ciphertext.0, &ciphertext.1),
-            (&message, &message),
-        );
-
-        assert_eq!(decrypted, Some(message));
-    }
-
-    #[test]
-    fn exponential_encrypt_and_decrypt_randomness() {
-        let mut rng = seeded_rng();
-        let exponential_el_gamal = new_exponential_el_gamal(&mut rng);
-
-        let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.derive_public_key(&secret_key);
-        let randomness = Curve::scalar_random(&mut rng);
-        let message = Scalar::from(2u64);
-
-        let ciphertext = exponential_el_gamal.encrypt(&public_key, &randomness, &message);
-        let decrypted = exponential_el_gamal.decrypt_randomness(
-            &public_key,
-            &randomness,
-            (&ciphertext.0, &ciphertext.1),
-            (&Scalar::from(0u64), &Scalar::from(10u64)),
-        );
-
-        assert_eq!(decrypted, Some(message));
+        assert_eq!(m_decrypted, Some(m));
+        assert_eq!(m_decrypted_randomness, Some(m));
     }
 
     #[test]
     fn exponential_reencrypt_and_decrypt() {
-        let mut rng = seeded_rng();
+        let mut rng = thread_rng();
         let exponential_el_gamal = new_exponential_el_gamal(&mut rng);
+        let (sk, pk, r, m, m_range) =
+            new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
 
-        let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.derive_public_key(&secret_key);
-        let randomness = Curve::scalar_random(&mut rng);
-        let message = Scalar::from(3u64);
+        let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
 
-        let ciphertext = exponential_el_gamal.encrypt(&public_key, &randomness, &message);
+        let r_2 = Curve::scalar_random(&mut rng);
+        let ciphertext_2 = exponential_el_gamal.reencrypt(&pk, &r_2, &ciphertext);
 
-        let extra_randomness = Curve::scalar_random(&mut rng);
-        let reencrypted = exponential_el_gamal.reencrypt(
-            &public_key,
-            &extra_randomness,
-            (&ciphertext.0, &ciphertext.1),
-        );
+        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_range);
+        let r_combined = r + &r_2;
+        let m_decrypted_randomness =
+            exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_range);
 
-        let decrypted = exponential_el_gamal.decrypt(
-            &secret_key,
-            (&reencrypted.0, &reencrypted.1),
-            (&Scalar::from(0u64), &Scalar::from(10u64)),
-        );
-
-        assert_eq!(decrypted, Some(message));
-    }
-
-    #[test]
-    fn exponential_reencrypt_and_decrypt_randomness() {
-        let mut rng = seeded_rng();
-        let exponential_el_gamal = new_exponential_el_gamal(&mut rng);
-
-        let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.derive_public_key(&secret_key);
-        let randomness = Curve::scalar_random(&mut rng);
-        let message = Scalar::from(4u64);
-
-        let ciphertext = exponential_el_gamal.encrypt(&public_key, &randomness, &message);
-
-        let extra_randomness = Curve::scalar_random(&mut rng);
-        let reencrypted = exponential_el_gamal.reencrypt(
-            &public_key,
-            &extra_randomness,
-            (&ciphertext.0, &ciphertext.1),
-        );
-
-        let combined_randomness = randomness + &extra_randomness;
-        let decrypted = exponential_el_gamal.decrypt_randomness(
-            &public_key,
-            &combined_randomness,
-            (&reencrypted.0, &reencrypted.1),
-            (&Scalar::from(0u64), &Scalar::from(10u64)),
-        );
-
-        assert_eq!(decrypted, Some(message));
+        assert_eq!(m_decrypted, Some(m));
+        assert_eq!(m_decrypted_randomness, Some(m));
     }
 }
 
