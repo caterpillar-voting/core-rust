@@ -165,7 +165,7 @@ mod tests {
     }
 
     #[test]
-    fn reencrypt_and_decrypt() {
+    fn encrypt_reencrypt_and_decrypt() {
         let mut rng = thread_rng();
         let el_gamal = new_el_gamal(&mut rng);
         let (sk, pk, r, m) = new_el_gamal_sample(&el_gamal, &mut rng);
@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn exponential_reencrypt_and_decrypt() {
+    fn exponential_encrypt_reencrypt_and_decrypt() {
         let mut rng = thread_rng();
         let exponential_el_gamal = new_exponential_el_gamal(&mut rng);
         let (sk, pk, r, m, m_range) =
