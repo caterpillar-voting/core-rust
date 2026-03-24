@@ -9,7 +9,7 @@ type GroupPoint = RistrettoPoint;
 type GroupScalar = Scalar;
 
 fn el_gamal() -> ElGamal<RistrettoGroup> {
-    ElGamal::new(RistrettoGroup::generator())
+    ElGamal::new(RistrettoGroup::basepoint())
 }
 
 #[wasm_bindgen]
@@ -46,7 +46,7 @@ impl WasmSecretKey {
 
     #[wasm_bindgen(js_name = derive_public_key)]
     pub fn derive_public_key(&self) -> WasmPublicKey {
-        let public_key = RistrettoGroup::generator() * self.inner;
+        let public_key = RistrettoGroup::basepoint() * self.inner;
         WasmPublicKey { inner: public_key }
     }
 

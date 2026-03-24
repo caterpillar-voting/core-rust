@@ -62,16 +62,16 @@ impl Group for RistrettoGroup {
     type Point = RistrettoPointRaw;
     type Scalar = RistrettoScalarRaw;
 
-    fn generator() -> Self::Point {
+    fn identity() -> Self::Point {
+        Self::Point::identity()
+    }
+
+    fn basepoint() -> Self::Point {
         RISTRETTO_BASEPOINT_POINT
     }
 
     fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point {
         Self::Point::random(rng)
-    }
-
-    fn identity() -> Self::Point {
-        Self::Point::identity()
     }
 
     fn scalar_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Scalar {
@@ -127,13 +127,13 @@ mod tests {
     fn point_isid() {
         let mut rng = rand::thread_rng();
         let scalar = RistrettoGroup::scalar_random(&mut rng);
-        let zero = RistrettoGroup::generator() * scalar - RistrettoGroup::generator() * scalar;
+        let zero = RistrettoGroup::basepoint() * scalar - RistrettoGroup::basepoint() * scalar;
         assert_eq!(zero, RistrettoGroup::identity());
     }
 
     #[test]
     fn point_from_bytes() {
-        let g = RistrettoGroup::generator();
+        let g = RistrettoGroup::basepoint();
         let mut bytes = [0u8; 32];
         g.to_bytes(&mut bytes);
         let g_from_bytes = Point::from_bytes(&bytes).unwrap();

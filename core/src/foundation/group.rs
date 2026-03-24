@@ -54,14 +54,14 @@ pub trait Group {
         + ByteSerialize
         + fmt::Debug;
 
-    /// Initialize Point as a generator of the foundation
-    fn generator() -> Self::Point;
+    /// Return the identity
+    fn identity() -> Self::Point;
+
+    /// Return the basepoint, i.e., a generator defined by the spec to be used as a starting point for the group.
+    fn basepoint() -> Self::Point;
 
     /// Generate a random Point.
     fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point;
-
-    /// Return the identity Point of the foundation.
-    fn identity() -> Self::Point;
 
     /// Generate a random scalar.
     fn scalar_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Scalar;
