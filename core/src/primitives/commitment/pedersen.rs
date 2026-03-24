@@ -26,13 +26,13 @@ impl<G: Group> Pedersen<G> {
 
     pub fn verify(
         &self,
-        messages: &[G::Scalar],
-        randomness: &G::Scalar,
+        r: &G::Scalar,
+        m: &[G::Scalar],
         commitment: &G::Point,
     ) -> bool {
-        assert!(messages.len() <= self.h.len()); // TODO discuss: remove; exposes implementation details of commit(), duplicates code
+        assert!(m.len() <= self.h.len()); // TODO discuss: remove; exposes implementation details of commit(), duplicates code
 
-        let recomputed_commitment = self.commit(randomness, messages);
+        let recomputed_commitment = self.commit(r, m);
 
         recomputed_commitment == *commitment
     }
@@ -72,7 +72,7 @@ mod tests {
 
         let commitment = pedersen.commit(&randomness, &messages);
 
-        assert!(pedersen.verify(&messages, &randomness, &commitment));
+        assert!(pedersen.verify(&randomness, &messages, &commitment));
     }
 
     #[test]
@@ -98,7 +98,7 @@ mod tests {
         let expected = pedersen.commit(&summed_randomness, &summed_messages);
 
         assert_eq!(c1 + &c2, expected);
-        assert!(pedersen.verify(&summed_messages, &summed_randomness, &expected));
+        assert!(pedersen.verify(&summed_randomness, &summed_messages, &expected));
     }
 }
 
