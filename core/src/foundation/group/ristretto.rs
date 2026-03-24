@@ -11,6 +11,7 @@ use curve25519_dalek::{
     traits::Identity,
 };
 use rand_core::{CryptoRng, RngCore};
+use sha2::Sha512;
 
 pub struct RistrettoGroup(());
 
@@ -82,32 +83,61 @@ mod tests {
     type Scalar = <RistrettoGroup as Group>::Scalar;
 
     #[test]
-    fn point_isid() {
-        let mut rng = rand::thread_rng();
-        let scalar = RistrettoGroup::scalar_random(&mut rng);
-        let zero = RistrettoGroup::basepoint() * scalar - RistrettoGroup::basepoint() * scalar;
+    fn identity_is_zero() {
+        let two = Scalar::from(2u8);
+        let four = Scalar::from(4u8);
+        let two_point = RistrettoGroup::basepoint() * two;
+        let four_point = RistrettoGroup::basepoint() * four;
+        let zero = four_point - two_point - two_point;
         assert_eq!(zero, RistrettoGroup::identity());
     }
 
     #[test]
-    fn point_from_bytes() {
-        let g = RistrettoGroup::basepoint();
-        let mut bytes = [0u8; 32];
-        g.to_bytes(&mut bytes);
-        let g_from_bytes = Point::from_bytes(&bytes).unwrap();
+    fn construct_random_points_and_scalars() {
+        let mut rng = thread_rng();
+        let random_point = RistrettoGroup::point_random(&mut rng);
+        let random_scalar = RistrettoGroup::scalar_random(&mut rng);
+        let point_from_random_operation = random_point * random_scalar;
 
-        assert_eq!(g, g_from_bytes)
+        let mut bytes = [0u8; 43];
+        rng.fill_bytes(&mut bytes);
+        let point_from_hash = RistrettoGroup::hash_to_point(&bytes);
+
+        assert_ne!(point_from_random_operation, RistrettoGroup::identity());
+        assert_ne!(point_from_hash, RistrettoGroup::identity());
+        assert_ne!(point_from_hash, point_from_random_operation);
     }
 
     #[test]
-    fn scalar_from_bytes() {
+    fn serialization_roundtrips() {
         let mut rng = thread_rng();
-        let e = RistrettoGroup::scalar_random(&mut rng);
-        let mut bytes = [0u8; 32];
-        ByteSerialize::to_bytes(&e, &mut bytes);
-        let e_from_bytes = Scalar::from_bytes(&bytes).unwrap();
 
-        assert_eq!(e, e_from_bytes)
+        let points = [
+            RistrettoGroup::identity(),
+            RistrettoGroup::basepoint(),
+            RistrettoGroup::point_random(&mut rng),
+            RistrettoGroup::hash_to_point(b"payload"),
+        ];
+
+        for point in points {
+            let mut bytes = [0u8; <Point as ByteSerialize>::BUFFER_SIZE];
+            ByteSerialize::to_bytes(&point, &mut bytes);
+            let recovered_point = Point::from_bytes(&bytes).unwrap();
+            assert_eq!(point, recovered_point);
+        }
+
+        let scalars = [
+            Scalar::from(0u64),
+            Scalar::from(1u64),
+            RistrettoGroup::scalar_random(&mut rng),
+        ];
+
+        for scalar in scalars {
+            let mut bytes = [0u8; <Scalar as ByteSerialize>::BUFFER_SIZE];
+            ByteSerialize::to_bytes(&scalar, &mut bytes);
+            let recovered_scalar = Scalar::from_bytes(&bytes).unwrap();
+            assert_eq!(scalar, recovered_scalar);
+        }
     }
 }
 
