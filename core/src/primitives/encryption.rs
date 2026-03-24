@@ -52,7 +52,7 @@ impl<'a, G: Group, R: RngCore + CryptoRng> Encryption<'a, G, R> {
 
     pub fn derive_public_key(&self, secret_key: &SecretKey<G>) -> PublicKey<G> {
         PublicKey {
-            inner: *self.el_gamal.generator() * &secret_key.inner,
+            inner: *self.el_gamal.g() * &secret_key.inner,
         }
     }
 
@@ -134,7 +134,7 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
 
     pub fn derive_public_key(&self, secret_key: &SecretKey<G>) -> PublicKey<G> {
         PublicKey {
-            inner: *self.exponential_el_gamal.generator() * &secret_key.inner,
+            inner: *self.exponential_el_gamal.g() * &secret_key.inner,
         }
     }
 

@@ -12,8 +12,8 @@ impl<G: Group> ExponentialElGamal<G> {
         Self { el_gamal }
     }
 
-    pub fn generator(&self) -> &G::Point {
-        self.el_gamal.generator()
+    pub fn g(&self) -> &G::Point {
+        self.el_gamal.g()
     }
 
     pub fn encrypt(
@@ -22,7 +22,7 @@ impl<G: Group> ExponentialElGamal<G> {
         randomness: &G::Scalar,
         message: &G::Scalar,
     ) -> (G::Point, G::Point) {
-        let message_point = *self.generator() * message;
+        let message_point = *self.g() * message;
         self.el_gamal
             .encrypt(public_key, randomness, &message_point)
     }
@@ -59,7 +59,7 @@ impl<G: Group> ExponentialElGamal<G> {
     ) -> Option<G::Scalar> {
         let mut current = *plaintext_range.0;
         loop {
-            if *self.generator() * &current == *point {
+            if *self.g() * &current == *point {
                 return Some(current);
             }
 
@@ -107,7 +107,7 @@ mod tests {
         let exponential_el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.generator() * &secret_key;
+        let public_key = exponential_el_gamal.g() * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Scalar::from(1u64);
 
@@ -127,7 +127,7 @@ mod tests {
         let exponential_el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.generator() * &secret_key;
+        let public_key = exponential_el_gamal.g() * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Scalar::from(2u64);
 
@@ -148,7 +148,7 @@ mod tests {
         let exponential_el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.generator() * &secret_key;
+        let public_key = exponential_el_gamal.g() * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Scalar::from(3u64);
 
@@ -176,7 +176,7 @@ mod tests {
         let exponential_el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = exponential_el_gamal.generator() * &secret_key;
+        let public_key = exponential_el_gamal.g() * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Scalar::from(4u64);
 

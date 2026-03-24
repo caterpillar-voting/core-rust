@@ -3,16 +3,16 @@ use crate::foundation::group::Group;
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ElGamal<G: Group> {
-    generator: G::Point, // blinding base
+    g: G::Point, // blinding base
 }
 
 impl<G: Group> ElGamal<G> {
-    pub fn new(point: G::Point) -> Self {
-        Self { generator: point }
+    pub fn new(g: G::Point) -> Self {
+        Self { g }
     }
 
-    pub fn generator(&self) -> &G::Point {
-        &self.generator
+    pub fn g(&self) -> &G::Point {
+        &self.g
     }
 
     pub fn encrypt(
@@ -21,7 +21,7 @@ impl<G: Group> ElGamal<G> {
         randomness: &G::Scalar,
         message: &G::Point,
     ) -> (G::Point, G::Point) {
-        let alpha = self.generator * randomness;
+        let alpha = self.g * randomness;
         let beta = *public_key * randomness + message;
 
         (alpha, beta)
@@ -53,7 +53,7 @@ impl<G: Group> ElGamal<G> {
     ) -> (G::Point, G::Point) {
         let (alpha, beta) = ciphertext;
 
-        let alpha = self.generator * randomness + alpha;
+        let alpha = self.g * randomness + alpha;
         let beta = *public_key * randomness + beta;
 
         (alpha, beta)
@@ -90,7 +90,7 @@ mod tests {
         let el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = el_gamal.generator * &secret_key;
+        let public_key = el_gamal.g * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Curve::point_random(&mut rng);
 
@@ -106,7 +106,7 @@ mod tests {
         let el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = el_gamal.generator * &secret_key;
+        let public_key = el_gamal.g * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Curve::point_random(&mut rng);
 
@@ -123,7 +123,7 @@ mod tests {
         let el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = el_gamal.generator * &secret_key;
+        let public_key = el_gamal.g * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Curve::point_random(&mut rng);
 
@@ -147,7 +147,7 @@ mod tests {
         let el_gamal = new_el_gamal(&mut rng);
 
         let secret_key = Curve::scalar_random(&mut rng);
-        let public_key = el_gamal.generator * &secret_key;
+        let public_key = el_gamal.g * &secret_key;
         let randomness = Curve::scalar_random(&mut rng);
         let message = Curve::point_random(&mut rng);
 
