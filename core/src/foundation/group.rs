@@ -42,6 +42,7 @@ pub trait Group {
         + for<'a> ops::Sub<&'a Self::Scalar, Output = Self::Scalar>
         + ops::SubAssign
         + for<'a> ops::Mul<&'a Self::Scalar, Output = Self::Scalar>
+        + for<'a> ops::Mul<&'a Self::Point, Output = Self::Point>
         + ops::MulAssign
         + Zeroize
         + ByteSerialize

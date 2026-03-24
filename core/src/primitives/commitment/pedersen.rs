@@ -1,25 +1,27 @@
 use crate::foundation::group::Group;
 
-/// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
+/// A Pedersen commitment: `C = [r]g + Σ [mᵢ]hᵢ`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pedersen<G: Group> {
-    pub point: G::Point, // blinding base
-    pub generators: Vec<G::Point>,
+    pub g: G::Point,
+    pub h: Vec<G::Point>,
 }
 
 impl<G: Group> Pedersen<G> {
-    pub fn new(point: G::Point, generators: Vec<G::Point>) -> Self {
-        Self { point, generators }
+    pub fn new(g: G::Point, h: Vec<G::Point>) -> Self {
+        Self { g, h }
     }
 
-    pub fn commit(&self, randomness: &G::Scalar, messages: &[G::Scalar]) -> G::Point {
-        assert!(messages.len() <= self.generators.len());
+    pub fn commit(&self, r: &G::Scalar, m: &[G::Scalar]) -> G::Point {
+        assert!(m.len() <= self.h.len());
 
-        let hiding_factor = self.point * randomness;
-        self.generators
+        let hiding_factor = self.g * r;
+        let commitment = m
             .iter()
-            .zip(messages.iter())
-            .fold(hiding_factor, |acc, (g, m)| acc + &(*g * m))
+            .zip(self.h.iter())
+            .fold(hiding_factor, |acc, (m, h)| acc + &(*m * h));
+
+        commitment
     }
 
     pub fn verify(
@@ -28,9 +30,11 @@ impl<G: Group> Pedersen<G> {
         randomness: &G::Scalar,
         commitment: &G::Point,
     ) -> bool {
-        assert!(messages.len() <= self.generators.len());
+        assert!(messages.len() <= self.h.len()); // TODO discuss: remove; exposes implementation details of commit(), duplicates code
 
-        self.commit(randomness, messages) == *commitment
+        let recomputed_commitment = self.commit(randomness, messages);
+
+        recomputed_commitment == *commitment
     }
 }
 
