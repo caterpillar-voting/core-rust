@@ -73,26 +73,6 @@ mod tests {
     type Point = <RistrettoGroup as Group>::Point;
     type Scalar = <RistrettoGroup as Group>::Scalar;
 
-    macro_rules! scalar_operation {
-        ($rng: ident, $opr:tt) => {
-            let r1: u64 = $rng.next_u64();
-            let r2: u64 = $rng.next_u64();
-
-            let group_scalar_opr = Scalar::from(r1) $opr Scalar::from(r2);
-            let ristretto_scalar_opr = Scalar::from(r1) $opr Scalar::from(r2);
-            assert_eq!(group_scalar_opr, ristretto_scalar_opr);
-        };
-    }
-
-    #[test]
-    fn scalar_operations() {
-        // check that the Scalar and the Scalar operations lead to the same result
-        let mut rng = thread_rng();
-        scalar_operation!(rng, +);
-        scalar_operation!(rng, -);
-        scalar_operation!(rng, *);
-    }
-
     #[test]
     fn point_isid() {
         let mut rng = rand::thread_rng();
