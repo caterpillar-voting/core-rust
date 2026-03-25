@@ -83,4 +83,4 @@ TODO:
 - add ZKP for CCA2
 - encoding of plaintext to messages (i.e., numbers to group points)
 - serialization and deserialization of ciphertexts, public keys, private keys and messages
-- when decrypting using randomness, check validity of r using alpha?
+- when decrypting using randomness, check the validity of r using alpha?

@@ -5,12 +5,11 @@ pub mod primitives;
 mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::primitives::commitment::{HidingCommitment, Message as CMessage};
-    use crate::primitives::encryption::{
-        Encryption, HomomorphicEncryption, Message, MessageRange,
-        EncodedMessage as EMessage,
-    };
+    use crate::primitives::commitment::HidingCommitment;
+    use crate::primitives::encryption::{Encryption, HomomorphicEncryption};
+    use crate::foundation::representation::{EncodedMessage, Message, MessageRange};
     use rand::thread_rng;
+
     type Curve = RistrettoGroup;
     type Scalar = <RistrettoGroup as Group>::Scalar;
 
@@ -20,7 +19,7 @@ mod tests {
 
         let hiding_commitment = HidingCommitment::<Curve>::new();
 
-        let messages = [CMessage::<Curve>::new(Scalar::from(2u8))];
+        let messages = [Message::<Curve>::new(Scalar::from(2u8))];
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
 
         assert!(hiding_commitment.verify(&messages, &commitment, &randomness));
@@ -29,7 +28,7 @@ mod tests {
     #[test]
     fn encryption() {
         let mut rng = thread_rng();
-        let message = EMessage::new(Curve::point_random(&mut rng));
+        let message = EncodedMessage::new(Curve::point_random(&mut rng));
 
         let encryption = Encryption::<Curve>::new();
         let secret_key = encryption.generate_secret_key(&mut rng);

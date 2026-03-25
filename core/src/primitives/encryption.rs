@@ -3,6 +3,7 @@ use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
 use rand_core::{CryptoRng, RngCore};
 use std::ops;
 use zeroize::{Zeroize, ZeroizeOnDrop};
+use crate::foundation::representation::{EncodedMessage, Message, MessageRange};
 
 pub mod el_gamal;
 
@@ -22,21 +23,10 @@ pub struct PublicKey<G: Group> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct EncodedMessage<G: Group> {
-    inner: G::Point,
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct Ciphertext<G: Group> {
     alpha: G::Point,
     beta: G::Point,
     // TODO: include ZKP for CCA2
-}
-
-impl<G: Group> EncodedMessage<G> {
-    pub fn new(message: G::Point) -> Self {
-        Self { inner: message }
-    }
 }
 
 impl<G: Group> Default for Encryption<G> {
@@ -114,33 +104,10 @@ pub struct HomomorphicEncryption<G: Group> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Message<G: Group> {
-    inner: G::Scalar,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct MessageRange<G: Group> {
-    start: G::Scalar,
-    end: G::Scalar,
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct HomomorphicCiphertext<G: Group> {
     alpha: G::Point,
     beta: G::Point,
     // TODO: include ZKP for CCA2
-}
-
-impl<G: Group> Message<G> {
-    pub fn new(message: G::Scalar) -> Self {
-        Self { inner: message }
-    }
-}
-
-impl<G: Group> MessageRange<G> {
-    pub fn new(start: G::Scalar, end: G::Scalar) -> Self {
-        Self { start, end }
-    }
 }
 
 impl<'a, G: Group> Default for HomomorphicEncryption<G> {
@@ -253,37 +220,6 @@ impl<G: Group> ops::SubAssign<&HomomorphicCiphertext<G>> for HomomorphicCipherte
     fn sub_assign(&mut self, rhs: &HomomorphicCiphertext<G>) {
         self.alpha -= rhs.alpha;
         self.beta -= rhs.beta;
-    }
-}
-
-impl<G: Group> ops::Add<&Message<G>> for &Message<G> {
-    type Output = Message<G>;
-    fn add(self, rhs: &Message<G>) -> Self::Output {
-        Message {
-            inner: self.inner + &rhs.inner,
-        }
-    }
-}
-
-impl<G: Group> ops::AddAssign<&Message<G>> for Message<G> {
-    fn add_assign(&mut self, rhs: &Message<G>) {
-        self.inner += rhs.inner;
-    }
-}
-
-impl<G: Group> ops::Sub<&Message<G>> for &Message<G> {
-    type Output = Message<G>;
-
-    fn sub(self, rhs: &Message<G>) -> Self::Output {
-        Message {
-            inner: self.inner - &rhs.inner,
-        }
-    }
-}
-
-impl<G: Group> ops::SubAssign<&Message<G>> for Message<G> {
-    fn sub_assign(&mut self, rhs: &Message<G>) {
-        self.inner -= rhs.inner;
     }
 }
 

@@ -4,15 +4,12 @@ use crate::foundation::group::Group;
 use crate::primitives::commitment::pedersen::Pedersen;
 use rand_core::{CryptoRng, RngCore};
 use zeroize::{Zeroize, ZeroizeOnDrop};
+use crate::foundation::representation::Message;
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Debug, PartialEq)]
 pub struct HidingCommitment<G: Group, const N: usize = 1> {
     pedersen: Pedersen<G>,
-}
-#[derive(Debug, PartialEq, Eq)]
-pub struct Message<G: Group> {
-    inner: G::Scalar,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct Commitment<G: Group> {
@@ -21,12 +18,6 @@ pub struct Commitment<G: Group> {
 #[derive(Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct SecretRandomness<G: Group> {
     inner: G::Scalar,
-}
-
-impl<G: Group> Message<G> {
-    pub fn new(message: G::Scalar) -> Self {
-        Self { inner: message }
-    }
 }
 
 impl<G: Group, const N: usize> Default for HidingCommitment<G, N> {

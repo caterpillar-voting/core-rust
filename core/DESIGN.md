@@ -52,6 +52,5 @@ primitives/commitment/*:
 
 questions:
 - when to implement which default traits? is there any harm in doing so? 
-- reuse message / homomorphic message type over primitives? how to name them?
 - implement default() trait? 
 - see README.md for more tasks
