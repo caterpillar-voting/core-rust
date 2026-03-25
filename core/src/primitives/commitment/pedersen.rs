@@ -15,12 +15,12 @@ impl<G: Group> Pedersen<G> {
         assert!(m.len() <= self.h.len());
 
         let hiding_factor = self.g * r;
-        let commitment = m
+        
+
+        m
             .iter()
             .zip(self.h.iter())
-            .fold(hiding_factor, |acc, (m, h)| acc + &(*m * h));
-
-        commitment
+            .fold(hiding_factor, |acc, (m, h)| acc + &(*m * h))
     }
 
     pub fn verify(&self, r: &G::Scalar, m: &[G::Scalar], commitment: &G::Point) -> bool {

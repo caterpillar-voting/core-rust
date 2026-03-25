@@ -11,7 +11,7 @@ impl<G: Group> ElGamal<G> {
     }
 
     pub fn derive_public_key(&self, sk: &G::Scalar) -> G::Point {
-        self.g * &sk
+        self.g * sk
     }
 
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Point) -> (G::Point, G::Point) {
@@ -66,7 +66,7 @@ impl<G: Group> ExponentialElGamal<G> {
     }
 
     pub fn derive_public_key(&self, sk: &G::Scalar) -> G::Point {
-        self.el_gamal.derive_public_key(&sk)
+        self.el_gamal.derive_public_key(sk)
     }
 
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Scalar) -> (G::Point, G::Point) {

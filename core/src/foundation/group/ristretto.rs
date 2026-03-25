@@ -71,7 +71,7 @@ impl Group for RistrettoGroup {
             let mut payload =
                 Vec::with_capacity(prefix.len() + Self::GROUP_IDENTIFIER.len() + size_of::<u32>());
             payload.extend_from_slice(prefix);
-            payload.extend_from_slice(&Self::GROUP_IDENTIFIER);
+            payload.extend_from_slice(Self::GROUP_IDENTIFIER);
 
             let i = u32::try_from(i).expect("index does not fit in u32");
             payload.extend_from_slice(&i.to_le_bytes());
