@@ -4,10 +4,6 @@
 
 Implementation of commitment as pedersen.
 
-TODO:
-- Create VerifiableGenerator trait (or similar) for the generators.
-- Add factor that constructs commitment with sensible parameters
-
 ```rust
 let mut rng = seeded_rng();
 
