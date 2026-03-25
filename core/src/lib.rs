@@ -5,9 +5,9 @@ pub mod primitives;
 mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
+    use crate::foundation::representation::{EncodedMessage, Message, MessageRange};
     use crate::primitives::commitment::HidingCommitment;
     use crate::primitives::encryption::{Encryption, HomomorphicEncryption};
-    use crate::foundation::representation::{EncodedMessage, Message, MessageRange};
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;

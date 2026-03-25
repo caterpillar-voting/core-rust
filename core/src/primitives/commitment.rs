@@ -1,10 +1,10 @@
 pub mod pedersen;
 
 use crate::foundation::group::Group;
+use crate::foundation::representation::Message;
 use crate::primitives::commitment::pedersen::Pedersen;
 use rand_core::{CryptoRng, RngCore};
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use crate::foundation::representation::Message;
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Debug, PartialEq)]

@@ -1,5 +1,5 @@
-use std::ops;
 use crate::foundation::group::Group;
+use std::ops;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Message<G: Group> {
@@ -42,7 +42,6 @@ impl<G: Group> ops::SubAssign<&Message<G>> for Message<G> {
         self.inner -= rhs.inner;
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MessageRange<G: Group> {

@@ -1,9 +1,9 @@
 use crate::foundation::group::Group;
+use crate::foundation::representation::{EncodedMessage, Message, MessageRange};
 use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
 use rand_core::{CryptoRng, RngCore};
 use std::ops;
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use crate::foundation::representation::{EncodedMessage, Message, MessageRange};
 
 pub mod el_gamal;
 
@@ -72,7 +72,11 @@ impl<G: Group> Encryption<G> {
         Ciphertext { alpha, beta }
     }
 
-    pub fn decrypt(&self, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> EncodedMessage<G> {
+    pub fn decrypt(
+        &self,
+        secret_key: &SecretKey<G>,
+        ciphertext: &Ciphertext<G>,
+    ) -> EncodedMessage<G> {
         let inner = self
             .el_gamal
             .decrypt(&secret_key.inner, &(ciphertext.alpha, ciphertext.beta));
