@@ -31,6 +31,15 @@ pub struct SecretRandomness<G: Group> {
     inner: G::Scalar,
 }
 
+impl<G: Group> Message<G> {
+    pub fn new(message: G::Scalar) -> Self {
+        Self {
+            inner: message,
+        }
+    }
+}
+
+
 impl<G: Group, const N: usize> HidingCommitment<G, N> {
     pub fn new() -> Self {
         let pedersen = Pedersen::new(
@@ -78,9 +87,7 @@ mod tests {
     type Scalar = <Curve as Group>::Scalar;
 
     fn new_messages<const N: usize>() -> [Message<Curve>; N] {
-        std::array::from_fn(|i| Message::<Curve> {
-            inner: Scalar::from(u32::try_from(i).unwrap()),
-        })
+        std::array::from_fn(|i| Message::<Curve>::new(Scalar::from(u32::try_from(i).unwrap())))
     }
 
     #[test]
