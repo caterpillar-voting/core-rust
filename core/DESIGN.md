@@ -16,6 +16,9 @@ In this spirit, this API has been drafted. Here, we document the detailed intent
 
 the low-level API provides direct access to the primitives. there are no safeguards or wrappers that shield against improper usage. in turn, it should be easy to extend upon it to construct new primitives.
 
+general:
+- use math naming for variables (hence short, as in spec)
+
 foundation/group:
 - we introduce the group abstraction to support multiple possible groups.
 - the group does not wrap its implementation (i.e., it is just an implemented trait), as this is a low-level API
@@ -38,6 +41,12 @@ general:
 - secret values: secret keys or randomness (pedersen) are wrapped and annotated with ZeroOnDrop
 - validation: done at compile time, unless type system not expressive enough
 
+primitives/encryption/*:
+- Do not expose decryption using randomness; this is an advanced scenario not need for the normal user
+- Explicitly allow to homomorphically add ciphertext by overriding + and - operators.
+
+primitives/commitment/*:
+- include number of generators in type to avoid misuse
 
 ## Future work
 
