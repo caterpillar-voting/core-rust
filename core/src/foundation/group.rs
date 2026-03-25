@@ -17,7 +17,7 @@ pub trait ByteSerialize {
 
 pub trait Group {
     const GROUP_IDENTIFIER: &'static [u8];
-    
+
     type Point: Clone
         + Copy
         + Eq

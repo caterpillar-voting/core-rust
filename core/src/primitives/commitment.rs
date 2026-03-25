@@ -33,12 +33,9 @@ pub struct SecretRandomness<G: Group> {
 
 impl<G: Group> Message<G> {
     pub fn new(message: G::Scalar) -> Self {
-        Self {
-            inner: message,
-        }
+        Self { inner: message }
     }
 }
-
 
 impl<G: Group, const N: usize> HidingCommitment<G, N> {
     pub fn new() -> Self {

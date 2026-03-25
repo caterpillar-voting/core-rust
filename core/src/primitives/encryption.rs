@@ -35,9 +35,7 @@ pub struct Ciphertext<G: Group> {
 
 impl<G: Group> Message<G> {
     pub fn new(message: G::Point) -> Self {
-        Self {
-            inner: message,
-        }
+        Self { inner: message }
     }
 }
 
@@ -129,18 +127,13 @@ pub struct HomomorphicCiphertext<G: Group> {
 
 impl<G: Group> HomomorphicMessage<G> {
     pub fn new(message: G::Scalar) -> Self {
-        Self {
-            inner: message,
-        }
+        Self { inner: message }
     }
 }
 
 impl<G: Group> HomomorphicMessageRange<G> {
     pub fn new(start: G::Scalar, end: G::Scalar) -> Self {
-        Self {
-            start,
-            end
-        }
+        Self { start, end }
     }
 }
 

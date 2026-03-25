@@ -1,7 +1,9 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
+use caterpillar_voting_core::primitives::encryption::{
+    Ciphertext, Encryption, Message, PublicKey, SecretKey,
+};
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
-use caterpillar_voting_core::primitives::encryption::{Ciphertext, Encryption, Message, PublicKey, SecretKey};
 
 #[wasm_bindgen]
 #[derive(Debug)]
@@ -30,7 +32,6 @@ pub struct WasmMessage {
     inner: Message<RistrettoGroup>,
 }
 
-
 #[wasm_bindgen]
 impl WasmEncryption {
     #[wasm_bindgen(js_name = new)]
@@ -56,21 +57,19 @@ impl WasmEncryption {
         }
     }
 
-    pub fn encrypt(
-        &self,
-        public_key: &WasmPublicKey,
-        message: &WasmMessage,
-    ) -> WasmCiphertext {
+    pub fn encrypt(&self, public_key: &WasmPublicKey, message: &WasmMessage) -> WasmCiphertext {
         let mut rng = OsRng;
 
         WasmCiphertext {
-            inner: self.inner.encrypt(&public_key.inner, &mut rng, &message.inner)
+            inner: self
+                .inner
+                .encrypt(&public_key.inner, &mut rng, &message.inner),
         }
     }
 
     pub fn decrypt(&self, secret_key: &WasmSecretKey, ciphertext: &WasmCiphertext) -> WasmMessage {
         WasmMessage {
-            inner: self.inner.decrypt(&secret_key.inner, &ciphertext.inner)
+            inner: self.inner.decrypt(&secret_key.inner, &ciphertext.inner),
         }
     }
 
@@ -82,7 +81,9 @@ impl WasmEncryption {
         let mut rng = OsRng;
 
         WasmCiphertext {
-            inner: self.inner.reencrypt(&public_key.inner, &mut rng, &ciphertext.inner)
+            inner: self
+                .inner
+                .reencrypt(&public_key.inner, &mut rng, &ciphertext.inner),
         }
     }
 }
