@@ -43,3 +43,5 @@ general:
 
 questions:
 - when to implement which default traits? is there any harm in doing so? 
+- reuse message / homomorphic message type over primitives?
+- see README.md for more tasks
