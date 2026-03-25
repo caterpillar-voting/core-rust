@@ -53,7 +53,7 @@ impl<G: Group> Encryption<G> {
     }
 
     pub fn encrypt<R: RngCore + CryptoRng>(
-        &mut self,
+        &self,
         public_key: &PublicKey<G>,
         rng: &mut R,
         message: &Message<G>,
@@ -79,7 +79,7 @@ impl<G: Group> Encryption<G> {
     }
 
     pub fn reencrypt<R: RngCore + CryptoRng>(
-        &mut self,
+        &self,
         public_key: &PublicKey<G>,
         rng: &mut R,
         ciphertext: &Ciphertext<G>,
@@ -141,7 +141,7 @@ impl<'a, G: Group> HomomorphicEncryption<G> {
     }
 
     pub fn encrypt<R: RngCore + CryptoRng>(
-        &mut self,
+        &self,
         public_key: &PublicKey<G>,
         rng: &mut R,
         message: &HomomorphicMessage<G>,
@@ -174,7 +174,7 @@ impl<'a, G: Group> HomomorphicEncryption<G> {
     }
 
     pub fn reencrypt<R: RngCore + CryptoRng>(
-        &mut self,
+        &self,
         public_key: &PublicKey<G>,
         rng: &mut R,
         ciphertext: &HomomorphicCiphertext<G>,
