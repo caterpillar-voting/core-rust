@@ -15,10 +15,8 @@ impl<G: Group> Pedersen<G> {
         assert!(m.len() <= self.h.len());
 
         let hiding_factor = self.g * r;
-        
 
-        m
-            .iter()
+        m.iter()
             .zip(self.h.iter())
             .fold(hiding_factor, |acc, (m, h)| acc + &(*m * h))
     }
