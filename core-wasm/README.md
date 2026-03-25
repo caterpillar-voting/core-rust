@@ -1,5 +1,5 @@
 # Core wasm
 
 TODO:
-- provide new high-level api
-- adapt low-level api
+- wait until core has merged types (e.g., message from commitment and encryption)
+- discuss whether to expose randomness generator in function signature -> probably yes

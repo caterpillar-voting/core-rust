@@ -1,88 +1,88 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
-use caterpillar_voting_core::foundation::group::{ByteSerialize, Group};
-use caterpillar_voting_core::primitives::encryption::el_gamal::ElGamal;
-use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
+use caterpillar_voting_core::primitives::encryption::{Ciphertext, Encryption, Message, PublicKey, SecretKey};
 
-type GroupPoint = RistrettoPoint;
-type GroupScalar = Scalar;
-
-fn el_gamal() -> ElGamal<RistrettoGroup> {
-    ElGamal::new(RistrettoGroup::basepoint())
+#[wasm_bindgen]
+#[derive(Debug)]
+pub struct WasmEncryption {
+    inner: Encryption<RistrettoGroup>,
 }
 
 #[wasm_bindgen]
 pub struct WasmSecretKey {
-    inner: GroupScalar,
+    inner: SecretKey<RistrettoGroup>,
 }
 
 #[wasm_bindgen]
 pub struct WasmPublicKey {
-    inner: GroupPoint,
+    inner: PublicKey<RistrettoGroup>,
 }
 
 #[wasm_bindgen]
 pub struct WasmCiphertext {
-    alpha: GroupPoint,
-    beta: GroupPoint,
+    inner: Ciphertext<RistrettoGroup>,
 }
 
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct WasmMessage {
-    inner: GroupPoint,
+    inner: Message<RistrettoGroup>,
 }
 
+
 #[wasm_bindgen]
-impl WasmSecretKey {
-    #[wasm_bindgen(js_name = random)]
-    pub fn random() -> Result<WasmSecretKey, JsValue> {
+impl WasmEncryption {
+    #[wasm_bindgen(js_name = new)]
+    pub fn new() -> Self {
+        Self {
+            inner: Encryption::<RistrettoGroup>::new(),
+        }
+    }
+
+    #[wasm_bindgen(js_name = generate_secret_key)]
+    pub fn generate_secret_key(&self) -> WasmSecretKey {
         let mut rng = OsRng;
-        Ok(Self {
-            inner: RistrettoGroup::scalar_random(&mut rng),
-        })
+
+        WasmSecretKey {
+            inner: self.inner.generate_secret_key(&mut rng),
+        }
     }
 
     #[wasm_bindgen(js_name = derive_public_key)]
-    pub fn derive_public_key(&self) -> WasmPublicKey {
-        let public_key = RistrettoGroup::basepoint() * self.inner;
-        WasmPublicKey { inner: public_key }
+    pub fn derive_public_key(&self, secret_key: &WasmSecretKey) -> WasmPublicKey {
+        WasmPublicKey {
+            inner: self.inner.derive_public_key(&secret_key.inner),
+        }
     }
 
-    #[wasm_bindgen(js_name = decrypt)]
-    pub fn decrypt(&self, ciphertext: &WasmCiphertext) -> Result<WasmMessage, JsValue> {
-        let inner = el_gamal().decrypt(&self.inner, (&ciphertext.alpha, &ciphertext.beta));
-        Ok(WasmMessage { inner })
-    }
-}
-
-#[wasm_bindgen]
-impl WasmPublicKey {
-    #[wasm_bindgen(js_name = encrypt)]
-    pub fn encrypt(&self, message: &WasmMessage) -> Result<WasmCiphertext, JsValue> {
+    pub fn encrypt(
+        &self,
+        public_key: &WasmPublicKey,
+        message: &WasmMessage,
+    ) -> WasmCiphertext {
         let mut rng = OsRng;
-        let randomness = RistrettoGroup::scalar_random(&mut rng);
 
-        let (alpha, beta) = el_gamal().encrypt(&self.inner, &randomness, &message.inner);
-        Ok(WasmCiphertext { alpha, beta })
+        WasmCiphertext {
+            inner: self.inner.encrypt(&public_key.inner, &mut rng, &message.inner)
+        }
     }
-}
 
-#[wasm_bindgen]
-impl WasmMessage {
-    #[wasm_bindgen(js_name = random)]
-    pub fn random() -> Result<WasmMessage, JsValue> {
+    pub fn decrypt(&self, secret_key: &WasmSecretKey, ciphertext: &WasmCiphertext) -> WasmMessage {
+        WasmMessage {
+            inner: self.inner.decrypt(&secret_key.inner, &ciphertext.inner)
+        }
+    }
+
+    pub fn reencrypt(
+        &self,
+        public_key: &WasmPublicKey,
+        ciphertext: &WasmCiphertext,
+    ) -> WasmCiphertext {
         let mut rng = OsRng;
-        let inner = GroupPoint::random(&mut rng);
 
-        Ok(WasmMessage { inner })
-    }
-
-    #[wasm_bindgen(js_name = to_bytes)]
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = [0u8; 32];
-        ByteSerialize::to_bytes(&self.inner, &mut bytes);
-        bytes.to_vec()
+        WasmCiphertext {
+            inner: self.inner.reencrypt(&public_key.inner, &mut rng, &ciphertext.inner)
+        }
     }
 }
