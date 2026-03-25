@@ -47,10 +47,3 @@ primitives/encryption/*:
 
 primitives/commitment/*:
 - include number of generators in type to avoid misuse
-
-## Future work
-
-questions:
-- when to implement which default traits? is there any harm in doing so? 
-- implement default() trait? 
-- see README.md for more tasks

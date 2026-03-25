@@ -78,9 +78,15 @@ fn homomorphic_encryption() {
 }
 ```
 
-TODO:
-- fully test homomorphism of messages / ciphertexts
-- add ZKP for CCA2
-- encoding of plaintext to messages (i.e., numbers to group points)
+## Future steps
+
+technical:
+- fully test unit homomorphism of messages / ciphertexts
+- when to implement which default traits? is there any harm in doing so?
+
+conceptual:
+- add ZKP for CCA2 -> ZKPs needed before?
+- add encoding of plaintext to EncodedMessage (i.e., numbers to group points)
 - serialization and deserialization of ciphertexts, public keys, private keys and messages
 - when decrypting using randomness, check the validity of r using alpha?
+
