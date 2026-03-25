@@ -7,9 +7,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub mod el_gamal;
 
 #[derive(Debug)]
-pub struct Encryption<'a, G: Group, R: RngCore + CryptoRng> {
+pub struct Encryption<G: Group> {
     el_gamal: ElGamal<G>,
-    rng: &'a mut R,
 }
 
 #[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
@@ -34,17 +33,16 @@ pub struct Ciphertext<G: Group> {
     // TODO: include ZKP for CCA2
 }
 
-impl<'a, G: Group, R: RngCore + CryptoRng> Encryption<'a, G, R> {
-    pub fn new(point: G::Point, rng: &'a mut R) -> Self {
+impl<G: Group> Encryption<G> {
+    pub fn new() -> Self {
         Self {
-            el_gamal: ElGamal::new(point),
-            rng,
+            el_gamal: ElGamal::new(G::basepoint()),
         }
     }
 
-    pub fn generate_secret_key(&mut self) -> SecretKey<G> {
+    pub fn generate_secret_key<R: RngCore + CryptoRng>(&self, rng: &mut R) -> SecretKey<G> {
         SecretKey {
-            inner: G::scalar_random(&mut self.rng),
+            inner: G::scalar_random(rng),
         }
     }
 
@@ -54,8 +52,13 @@ impl<'a, G: Group, R: RngCore + CryptoRng> Encryption<'a, G, R> {
         }
     }
 
-    pub fn encrypt(&mut self, public_key: &PublicKey<G>, message: &Message<G>) -> Ciphertext<G> {
-        let randomness = G::scalar_random(self.rng);
+    pub fn encrypt<R: RngCore + CryptoRng>(
+        &mut self,
+        public_key: &PublicKey<G>,
+        rng: &mut R,
+        message: &Message<G>,
+    ) -> Ciphertext<G> {
+        let randomness = G::scalar_random(rng);
         let (alpha, beta) = self
             .el_gamal
             .encrypt(&public_key.inner, &randomness, &message.inner);
@@ -75,12 +78,13 @@ impl<'a, G: Group, R: RngCore + CryptoRng> Encryption<'a, G, R> {
         Message { inner }
     }
 
-    pub fn reencrypt(
+    pub fn reencrypt<R: RngCore + CryptoRng>(
         &mut self,
         public_key: &PublicKey<G>,
+        rng: &mut R,
         ciphertext: &Ciphertext<G>,
     ) -> Ciphertext<G> {
-        let randomness = G::scalar_random(self.rng);
+        let randomness = G::scalar_random(rng);
 
         let (alpha, beta) = self.el_gamal.reencrypt(
             &public_key.inner,
@@ -93,9 +97,8 @@ impl<'a, G: Group, R: RngCore + CryptoRng> Encryption<'a, G, R> {
 }
 
 #[derive(Debug)]
-pub struct HomomorphicEncryption<'a, G: Group, R: RngCore + CryptoRng> {
+pub struct HomomorphicEncryption<G: Group> {
     exponential_el_gamal: ExponentialElGamal<G>,
-    rng: &'a mut R,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -116,32 +119,34 @@ pub struct HomomorphicCiphertext<G: Group> {
     // TODO: include ZKP for CCA2
 }
 
-impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
-    pub fn new(point: G::Point, rng: &'a mut R) -> Self {
+impl<'a, G: Group> HomomorphicEncryption<G> {
+    pub fn new() -> Self {
         Self {
-            exponential_el_gamal: ExponentialElGamal::new(point),
-            rng,
+            exponential_el_gamal: ExponentialElGamal::new(G::basepoint()),
         }
     }
 
-    pub fn generate_secret_key(&mut self) -> SecretKey<G> {
+    pub fn generate_secret_key<R: RngCore + CryptoRng>(&self, rng: &mut R) -> SecretKey<G> {
         SecretKey {
-            inner: G::scalar_random(&mut self.rng),
+            inner: G::scalar_random(rng),
         }
     }
 
     pub fn derive_public_key(&self, secret_key: &SecretKey<G>) -> PublicKey<G> {
         PublicKey {
-            inner: self.exponential_el_gamal.derive_public_key(&secret_key.inner),
+            inner: self
+                .exponential_el_gamal
+                .derive_public_key(&secret_key.inner),
         }
     }
 
-    pub fn encrypt(
+    pub fn encrypt<R: RngCore + CryptoRng>(
         &mut self,
         public_key: &PublicKey<G>,
+        rng: &mut R,
         message: &HomomorphicMessage<G>,
     ) -> HomomorphicCiphertext<G> {
-        let randomness = G::scalar_random(self.rng);
+        let randomness = G::scalar_random(rng);
         let (alpha, beta) =
             self.exponential_el_gamal
                 .encrypt(&public_key.inner, &randomness, &message.inner);
@@ -168,12 +173,13 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
         Some(HomomorphicMessage { inner })
     }
 
-    pub fn reencrypt(
+    pub fn reencrypt<R: RngCore + CryptoRng>(
         &mut self,
         public_key: &PublicKey<G>,
+        rng: &mut R,
         ciphertext: &HomomorphicCiphertext<G>,
     ) -> HomomorphicCiphertext<G> {
-        let randomness = G::scalar_random(self.rng);
+        let randomness = G::scalar_random(rng);
 
         let (alpha, beta) = self.exponential_el_gamal.reencrypt(
             &public_key.inner,
@@ -185,12 +191,94 @@ impl<'a, G: Group, R: RngCore + CryptoRng> HomomorphicEncryption<'a, G, R> {
     }
 }
 
-impl<G: Group> ops::Add<&Ciphertext<G>> for &Ciphertext<G> {
-    type Output = Ciphertext<G>;
-    fn add(self, rhs: &Ciphertext<G>) -> Self::Output {
-        Ciphertext {
+impl<G: Group> ops::Add<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G> {
+    type Output = HomomorphicCiphertext<G>;
+    fn add(self, rhs: &HomomorphicCiphertext<G>) -> Self::Output {
+        HomomorphicCiphertext {
             alpha: self.alpha + &rhs.alpha,
             beta: self.beta + &rhs.beta,
         }
+    }
+}
+
+impl<G: Group> ops::AddAssign<&HomomorphicCiphertext<G>> for HomomorphicCiphertext<G> {
+    fn add_assign(&mut self, rhs: &HomomorphicCiphertext<G>) {
+        self.alpha += rhs.alpha;
+        self.beta += rhs.beta;
+    }
+}
+
+impl<G: Group> ops::Sub<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G> {
+    type Output = HomomorphicCiphertext<G>;
+
+    fn sub(self, rhs: &HomomorphicCiphertext<G>) -> Self::Output {
+        HomomorphicCiphertext {
+            alpha: self.alpha - &rhs.alpha,
+            beta: self.beta - &rhs.beta,
+        }
+    }
+}
+
+impl<G: Group> ops::SubAssign<&HomomorphicCiphertext<G>> for HomomorphicCiphertext<G> {
+    fn sub_assign(&mut self, rhs: &HomomorphicCiphertext<G>) {
+        self.alpha -= rhs.alpha;
+        self.beta -= rhs.beta;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::foundation::group::Group;
+    use crate::foundation::group::ristretto::RistrettoGroup;
+    use rand::thread_rng;
+
+    type Curve = RistrettoGroup;
+
+    type Scalar = <RistrettoGroup as Group>::Scalar;
+    type Point = <RistrettoGroup as Group>::Point;
+
+    #[test]
+    fn encrypt_and_decrypt() {
+        let mut rng = thread_rng();
+        let message = Message {
+            inner: Curve::point_random(&mut rng),
+        };
+
+        let mut encryption = Encryption::<Curve>::new();
+        let secret_key = encryption.generate_secret_key(&mut rng);
+        let public_key = encryption.derive_public_key(&secret_key);
+
+        let ciphertext = encryption.encrypt(&public_key, &mut rng, &message);
+        let ciphertext_reencrypted = encryption.reencrypt(&public_key, &mut rng, &ciphertext);
+        let message_recovered = encryption.decrypt(&secret_key, &ciphertext_reencrypted);
+
+        assert_eq!(message_recovered, message);
+    }
+
+    #[test]
+    fn homomorphic_encrypt_and_decrypt() {
+        let mut rng = thread_rng();
+        let message = HomomorphicMessage {
+            inner: Scalar::from(1u8),
+        };
+        let message_2 = HomomorphicMessage {
+            inner: Scalar::from(2u8),
+        };
+        let message_range_2 = HomomorphicMessageRange {
+            start: Scalar::from(2u8),
+            end: Scalar::from(2u8),
+        };
+
+        let mut encryption = HomomorphicEncryption::<Curve>::new();
+        let secret_key = encryption.generate_secret_key(&mut rng);
+        let public_key = encryption.derive_public_key(&secret_key);
+
+        let ciphertext = encryption.encrypt(&public_key, &mut rng, &message);
+        let ciphertext_reencrypted = encryption.reencrypt(&public_key, &mut rng, &ciphertext);
+        let ciphertext_2 = &ciphertext_reencrypted + &ciphertext;
+        let message_recovered = encryption.decrypt(&secret_key, &ciphertext_2, &message_range_2);
+
+        assert_eq!(message_recovered, Some(message_2));
     }
 }

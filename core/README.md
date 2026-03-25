@@ -36,7 +36,4 @@ assert!(hiding.verify(&messages, &commitment, &randomness));
 Implementation of encryption as ElGamal; and homomorphic encryption as Exponential ElGamal.
 
 TODO:
-- Support multiple messages for single ElGamal (to be consistent to Pedersen)
-- Fully support homomorphic encryption with operators (-, +, +=, -=)
 - Implement encoding of bytes to curve (for plain ElGamal to be useful)
-- Provide support for multi-recipient ElGamal?

@@ -42,11 +42,10 @@ impl<G: Group> Pedersen<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use rand::{SeedableRng, rngs::StdRng, thread_rng};
+    use crate::foundation::group::Group;
+    use rand::thread_rng;
     use rand_core::{CryptoRng, RngCore};
-    use crate::primitives::commitment::pedersen;
 
     type Curve = RistrettoGroup;
     type Scalar = <Curve as Group>::Scalar;
