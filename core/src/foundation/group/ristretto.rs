@@ -2,8 +2,8 @@
 //!
 //! [`ristretto`]: https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/index.html
 
+use crate::foundation::group::ByteSerialize;
 use crate::foundation::group::Group;
-use crate::foundation::group::{ByteSerialize};
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_POINT,
     ristretto::{CompressedRistretto, RistrettoPoint as RistrettoPointRaw},
@@ -47,6 +47,8 @@ impl ByteSerialize for RistrettoScalarRaw {
 }
 
 impl Group for RistrettoGroup {
+    const GROUP_IDENTIFIER: &'static [u8] = b"Ristretto";
+
     type Point = RistrettoPointRaw;
     type Scalar = RistrettoScalarRaw;
 
@@ -58,12 +60,30 @@ impl Group for RistrettoGroup {
         RISTRETTO_BASEPOINT_POINT
     }
 
-    fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point {
-        Self::Point::random(rng)
-    }
-
     fn hash_to_point(payload: &[u8]) -> Self::Point {
         RistrettoPointRaw::hash_from_bytes::<Sha512>(payload)
+    }
+
+    fn independent_generators(prefix: &[u8], size: usize) -> Vec<Self::Point> {
+        let mut result = Vec::with_capacity(size);
+
+        for i in 0..size {
+            let mut payload =
+                Vec::with_capacity(prefix.len() + Self::GROUP_IDENTIFIER.len() + size_of::<u32>());
+            payload.extend_from_slice(prefix);
+            payload.extend_from_slice(&Self::GROUP_IDENTIFIER);
+
+            let i = u32::try_from(i).expect("index does not fit in u32");
+            payload.extend_from_slice(&i.to_le_bytes());
+
+            result.push(RistrettoPointRaw::hash_from_bytes::<Sha512>(&payload));
+        }
+
+        result
+    }
+
+    fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point {
+        Self::Point::random(rng)
     }
 
     fn scalar_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Scalar {

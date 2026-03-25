@@ -16,6 +16,8 @@ pub trait ByteSerialize {
 }
 
 pub trait Group {
+    const GROUP_IDENTIFIER: &'static [u8];
+    
     type Point: Clone
         + Copy
         + Eq
@@ -54,11 +56,14 @@ pub trait Group {
     /// Return the basepoint, i.e., a generator defined by the spec to be used as a starting point for the group.
     fn basepoint() -> Self::Point;
 
-    /// Generate a random Point.
-    fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point;
-
     /// Hash to group point.
     fn hash_to_point(payload: &[u8]) -> Self::Point;
+
+    /// Generate (verifiably) independent generators
+    fn independent_generators(prefix: &[u8], size: usize) -> Vec<Self::Point>;
+
+    /// Generate a random Point.
+    fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point;
 
     /// Generate a random scalar.
     fn scalar_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Scalar;
