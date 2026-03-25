@@ -12,8 +12,6 @@ crate-type = ["cdylib"]
 [dependencies]
 caterpillar-voting-core = { path = "../core" }
 wasm-bindgen = "0.2"
-getrandom = {  version = "0.2.1", features = ["js"] }
-curve25519-dalek.workspace = true
 rand.workspace = true
 
 [features]
