@@ -114,13 +114,13 @@ pub struct HomomorphicCiphertext<G: Group> {
     // TODO: include ZKP for CCA2
 }
 
-impl<'a, G: Group> Default for HomomorphicEncryption<G> {
+impl<G: Group> Default for HomomorphicEncryption<G> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a, G: Group> HomomorphicEncryption<G> {
+impl<G: Group> HomomorphicEncryption<G> {
     pub fn new() -> Self {
         Self {
             exponential_el_gamal: ExponentialElGamal::new(G::basepoint()),
