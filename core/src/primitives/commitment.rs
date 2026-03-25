@@ -7,7 +7,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Debug, PartialEq)]
-pub struct HidingCommitment<G: Group, const N: usize> {
+pub struct HidingCommitment<G: Group, const N: usize = 1> {
     pedersen: Pedersen<G>,
 }
 
