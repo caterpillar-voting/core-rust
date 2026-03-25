@@ -33,6 +33,12 @@ pub struct WasmEncodedMessage {
     inner: EncodedMessage<RistrettoGroup>,
 }
 
+impl Default for WasmEncryption {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[wasm_bindgen]
 impl WasmEncryption {
     #[wasm_bindgen(js_name = new)]
