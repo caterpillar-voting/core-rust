@@ -37,6 +37,12 @@ impl<G: Group> Message<G> {
     }
 }
 
+impl<G: Group, const N: usize> Default for HidingCommitment<G, N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<G: Group, const N: usize> HidingCommitment<G, N> {
     pub fn new() -> Self {
         let pedersen = Pedersen::new(

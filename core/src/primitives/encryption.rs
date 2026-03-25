@@ -39,6 +39,12 @@ impl<G: Group> Message<G> {
     }
 }
 
+impl<G: Group> Default for Encryption<G> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<G: Group> Encryption<G> {
     pub fn new() -> Self {
         Self {
@@ -134,6 +140,12 @@ impl<G: Group> HomomorphicMessage<G> {
 impl<G: Group> HomomorphicMessageRange<G> {
     pub fn new(start: G::Scalar, end: G::Scalar) -> Self {
         Self { start, end }
+    }
+}
+
+impl<'a, G: Group> Default for HomomorphicEncryption<G> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
