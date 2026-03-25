@@ -50,11 +50,8 @@ mod tests {
     type Curve = RistrettoGroup;
     type Scalar = <Curve as Group>::Scalar;
 
-    fn new_pedersen<R: RngCore + CryptoRng>(n: usize, rng: &mut R) -> (Pedersen<Curve>) {
-        let point = Curve::point_random(rng);
-        let generators = (0..n).map(|_| Curve::point_random(rng)).collect(); // TODO: use verifiable generators
-
-        Pedersen::new(point, generators)
+    fn new_pedersen(n: usize) -> (Pedersen<Curve>) {
+        Pedersen::new(Curve::basepoint(), Curve::independent_generators(b"Pedersen", n))
     }
 
     fn new_pedersen_sample<R: RngCore + CryptoRng>(n: usize, rng: &mut R) -> (Scalar, Vec<Scalar>) {
@@ -67,18 +64,20 @@ mod tests {
     #[test]
     fn commit_and_open() {
         let mut rng = thread_rng();
-        let pedersen  = new_pedersen(5, &mut rng);
+        let pedersen  = new_pedersen(5);
         let (randomness, messages)  = new_pedersen_sample(5, &mut rng);
 
         let commitment = pedersen.commit(&randomness, &messages);
+        assert_eq!(pedersen.verify(&randomness, &messages, &commitment), true);
 
-        assert!(pedersen.verify(&randomness, &messages, &commitment));
+        let (randomness, messages)  = new_pedersen_sample(5, &mut rng);
+        assert_eq!(pedersen.verify(&randomness, &messages, &commitment), false);
     }
 
     #[test]
     fn homomorphic_properties() {
         let mut rng = thread_rng();
-        let pedersen  = new_pedersen(5, &mut rng);
+        let pedersen  = new_pedersen(5);
 
         let (r_1, m_1)  = new_pedersen_sample(5, &mut rng);
         let (r_2, m_2)  = new_pedersen_sample(5, &mut rng);
@@ -96,7 +95,10 @@ mod tests {
         let expected = pedersen.commit(&summed_randomness, &summed_messages);
 
         assert_eq!(commitment_1 + &commitment_2, expected);
-        assert!(pedersen.verify(&summed_randomness, &summed_messages, &expected));
+        assert_eq!(pedersen.verify(&summed_randomness, &summed_messages, &expected), true);
+        assert_eq!(pedersen.verify(&summed_randomness, &m_1, &expected), false);
+        assert_eq!(pedersen.verify(&r_1, &summed_messages, &expected), false);
+        assert_eq!(pedersen.verify(&r_1, &m_1, &expected), false);
     }
 }
 
