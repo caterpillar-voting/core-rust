@@ -291,7 +291,7 @@ mod tests {
         let mut rng = thread_rng();
         let message = Message::new(Curve::point_random(&mut rng));
 
-        let mut encryption = Encryption::<Curve>::new();
+        let encryption = Encryption::<Curve>::new();
         let secret_key = encryption.generate_secret_key(&mut rng);
         let public_key = encryption.derive_public_key(&secret_key);
 
@@ -309,7 +309,7 @@ mod tests {
         let message_2 = HomomorphicMessage::new(Scalar::from(2u8));
         let message_range_2 = HomomorphicMessageRange::new(Scalar::from(2u8), Scalar::from(2u8));
 
-        let mut encryption = HomomorphicEncryption::<Curve>::new();
+        let encryption = HomomorphicEncryption::<Curve>::new();
         let secret_key = encryption.generate_secret_key(&mut rng);
         let public_key = encryption.derive_public_key(&secret_key);
 
