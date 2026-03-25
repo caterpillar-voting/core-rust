@@ -33,6 +33,14 @@ pub struct Ciphertext<G: Group> {
     // TODO: include ZKP for CCA2
 }
 
+impl<G: Group> Message<G> {
+    pub fn new(message: G::Point) -> Self {
+        Self {
+            inner: message,
+        }
+    }
+}
+
 impl<G: Group> Encryption<G> {
     pub fn new() -> Self {
         Self {
@@ -117,6 +125,23 @@ pub struct HomomorphicCiphertext<G: Group> {
     alpha: G::Point,
     beta: G::Point,
     // TODO: include ZKP for CCA2
+}
+
+impl<G: Group> HomomorphicMessage<G> {
+    pub fn new(message: G::Scalar) -> Self {
+        Self {
+            inner: message,
+        }
+    }
+}
+
+impl<G: Group> HomomorphicMessageRange<G> {
+    pub fn new(start: G::Scalar, end: G::Scalar) -> Self {
+        Self {
+            start,
+            end
+        }
+    }
 }
 
 impl<'a, G: Group> HomomorphicEncryption<G> {
@@ -226,6 +251,37 @@ impl<G: Group> ops::SubAssign<&HomomorphicCiphertext<G>> for HomomorphicCipherte
     }
 }
 
+impl<G: Group> ops::Add<&HomomorphicMessage<G>> for &HomomorphicMessage<G> {
+    type Output = HomomorphicMessage<G>;
+    fn add(self, rhs: &HomomorphicMessage<G>) -> Self::Output {
+        HomomorphicMessage {
+            inner: self.inner + &rhs.inner,
+        }
+    }
+}
+
+impl<G: Group> ops::AddAssign<&HomomorphicMessage<G>> for HomomorphicMessage<G> {
+    fn add_assign(&mut self, rhs: &HomomorphicMessage<G>) {
+        self.inner += rhs.inner;
+    }
+}
+
+impl<G: Group> ops::Sub<&HomomorphicMessage<G>> for &HomomorphicMessage<G> {
+    type Output = HomomorphicMessage<G>;
+
+    fn sub(self, rhs: &HomomorphicMessage<G>) -> Self::Output {
+        HomomorphicMessage {
+            inner: self.inner - &rhs.inner,
+        }
+    }
+}
+
+impl<G: Group> ops::SubAssign<&HomomorphicMessage<G>> for HomomorphicMessage<G> {
+    fn sub_assign(&mut self, rhs: &HomomorphicMessage<G>) {
+        self.inner -= rhs.inner;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,14 +292,11 @@ mod tests {
     type Curve = RistrettoGroup;
 
     type Scalar = <RistrettoGroup as Group>::Scalar;
-    type Point = <RistrettoGroup as Group>::Point;
 
     #[test]
     fn encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = Message {
-            inner: Curve::point_random(&mut rng),
-        };
+        let message = Message::new(Curve::point_random(&mut rng));
 
         let mut encryption = Encryption::<Curve>::new();
         let secret_key = encryption.generate_secret_key(&mut rng);
@@ -259,16 +312,9 @@ mod tests {
     #[test]
     fn homomorphic_encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = HomomorphicMessage {
-            inner: Scalar::from(1u8),
-        };
-        let message_2 = HomomorphicMessage {
-            inner: Scalar::from(2u8),
-        };
-        let message_range_2 = HomomorphicMessageRange {
-            start: Scalar::from(2u8),
-            end: Scalar::from(2u8),
-        };
+        let message = HomomorphicMessage::new(Scalar::from(1u8));
+        let message_2 = HomomorphicMessage::new(Scalar::from(2u8));
+        let message_range_2 = HomomorphicMessageRange::new(Scalar::from(2u8), Scalar::from(2u8));
 
         let mut encryption = HomomorphicEncryption::<Curve>::new();
         let secret_key = encryption.generate_secret_key(&mut rng);
