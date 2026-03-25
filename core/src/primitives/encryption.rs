@@ -22,7 +22,7 @@ pub struct PublicKey<G: Group> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Message<G: Group> {
+pub struct EncodedMessage<G: Group> {
     inner: G::Point,
 }
 
@@ -33,7 +33,7 @@ pub struct Ciphertext<G: Group> {
     // TODO: include ZKP for CCA2
 }
 
-impl<G: Group> Message<G> {
+impl<G: Group> EncodedMessage<G> {
     pub fn new(message: G::Point) -> Self {
         Self { inner: message }
     }
@@ -68,7 +68,7 @@ impl<G: Group> Encryption<G> {
         &self,
         public_key: &PublicKey<G>,
         rng: &mut R,
-        message: &Message<G>,
+        message: &EncodedMessage<G>,
     ) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
         let (alpha, beta) = self
@@ -82,12 +82,12 @@ impl<G: Group> Encryption<G> {
         Ciphertext { alpha, beta }
     }
 
-    pub fn decrypt(&self, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> Message<G> {
+    pub fn decrypt(&self, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> EncodedMessage<G> {
         let inner = self
             .el_gamal
             .decrypt(&secret_key.inner, &(ciphertext.alpha, ciphertext.beta));
 
-        Message { inner }
+        EncodedMessage { inner }
     }
 
     pub fn reencrypt<R: RngCore + CryptoRng>(
@@ -114,12 +114,12 @@ pub struct HomomorphicEncryption<G: Group> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct HomomorphicMessage<G: Group> {
+pub struct Message<G: Group> {
     inner: G::Scalar,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct HomomorphicMessageRange<G: Group> {
+pub struct MessageRange<G: Group> {
     start: G::Scalar,
     end: G::Scalar,
 }
@@ -131,13 +131,13 @@ pub struct HomomorphicCiphertext<G: Group> {
     // TODO: include ZKP for CCA2
 }
 
-impl<G: Group> HomomorphicMessage<G> {
+impl<G: Group> Message<G> {
     pub fn new(message: G::Scalar) -> Self {
         Self { inner: message }
     }
 }
 
-impl<G: Group> HomomorphicMessageRange<G> {
+impl<G: Group> MessageRange<G> {
     pub fn new(start: G::Scalar, end: G::Scalar) -> Self {
         Self { start, end }
     }
@@ -174,7 +174,7 @@ impl<'a, G: Group> HomomorphicEncryption<G> {
         &self,
         public_key: &PublicKey<G>,
         rng: &mut R,
-        message: &HomomorphicMessage<G>,
+        message: &Message<G>,
     ) -> HomomorphicCiphertext<G> {
         let randomness = G::scalar_random(rng);
         let (alpha, beta) =
@@ -192,15 +192,15 @@ impl<'a, G: Group> HomomorphicEncryption<G> {
         &self,
         secret_key: &SecretKey<G>,
         ciphertext: &HomomorphicCiphertext<G>,
-        message_range: &HomomorphicMessageRange<G>,
-    ) -> Option<HomomorphicMessage<G>> {
+        message_range: &MessageRange<G>,
+    ) -> Option<Message<G>> {
         let inner = self.exponential_el_gamal.decrypt(
             &secret_key.inner,
             &(ciphertext.alpha, ciphertext.beta),
             &(message_range.start, message_range.end),
         )?;
 
-        Some(HomomorphicMessage { inner })
+        Some(Message { inner })
     }
 
     pub fn reencrypt<R: RngCore + CryptoRng>(
@@ -256,33 +256,33 @@ impl<G: Group> ops::SubAssign<&HomomorphicCiphertext<G>> for HomomorphicCipherte
     }
 }
 
-impl<G: Group> ops::Add<&HomomorphicMessage<G>> for &HomomorphicMessage<G> {
-    type Output = HomomorphicMessage<G>;
-    fn add(self, rhs: &HomomorphicMessage<G>) -> Self::Output {
-        HomomorphicMessage {
+impl<G: Group> ops::Add<&Message<G>> for &Message<G> {
+    type Output = Message<G>;
+    fn add(self, rhs: &Message<G>) -> Self::Output {
+        Message {
             inner: self.inner + &rhs.inner,
         }
     }
 }
 
-impl<G: Group> ops::AddAssign<&HomomorphicMessage<G>> for HomomorphicMessage<G> {
-    fn add_assign(&mut self, rhs: &HomomorphicMessage<G>) {
+impl<G: Group> ops::AddAssign<&Message<G>> for Message<G> {
+    fn add_assign(&mut self, rhs: &Message<G>) {
         self.inner += rhs.inner;
     }
 }
 
-impl<G: Group> ops::Sub<&HomomorphicMessage<G>> for &HomomorphicMessage<G> {
-    type Output = HomomorphicMessage<G>;
+impl<G: Group> ops::Sub<&Message<G>> for &Message<G> {
+    type Output = Message<G>;
 
-    fn sub(self, rhs: &HomomorphicMessage<G>) -> Self::Output {
-        HomomorphicMessage {
+    fn sub(self, rhs: &Message<G>) -> Self::Output {
+        Message {
             inner: self.inner - &rhs.inner,
         }
     }
 }
 
-impl<G: Group> ops::SubAssign<&HomomorphicMessage<G>> for HomomorphicMessage<G> {
-    fn sub_assign(&mut self, rhs: &HomomorphicMessage<G>) {
+impl<G: Group> ops::SubAssign<&Message<G>> for Message<G> {
+    fn sub_assign(&mut self, rhs: &Message<G>) {
         self.inner -= rhs.inner;
     }
 }
@@ -301,7 +301,7 @@ mod tests {
     #[test]
     fn encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = Message::new(Curve::point_random(&mut rng));
+        let message = EncodedMessage::new(Curve::point_random(&mut rng));
 
         let encryption = Encryption::<Curve>::new();
         let secret_key = encryption.generate_secret_key(&mut rng);
@@ -317,9 +317,9 @@ mod tests {
     #[test]
     fn homomorphic_encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = HomomorphicMessage::new(Scalar::from(1u8));
-        let message_2 = HomomorphicMessage::new(Scalar::from(2u8));
-        let message_range_2 = HomomorphicMessageRange::new(Scalar::from(2u8), Scalar::from(2u8));
+        let message = Message::new(Scalar::from(1u8));
+        let message_2 = Message::new(Scalar::from(2u8));
+        let message_range_2 = MessageRange::new(Scalar::from(2u8), Scalar::from(2u8));
 
         let encryption = HomomorphicEncryption::<Curve>::new();
         let secret_key = encryption.generate_secret_key(&mut rng);

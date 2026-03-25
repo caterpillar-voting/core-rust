@@ -10,14 +10,6 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub struct HidingCommitment<G: Group, const N: usize = 1> {
     pedersen: Pedersen<G>,
 }
-
-/// Unified error type for this crate.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Error {
-    /// Messages are of different length as foreseen.
-    MessagesLengthMismatch,
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct Message<G: Group> {
     inner: G::Scalar,
