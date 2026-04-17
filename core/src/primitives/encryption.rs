@@ -6,7 +6,6 @@ pub use crate::primitives::encryption::representation::{
     Ciphertext, HomomorphicCiphertext, PublicKey, SecretKey,
 };
 use rand_core::{CryptoRng, RngCore};
-use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub mod el_gamal;
 mod representation;
@@ -29,13 +28,9 @@ impl<G: Group> Encryption<G> {
     }
 
     pub fn key_gen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (SecretKey<G>, PublicKey<G>) {
-        let secret_key = SecretKey {
-            0: self.el_gamal.generate_secret_key(rng),
-        };
+        let secret_key = SecretKey(self.el_gamal.generate_secret_key(rng));
 
-        let public_key = PublicKey {
-            0: self.el_gamal.derive_public_key(&secret_key.0),
-        };
+        let public_key = PublicKey(self.el_gamal.derive_public_key(&secret_key.0));
 
         (secret_key, public_key)
     }
@@ -55,7 +50,7 @@ impl<G: Group> Encryption<G> {
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
         // this deliberate choice also leads to not providing the method to decrypt using the randomness.
 
-        Ciphertext { 0: alpha, 1: beta }
+        Ciphertext(alpha, beta)
     }
 
     pub fn reencrypt<R: RngCore + CryptoRng>(
@@ -70,7 +65,7 @@ impl<G: Group> Encryption<G> {
             self.el_gamal
                 .reencrypt(&public_key.0, &randomness, &(ciphertext.0, ciphertext.1));
 
-        Ciphertext { 0: alpha, 1: beta }
+        Ciphertext(alpha, beta)
     }
 
     pub fn decrypt(
@@ -107,13 +102,9 @@ impl<G: Group> EncryptionHomomorph<G> {
     }
 
     pub fn key_gen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (SecretKey<G>, PublicKey<G>) {
-        let secret_key = SecretKey {
-            0: self.exponential_el_gamal.0.generate_secret_key(rng),
-        };
+        let secret_key = SecretKey(self.exponential_el_gamal.0.generate_secret_key(rng));
 
-        let public_key = PublicKey {
-            0: self.exponential_el_gamal.0.derive_public_key(&secret_key.0),
-        };
+        let public_key = PublicKey(self.exponential_el_gamal.0.derive_public_key(&secret_key.0));
 
         (secret_key, public_key)
     }
@@ -133,7 +124,7 @@ impl<G: Group> EncryptionHomomorph<G> {
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
         // this deliberate choice also leads to not providing the method to decrypt using the randomness.
 
-        HomomorphicCiphertext { 0: alpha, 1: beta }
+        HomomorphicCiphertext(alpha, beta)
     }
 
     pub fn reencrypt<R: RngCore + CryptoRng>(
@@ -150,7 +141,7 @@ impl<G: Group> EncryptionHomomorph<G> {
             &(ciphertext.0, ciphertext.1),
         );
 
-        HomomorphicCiphertext { 0: alpha, 1: beta }
+        HomomorphicCiphertext(alpha, beta)
     }
 
     pub fn decrypt(

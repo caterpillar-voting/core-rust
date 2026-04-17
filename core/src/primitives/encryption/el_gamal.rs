@@ -71,15 +71,13 @@ pub struct ExponentialElGamal<G: Group>(pub ElGamal<G>);
 
 impl<G: Group> Default for ExponentialElGamal<G> {
     fn default() -> Self {
-        Self {
-            0: ElGamal::default(),
-        }
+        Self(ElGamal::default())
     }
 }
 
 impl<G: Group> ExponentialElGamal<G> {
     pub fn new(el_gamal: ElGamal<G>) -> Self {
-        Self { 0: el_gamal }
+        Self(el_gamal)
     }
 
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Scalar) -> (G::Point, G::Point) {

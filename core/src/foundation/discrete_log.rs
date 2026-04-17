@@ -1,5 +1,4 @@
 use crate::foundation::group::Group;
-use sha2::digest::typenum::Gr;
 
 pub trait DiscreteLog<G: Group> {
     fn log(&self, g: &G::Point, point: &G::Point) -> Option<G::Scalar>;
@@ -33,7 +32,7 @@ impl<G: Group> DiscreteLog<G> for GreedyDiscreteLog<G> {
                 return Some(current);
             }
 
-            if (self.end.is_some() && current == self.end.unwrap()) {
+            if self.end.is_some() && current == self.end.unwrap()  {
                 return None;
             }
 
