@@ -1,6 +1,6 @@
+use crate::foundation::group::Group;
 use std::ops;
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use crate::foundation::group::Group;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Commitment<G: Group> {

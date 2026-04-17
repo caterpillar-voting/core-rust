@@ -1,3 +1,4 @@
+use crate::foundation::discrete_log::DiscreteLog;
 use crate::foundation::group::Group;
 use crate::foundation::representation::{EncodedMessage, Message};
 use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
@@ -6,7 +7,6 @@ pub use crate::primitives::encryption::representation::{
 };
 use rand_core::{CryptoRng, RngCore};
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use crate::foundation::discrete_log::DiscreteLog;
 
 pub mod el_gamal;
 mod representation;
@@ -18,7 +18,9 @@ pub struct Encryption<G: Group> {
 
 impl<G: Group> Default for Encryption<G> {
     fn default() -> Self {
-        Self { el_gamal: ElGamal::default() }
+        Self {
+            el_gamal: ElGamal::default(),
+        }
     }
 }
 impl<G: Group> Encryption<G> {
@@ -64,11 +66,9 @@ impl<G: Group> Encryption<G> {
     ) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
 
-        let (alpha, beta) = self.el_gamal.reencrypt(
-            &public_key.0,
-            &randomness,
-            &(ciphertext.0, ciphertext.1),
-        );
+        let (alpha, beta) =
+            self.el_gamal
+                .reencrypt(&public_key.0, &randomness, &(ciphertext.0, ciphertext.1));
 
         Ciphertext { 0: alpha, 1: beta }
     }
@@ -93,7 +93,9 @@ pub struct EncryptionHomomorph<G: Group> {
 
 impl<G: Group> Default for EncryptionHomomorph<G> {
     fn default() -> Self {
-        Self { exponential_el_gamal: ExponentialElGamal::default() }
+        Self {
+            exponential_el_gamal: ExponentialElGamal::default(),
+        }
     }
 }
 
@@ -170,10 +172,10 @@ impl<G: Group> EncryptionHomomorph<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::foundation::discrete_log::GreedyDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use rand::thread_rng;
-    use crate::foundation::discrete_log::GreedyDiscreteLog;
 
     type Curve = RistrettoGroup;
 

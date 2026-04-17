@@ -1,6 +1,6 @@
+use crate::foundation::group::Group;
 use std::ops;
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use crate::foundation::group::Group;
 
 #[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey<G: Group>(pub G::Scalar);
@@ -11,7 +11,6 @@ pub struct PublicKey<G: Group>(pub G::Point);
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ciphertext<G: Group>(pub G::Point, pub G::Point);
 // TODO: include ZKP for CCA2
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HomomorphicCiphertext<G: Group>(pub G::Point, pub G::Point);

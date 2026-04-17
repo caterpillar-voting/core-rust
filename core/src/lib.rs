@@ -3,13 +3,13 @@ pub mod primitives;
 
 #[cfg(test)]
 mod tests {
+    use crate::foundation::discrete_log::GreedyDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::representation::{EncodedMessage, Message};
     use crate::primitives::commitment::CommitmentHiding;
     use crate::primitives::encryption::{Encryption, EncryptionHomomorph};
     use rand::thread_rng;
-    use crate::foundation::discrete_log::GreedyDiscreteLog;
 
     type Curve = RistrettoGroup;
     type Scalar = <RistrettoGroup as Group>::Scalar;

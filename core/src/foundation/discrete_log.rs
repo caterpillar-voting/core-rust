@@ -1,5 +1,5 @@
-use sha2::digest::typenum::Gr;
 use crate::foundation::group::Group;
+use sha2::digest::typenum::Gr;
 
 pub trait DiscreteLog<G: Group> {
     fn log(&self, g: &G::Point, point: &G::Point) -> Option<G::Scalar>;
@@ -45,7 +45,7 @@ impl<G: Group> DiscreteLog<G> for GreedyDiscreteLog<G> {
 pub struct PrecomputedDiscreteLog<G: Group> {
     range: (G::Scalar, usize),
     g: G::Point,
-    table: Box<[G::Point]>
+    table: Box<[G::Point]>,
 }
 
 impl<G: Group> PrecomputedDiscreteLog<G> {
@@ -75,12 +75,12 @@ impl<G: Group> DiscreteLog<G> for PrecomputedDiscreteLog<G> {
     fn log(&self, g: &G::Point, point: &G::Point) -> Option<G::Scalar> {
         assert_eq!(*g, self.g);
 
-        self.table.iter().position(|candidate| candidate == point).map(|index| {
-            self.range.0 + &G::Scalar::from(index as u64)
-        })
+        self.table
+            .iter()
+            .position(|candidate| candidate == point)
+            .map(|index| self.range.0 + &G::Scalar::from(index as u64))
     }
 }
-
 
 #[cfg(test)]
 mod tests {

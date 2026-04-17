@@ -1,6 +1,8 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
 use caterpillar_voting_core::foundation::representation::EncodedMessage;
-use caterpillar_voting_core::primitives::encryption::{Ciphertext, Encryption, PublicKey, SecretKey};
+use caterpillar_voting_core::primitives::encryption::{
+    Ciphertext, Encryption, PublicKey, SecretKey,
+};
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 
@@ -19,7 +21,6 @@ pub struct WasmSecretKey {
 pub struct WasmPublicKey {
     inner: PublicKey<RistrettoGroup>,
 }
-
 
 #[wasm_bindgen]
 pub struct WasmKeyPair {
@@ -58,13 +59,9 @@ impl WasmEncryption {
         let mut rng = OsRng;
         let (secret_key, public_key) = self.inner.key_gen(&mut rng);
 
-        let wrapped_secret_key = WasmSecretKey {
-            inner: secret_key,
-        };
+        let wrapped_secret_key = WasmSecretKey { inner: secret_key };
 
-        let wrapped_public_key = WasmPublicKey {
-            inner: public_key,
-        };
+        let wrapped_public_key = WasmPublicKey { inner: public_key };
 
         WasmKeyPair {
             private: wrapped_secret_key,

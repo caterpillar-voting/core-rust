@@ -1,6 +1,6 @@
-use rand_core::{CryptoRng, RngCore};
 use crate::foundation::discrete_log::DiscreteLog;
 use crate::foundation::group::Group;
+use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ElGamal<G: Group> {
@@ -71,7 +71,9 @@ pub struct ExponentialElGamal<G: Group>(pub ElGamal<G>);
 
 impl<G: Group> Default for ExponentialElGamal<G> {
     fn default() -> Self {
-        Self { 0: ElGamal::default() }
+        Self {
+            0: ElGamal::default(),
+        }
     }
 }
 
@@ -114,11 +116,11 @@ impl<G: Group> ExponentialElGamal<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::foundation::discrete_log::GreedyDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use rand::thread_rng;
     use rand_core::{CryptoRng, RngCore};
-    use crate::foundation::discrete_log::GreedyDiscreteLog;
 
     type Curve = RistrettoGroup;
 
@@ -187,8 +189,7 @@ mod tests {
         let mut rng = thread_rng();
         let el_gamal = ElGamal::default();
         let exponential_el_gamal = ExponentialElGamal::new(el_gamal);
-        let (sk, pk, r, m) =
-            new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
+        let (sk, pk, r, m) = new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
         let m_decoder = GreedyDiscreteLog::new(m, None);
@@ -205,8 +206,7 @@ mod tests {
         let mut rng = thread_rng();
         let el_gamal = ElGamal::default();
         let exponential_el_gamal = ExponentialElGamal::new(el_gamal);
-        let (sk, pk, r, m) =
-            new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
+        let (sk, pk, r, m) = new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
 

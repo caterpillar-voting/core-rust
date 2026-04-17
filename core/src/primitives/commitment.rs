@@ -4,8 +4,8 @@ mod representation;
 use crate::foundation::group::Group;
 use crate::foundation::representation::Message;
 use crate::primitives::commitment::pedersen::Pedersen;
-use rand_core::{CryptoRng, RngCore};
 pub use crate::primitives::commitment::representation::{Commitment, Opening};
+use rand_core::{CryptoRng, RngCore};
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Debug, PartialEq)]
@@ -55,7 +55,6 @@ impl<G: Group, const N: usize> CommitmentHiding<G, N> {
         self.pedersen.commit(&opening.inner, &scalar_messages) == commitment.inner
     }
 }
-
 
 #[cfg(test)]
 mod tests {
