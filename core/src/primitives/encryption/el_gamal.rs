@@ -61,18 +61,16 @@ impl<G: Group> ElGamal<G> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ExponentialElGamal<'a, G: Group> {
-    el_gamal: &'a ElGamal<G>,
-}
+pub struct ExponentialElGamal<'a, G: Group>(pub &'a ElGamal<G>);
 
 impl<'a, G: Group> ExponentialElGamal<'a, G> {
     pub fn new(el_gamal: &'a ElGamal<G>) -> Self {
-        Self { el_gamal }
+        Self { 0: el_gamal }
     }
 
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Scalar) -> (G::Point, G::Point) {
-        let m_point = self.el_gamal.g * m;
-        self.el_gamal.encrypt(pk, r, &m_point)
+        let m_point = self.0.g * m;
+        self.0.encrypt(pk, r, &m_point)
     }
 
     pub fn decrypt(
@@ -81,9 +79,9 @@ impl<'a, G: Group> ExponentialElGamal<'a, G> {
         ciphertext: &(G::Point, G::Point),
         decoder: &dyn DiscreteLog<G>,
     ) -> Option<G::Scalar> {
-        let m_point = self.el_gamal.decrypt(sk, ciphertext);
+        let m_point = self.0.decrypt(sk, ciphertext);
 
-        decoder.log(&self.el_gamal.g, &m_point)
+        decoder.log(&self.0.g, &m_point)
     }
 
     pub fn decrypt_randomness(
@@ -93,9 +91,9 @@ impl<'a, G: Group> ExponentialElGamal<'a, G> {
         ciphertext: &(G::Point, G::Point),
         decoder: &dyn DiscreteLog<G>,
     ) -> Option<G::Scalar> {
-        let message_point = self.el_gamal.decrypt_randomness(pk, r, ciphertext);
+        let m_point = self.0.decrypt_randomness(pk, r, ciphertext);
 
-        decoder.log(&self.el_gamal.g, &message_point)
+        decoder.log(&self.0.g, &m_point)
     }
 }
 
@@ -169,8 +167,8 @@ mod tests {
         exponential_el_gamal: &ExponentialElGamal<Curve>,
         rng: &mut R,
     ) -> (Scalar, Point, Scalar, Scalar, (Scalar, Scalar)) {
-        let sk = exponential_el_gamal.el_gamal.generate_secret_key(rng);
-        let pk = exponential_el_gamal.el_gamal.derive_public_key(&sk);
+        let sk = exponential_el_gamal.0.generate_secret_key(rng);
+        let pk = exponential_el_gamal.0.derive_public_key(&sk);
         let r = Curve::scalar_random(rng);
         let m = Scalar::from(2u8);
         let m_start = Scalar::from(2u8);
