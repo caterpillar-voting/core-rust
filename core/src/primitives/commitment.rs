@@ -1,5 +1,6 @@
 pub mod pedersen;
 
+use std::ops;
 use crate::foundation::group::Group;
 use crate::foundation::representation::Message;
 use crate::primitives::commitment::pedersen::Pedersen;
@@ -63,6 +64,43 @@ impl<G: Group, const N: usize> HidingCommitment<G, N> {
     }
 }
 
+impl<G: Group> ops::Add<&Commitment<G>> for &Commitment<G> {
+    type Output = Commitment<G>;
+    fn add(self, rhs: &Commitment<G>) -> Self::Output {
+        Commitment {
+            inner: self.inner + &rhs.inner,
+        }
+    }
+}
+
+impl<G: Group> ops::Sub<&Commitment<G>> for &Commitment<G> {
+    type Output = Commitment<G>;
+
+    fn sub(self, rhs: &Commitment<G>) -> Self::Output {
+        Commitment {
+            inner: self.inner - &rhs.inner,
+        }
+    }
+}
+
+impl<G: Group> ops::Add<&Opening<G>> for &Opening<G> {
+    type Output = Opening<G>;
+    fn add(self, rhs: &Opening<G>) -> Self::Output {
+        Opening {
+            inner: self.inner + &rhs.inner,
+        }
+    }
+}
+
+impl<G: Group> ops::Sub<&Opening<G>> for &Opening<G> {
+    type Output = Opening<G>;
+    fn sub(self, rhs: &Opening<G>) -> Self::Output {
+        Opening {
+            inner: self.inner - &rhs.inner,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -84,6 +122,28 @@ mod tests {
 
         let messages = new_messages::<2>();
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
+
+        assert_eq!(
+            hiding_commitment.open(&messages, &commitment, &randomness),
+            true
+        );
+    }
+
+    #[test]
+    fn commit_and_open_homomorphic() {
+        let mut rng = thread_rng();
+
+        let hiding_commitment = HidingCommitment::<Curve, 2>::new();
+
+        let messages1 = new_messages::<2>();
+        let (commitment1, randomness1) = hiding_commitment.commit(&mut rng, &messages1);
+
+        let messages2 = new_messages::<2>();
+        let (commitment2, randomness2) = hiding_commitment.commit(&mut rng, &messages2);
+
+        let messages = std::array::from_fn(|i| &messages1[i] + &messages2[i]);
+        let commitment = &commitment1 + &commitment2;
+        let randomness = &randomness1 + &randomness2;
 
         assert_eq!(
             hiding_commitment.open(&messages, &commitment, &randomness),
