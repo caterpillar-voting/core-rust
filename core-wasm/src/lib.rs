@@ -1,15 +1,13 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
 use caterpillar_voting_core::foundation::representation::EncodedMessage;
-use caterpillar_voting_core::primitives::encryption::{
-    Ciphertext, PublicKey, SecretKey,
-};
+use caterpillar_voting_core::primitives::encryption::{Ciphertext, Encryption, PublicKey, SecretKey};
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct WasmEncryption {
-    inner: Encrypt<RistrettoGroup>,
+    inner: Encryption<RistrettoGroup>,
 }
 
 #[wasm_bindgen]
@@ -20,6 +18,13 @@ pub struct WasmSecretKey {
 #[wasm_bindgen]
 pub struct WasmPublicKey {
     inner: PublicKey<RistrettoGroup>,
+}
+
+
+#[wasm_bindgen]
+pub struct WasmKeyPair {
+    private: WasmSecretKey,
+    public: WasmPublicKey,
 }
 
 #[wasm_bindgen]
@@ -44,23 +49,26 @@ impl WasmEncryption {
     #[wasm_bindgen(js_name = new)]
     pub fn new() -> Self {
         Self {
-            inner: Encrypt::<RistrettoGroup>::new(),
+            inner: Encryption::<RistrettoGroup>::default(),
         }
     }
 
-    #[wasm_bindgen(js_name = generate_secret_key)]
-    pub fn generate_secret_key(&self) -> WasmSecretKey {
+    #[wasm_bindgen(js_name = key_gen)]
+    pub fn key_gen(&self) -> WasmKeyPair {
         let mut rng = OsRng;
+        let (secret_key, public_key) = self.inner.key_gen(&mut rng);
 
-        WasmSecretKey {
-            inner: self.inner.generate_secret_key(&mut rng),
-        }
-    }
+        let wrapped_secret_key = WasmSecretKey {
+            inner: secret_key,
+        };
 
-    #[wasm_bindgen(js_name = derive_public_key)]
-    pub fn derive_public_key(&self, secret_key: &WasmSecretKey) -> WasmPublicKey {
-        WasmPublicKey {
-            inner: self.inner.derive_public_key(&secret_key.inner),
+        let wrapped_public_key = WasmPublicKey {
+            inner: public_key,
+        };
+
+        WasmKeyPair {
+            private: wrapped_secret_key,
+            public: wrapped_public_key,
         }
     }
 
