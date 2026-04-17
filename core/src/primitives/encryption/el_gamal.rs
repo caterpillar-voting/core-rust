@@ -1,4 +1,5 @@
 use rand_core::{CryptoRng, RngCore};
+use crate::foundation::encoding::DiscreteLog;
 use crate::foundation::group::Group;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -78,11 +79,11 @@ impl<'a, G: Group> ExponentialElGamal<'a, G> {
         &self,
         sk: &G::Scalar,
         ciphertext: &(G::Point, G::Point),
-        m_range: &(G::Scalar, G::Scalar),
+        decoder: &dyn DiscreteLog<G>,
     ) -> Option<G::Scalar> {
         let m_point = self.el_gamal.decrypt(sk, ciphertext);
 
-        self.decode_point(&m_point, m_range)
+        decoder.log(&self.el_gamal.g, &m_point)
     }
 
     pub fn decrypt_randomness(
@@ -90,31 +91,11 @@ impl<'a, G: Group> ExponentialElGamal<'a, G> {
         pk: &G::Point,
         r: &G::Scalar,
         ciphertext: &(G::Point, G::Point),
-        m_range: &(G::Scalar, G::Scalar),
+        decoder: &dyn DiscreteLog<G>,
     ) -> Option<G::Scalar> {
         let message_point = self.el_gamal.decrypt_randomness(pk, r, ciphertext);
 
-        self.decode_point(&message_point, m_range)
-    }
-
-    fn decode_point(&self, g: &G::Point, m_range: &(G::Scalar, G::Scalar)) -> Option<G::Scalar> {
-        let mut current = m_range.0;
-        loop {
-            if self.el_gamal.g * &current == *g {
-                return Some(current);
-            }
-
-            current = current + &G::Scalar::from(1);
-        }
-    }
-
-    pub fn reencrypt(
-        &self,
-        pk: &G::Point,
-        r: &G::Scalar,
-        ciphertext: &(G::Point, G::Point),
-    ) -> (G::Point, G::Point) {
-        self.el_gamal.reencrypt(pk, r, ciphertext)
+        decoder.log(&self.el_gamal.g, &message_point)
     }
 }
 
@@ -127,6 +108,7 @@ mod tests {
     use crate::foundation::group::ristretto::RistrettoGroup;
     use rand::thread_rng;
     use rand_core::{CryptoRng, RngCore};
+    use crate::foundation::encoding::DiscreteLogRange;
 
     type Curve = RistrettoGroup;
 
@@ -206,9 +188,10 @@ mod tests {
             new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
-        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_range);
+        let m_decoder = DiscreteLogRange::new(&m_range);
+        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_decoder);
         let m_decrypted_randomness =
-            exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_range);
+            exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_decoder);
 
         assert_eq!(m_decrypted, Some(m));
         assert_eq!(m_decrypted_randomness, Some(m));
@@ -225,12 +208,13 @@ mod tests {
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
 
         let r_2 = Curve::scalar_random(&mut rng);
-        let ciphertext_2 = exponential_el_gamal.reencrypt(&pk, &r_2, &ciphertext);
+        let ciphertext_2 = el_gamal.reencrypt(&pk, &r_2, &ciphertext);
 
-        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_range);
+        let m_decoder = DiscreteLogRange::new(&m_range);
+        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_decoder);
         let r_combined = r + &r_2;
         let m_decrypted_randomness =
-            exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_range);
+            exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_decoder);
 
         assert_eq!(m_decrypted, Some(m));
         assert_eq!(m_decrypted_randomness, Some(m));
