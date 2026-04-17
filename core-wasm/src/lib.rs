@@ -1,7 +1,7 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
 use caterpillar_voting_core::foundation::representation::EncodedMessage;
 use caterpillar_voting_core::primitives::encryption::{
-    Ciphertext, Encryption, PublicKey, SecretKey,
+    Ciphertext, PublicKey, SecretKey,
 };
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 #[derive(Debug)]
 pub struct WasmEncryption {
-    inner: Encryption<RistrettoGroup>,
+    inner: Encrypt<RistrettoGroup>,
 }
 
 #[wasm_bindgen]
@@ -44,7 +44,7 @@ impl WasmEncryption {
     #[wasm_bindgen(js_name = new)]
     pub fn new() -> Self {
         Self {
-            inner: Encryption::<RistrettoGroup>::new(),
+            inner: Encrypt::<RistrettoGroup>::new(),
         }
     }
 
