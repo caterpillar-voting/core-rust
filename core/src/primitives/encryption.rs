@@ -1,40 +1,47 @@
 use crate::foundation::group::Group;
 use crate::foundation::representation::{EncodedMessage, Message, MessageRange};
 use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
+pub use crate::primitives::encryption::representation::{
+    Ciphertext, HomomorphicCiphertext, PublicKey, SecretKey,
+};
 use rand_core::{CryptoRng, RngCore};
 use zeroize::{Zeroize, ZeroizeOnDrop};
-pub use crate::primitives::encryption::representation::{Ciphertext, HomomorphicCiphertext, PublicKey, SecretKey};
 
 pub mod el_gamal;
 mod representation;
+mod builder;
 
 #[derive(Debug)]
-pub struct Encryption<G: Group> {
-    el_gamal: ElGamal<G>,
+pub struct KeyGen<'a, G: Group> {
+    el_gamal: &'a ElGamal<G>,
 }
-
-impl<G: Group> Default for Encryption<G> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<G: Group> Encryption<G> {
-    pub fn new() -> Self {
-        Self {
-            el_gamal: ElGamal::new(G::basepoint()),
-        }
+impl<'a, G: Group> KeyGen<'a, G> {
+    pub fn new(el_gamal: &'a ElGamal<G>) -> Self {
+        Self { el_gamal }
     }
 
     pub fn generate_secret_key<R: RngCore + CryptoRng>(&self, rng: &mut R) -> SecretKey<G> {
         SecretKey {
-            inner: G::scalar_random(rng),
+            inner: self.el_gamal.generate_secret_key(rng),
         }
     }
 
     pub fn derive_public_key(&self, secret_key: &SecretKey<G>) -> PublicKey<G> {
         PublicKey {
             inner: self.el_gamal.derive_public_key(&secret_key.inner),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Encrypt<'a, G: Group> {
+    el_gamal: &'a ElGamal<G>,
+}
+
+impl<'a, G: Group> Encrypt<'a, G> {
+    pub fn new(el_gamal: &'a ElGamal<G>) -> Self {
+        Self {
+            el_gamal,
         }
     }
 
@@ -56,18 +63,6 @@ impl<G: Group> Encryption<G> {
         Ciphertext { alpha, beta }
     }
 
-    pub fn decrypt(
-        &self,
-        secret_key: &SecretKey<G>,
-        ciphertext: &Ciphertext<G>,
-    ) -> EncodedMessage<G> {
-        let inner = self
-            .el_gamal
-            .decrypt(&secret_key.inner, &(ciphertext.alpha, ciphertext.beta));
-
-        EncodedMessage { inner }
-    }
-
     pub fn reencrypt<R: RngCore + CryptoRng>(
         &self,
         public_key: &PublicKey<G>,
@@ -87,34 +82,14 @@ impl<G: Group> Encryption<G> {
 }
 
 #[derive(Debug)]
-pub struct HomomorphicEncryption<G: Group> {
-    exponential_el_gamal: ExponentialElGamal<G>,
+pub struct EncryptHomomorph<'a, G: Group> {
+    exponential_el_gamal: &'a ExponentialElGamal<'a, G>,
 }
 
-impl<G: Group> Default for HomomorphicEncryption<G> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<G: Group> HomomorphicEncryption<G> {
-    pub fn new() -> Self {
+impl<'a, G: Group> EncryptHomomorph<'a, G> {
+    pub fn new(exponential_el_gamal: &'a ExponentialElGamal<'a, G>) -> Self {
         Self {
-            exponential_el_gamal: ExponentialElGamal::new(G::basepoint()),
-        }
-    }
-
-    pub fn generate_secret_key<R: RngCore + CryptoRng>(&self, rng: &mut R) -> SecretKey<G> {
-        SecretKey {
-            inner: G::scalar_random(rng),
-        }
-    }
-
-    pub fn derive_public_key(&self, secret_key: &SecretKey<G>) -> PublicKey<G> {
-        PublicKey {
-            inner: self
-                .exponential_el_gamal
-                .derive_public_key(&secret_key.inner),
+            exponential_el_gamal,
         }
     }
 
@@ -136,21 +111,6 @@ impl<G: Group> HomomorphicEncryption<G> {
         HomomorphicCiphertext { alpha, beta }
     }
 
-    pub fn decrypt(
-        &self,
-        secret_key: &SecretKey<G>,
-        ciphertext: &HomomorphicCiphertext<G>,
-        message_range: &MessageRange<G>,
-    ) -> Option<Message<G>> {
-        let inner = self.exponential_el_gamal.decrypt(
-            &secret_key.inner,
-            &(ciphertext.alpha, ciphertext.beta),
-            &(message_range.start, message_range.end),
-        )?;
-
-        Some(Message { inner })
-    }
-
     pub fn reencrypt<R: RngCore + CryptoRng>(
         &self,
         public_key: &PublicKey<G>,
@@ -169,6 +129,58 @@ impl<G: Group> HomomorphicEncryption<G> {
     }
 }
 
+#[derive(Debug)]
+pub struct Decrypt<'a, G: Group> {
+    el_gamal: &'a ElGamal<G>,
+}
+
+impl<'a, G: Group> Decrypt<'a, G> {
+    pub fn new(el_gamal: &'a ElGamal<G>) -> Self {
+        Self {
+            el_gamal,
+        }
+    }
+
+    pub fn decrypt(
+        &self,
+        secret_key: &SecretKey<G>,
+        ciphertext: &Ciphertext<G>,
+    ) -> EncodedMessage<G> {
+        let inner = self
+            .el_gamal
+            .decrypt(&secret_key.inner, &(ciphertext.alpha, ciphertext.beta));
+
+        EncodedMessage { inner }
+    }
+}
+
+#[derive(Debug)]
+pub struct DecryptHomomorphInRange<'a, G: Group> {
+    exponential_el_gamal: &'a ExponentialElGamal<'a, G>,
+}
+
+impl<'a, G: Group> DecryptHomomorphInRange<'a, G> {
+    pub fn new(exponential_el_gamal: &'a ExponentialElGamal<'a, G>) -> Self {
+        Self {
+            exponential_el_gamal,
+        }
+    }
+
+    pub fn decrypt(
+        &self,
+        secret_key: &SecretKey<G>,
+        ciphertext: &HomomorphicCiphertext<G>,
+        message_range: &MessageRange<G>,
+    ) -> Option<Message<G>> {
+        let inner = self.exponential_el_gamal.decrypt(
+            &secret_key.inner,
+            &(ciphertext.alpha, ciphertext.beta),
+            &(message_range.start, message_range.end),
+        )?;
+
+        Some(Message { inner })
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -186,7 +198,7 @@ mod tests {
         let mut rng = thread_rng();
         let message = EncodedMessage::new(Curve::point_random(&mut rng));
 
-        let encryption = Encryption::<Curve>::new();
+        let encryption = Encrypt::<Curve>::new();
         let secret_key = encryption.generate_secret_key(&mut rng);
         let public_key = encryption.derive_public_key(&secret_key);
 
