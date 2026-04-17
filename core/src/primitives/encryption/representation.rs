@@ -37,6 +37,16 @@ impl<G: Group> ops::Add<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G>
     }
 }
 
+impl<G: Group> ops::Mul<&G::Scalar> for &HomomorphicCiphertext<G> {
+    type Output = HomomorphicCiphertext<G>;
+    fn mul(self, rhs: &G::Scalar) -> Self::Output {
+        HomomorphicCiphertext {
+            alpha: self.alpha * &rhs,
+            beta: self.beta * &rhs,
+        }
+    }
+}
+
 impl<G: Group> ops::Sub<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G> {
     type Output = HomomorphicCiphertext<G>;
 
