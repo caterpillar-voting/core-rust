@@ -16,7 +16,7 @@ pub struct Commitment<G: Group> {
     inner: G::Point,
 }
 #[derive(Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
-pub struct SecretRandomness<G: Group> {
+pub struct Opening<G: Group> {
     inner: G::Scalar,
 }
 
@@ -40,26 +40,26 @@ impl<G: Group, const N: usize> HidingCommitment<G, N> {
         &self,
         rng: &mut R,
         messages: &[Message<G>; N],
-    ) -> (Commitment<G>, SecretRandomness<G>) {
+    ) -> (Commitment<G>, Opening<G>) {
         let randomness = G::scalar_random(rng);
         let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.inner).collect();
         let commitment = self.pedersen.commit(&randomness, &scalar_messages);
 
         (
             Commitment { inner: commitment },
-            SecretRandomness { inner: randomness },
+            Opening { inner: randomness },
         )
     }
 
-    pub fn verify(
+    pub fn open(
         &self,
         messages: &[Message<G>; N],
         commitment: &Commitment<G>,
-        randomness: &SecretRandomness<G>,
+        opening: &Opening<G>,
     ) -> bool {
         let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.inner).collect();
 
-        self.pedersen.commit(&randomness.inner, &scalar_messages) == commitment.inner
+        self.pedersen.commit(&opening.inner, &scalar_messages) == commitment.inner
     }
 }
 
@@ -77,7 +77,7 @@ mod tests {
     }
 
     #[test]
-    fn commit_and_verify() {
+    fn commit_and_open() {
         let mut rng = thread_rng();
 
         let hiding_commitment = HidingCommitment::<Curve, 2>::new();
@@ -86,7 +86,7 @@ mod tests {
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
 
         assert_eq!(
-            hiding_commitment.verify(&messages, &commitment, &randomness),
+            hiding_commitment.open(&messages, &commitment, &randomness),
             true
         );
     }

@@ -22,7 +22,7 @@ mod tests {
         let messages = [Message::<Curve>::new(Scalar::from(2u8))];
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
 
-        assert!(hiding_commitment.verify(&messages, &commitment, &randomness));
+        assert!(hiding_commitment.open(&messages, &commitment, &randomness));
     }
 
     #[test]
