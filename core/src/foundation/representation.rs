@@ -21,12 +21,6 @@ impl<G: Group> ops::Add<&Message<G>> for &Message<G> {
     }
 }
 
-impl<G: Group> ops::AddAssign<&Message<G>> for Message<G> {
-    fn add_assign(&mut self, rhs: &Message<G>) {
-        self.inner += rhs.inner;
-    }
-}
-
 impl<G: Group> ops::Sub<&Message<G>> for &Message<G> {
     type Output = Message<G>;
 
@@ -34,12 +28,6 @@ impl<G: Group> ops::Sub<&Message<G>> for &Message<G> {
         Message {
             inner: self.inner - &rhs.inner,
         }
-    }
-}
-
-impl<G: Group> ops::SubAssign<&Message<G>> for Message<G> {
-    fn sub_assign(&mut self, rhs: &Message<G>) {
-        self.inner -= rhs.inner;
     }
 }
 

@@ -202,13 +202,6 @@ impl<G: Group> ops::Add<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G>
     }
 }
 
-impl<G: Group> ops::AddAssign<&HomomorphicCiphertext<G>> for HomomorphicCiphertext<G> {
-    fn add_assign(&mut self, rhs: &HomomorphicCiphertext<G>) {
-        self.alpha += rhs.alpha;
-        self.beta += rhs.beta;
-    }
-}
-
 impl<G: Group> ops::Sub<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G> {
     type Output = HomomorphicCiphertext<G>;
 
@@ -217,13 +210,6 @@ impl<G: Group> ops::Sub<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G>
             alpha: self.alpha - &rhs.alpha,
             beta: self.beta - &rhs.beta,
         }
-    }
-}
-
-impl<G: Group> ops::SubAssign<&HomomorphicCiphertext<G>> for HomomorphicCiphertext<G> {
-    fn sub_assign(&mut self, rhs: &HomomorphicCiphertext<G>) {
-        self.alpha -= rhs.alpha;
-        self.beta -= rhs.beta;
     }
 }
 
