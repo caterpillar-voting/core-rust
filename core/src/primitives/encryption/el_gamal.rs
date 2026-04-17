@@ -173,15 +173,13 @@ mod tests {
     fn new_exponential_el_gamal_sample<R: RngCore + CryptoRng>(
         exponential_el_gamal: &ExponentialElGamal<Curve>,
         rng: &mut R,
-    ) -> (Scalar, Point, Scalar, Scalar, (Scalar, Scalar)) {
+    ) -> (Scalar, Point, Scalar, Scalar) {
         let sk = exponential_el_gamal.0.generate_secret_key(rng);
         let pk = exponential_el_gamal.0.derive_public_key(&sk);
         let r = Curve::scalar_random(rng);
         let m = Scalar::from(2u8);
-        let m_start = Scalar::from(2u8);
-        let m_end = Scalar::from(2u8);
 
-        (sk, pk, r, m, (m_start, m_end))
+        (sk, pk, r, m)
     }
 
     #[test]
@@ -189,11 +187,11 @@ mod tests {
         let mut rng = thread_rng();
         let el_gamal = ElGamal::default();
         let exponential_el_gamal = ExponentialElGamal::new(el_gamal);
-        let (sk, pk, r, m, m_range) =
+        let (sk, pk, r, m) =
             new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
-        let m_decoder = GreedyDiscreteLog::new(&m_range);
+        let m_decoder = GreedyDiscreteLog::new(m, None);
         let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_decoder);
         let m_decrypted_randomness =
             exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_decoder);
@@ -207,7 +205,7 @@ mod tests {
         let mut rng = thread_rng();
         let el_gamal = ElGamal::default();
         let exponential_el_gamal = ExponentialElGamal::new(el_gamal);
-        let (sk, pk, r, m, m_range) =
+        let (sk, pk, r, m) =
             new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
@@ -215,7 +213,7 @@ mod tests {
         let r_2 = Curve::scalar_random(&mut rng);
         let ciphertext_2 = exponential_el_gamal.0.reencrypt(&pk, &r_2, &ciphertext);
 
-        let m_decoder = GreedyDiscreteLog::new(&m_range);
+        let m_decoder = GreedyDiscreteLog::new(m, None);
         let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_decoder);
         let r_combined = r + &r_2;
         let m_decrypted_randomness =

@@ -199,8 +199,7 @@ mod tests {
         let mut rng = thread_rng();
         let message = Message::new(Scalar::from(1u8));
         let message_2 = Message::new(Scalar::from(2u8));
-        let message_range = (Scalar::from(2u8), Scalar::from(2u8));
-        let message_decoder = GreedyDiscreteLog::new(&message_range);
+        let message_decoder = GreedyDiscreteLog::new(Scalar::from(2u8), None);
 
         let encryption = EncryptionHomomorph::<Curve>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);

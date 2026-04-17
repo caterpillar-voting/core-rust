@@ -1,12 +1,10 @@
 pub mod pedersen;
 mod representation;
 
-use std::ops;
 use crate::foundation::group::Group;
 use crate::foundation::representation::Message;
 use crate::primitives::commitment::pedersen::Pedersen;
 use rand_core::{CryptoRng, RngCore};
-use zeroize::{Zeroize, ZeroizeOnDrop};
 pub use crate::primitives::commitment::representation::{Commitment, Opening};
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
