@@ -1,3 +1,4 @@
+use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -8,6 +9,10 @@ pub struct ElGamal<G: Group> {
 impl<G: Group> ElGamal<G> {
     pub fn new(g: G::Point) -> Self {
         Self { g }
+    }
+
+    pub fn generate_secret_key<R: RngCore + CryptoRng>(&self, rng: &mut R) -> G::Scalar {
+        G::scalar_random(rng)
     }
 
     pub fn derive_public_key(&self, sk: &G::Scalar) -> G::Point {
@@ -55,18 +60,13 @@ impl<G: Group> ElGamal<G> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ExponentialElGamal<G: Group> {
-    el_gamal: ElGamal<G>,
+pub struct ExponentialElGamal<'a, G: Group> {
+    el_gamal: &'a ElGamal<G>,
 }
 
-impl<G: Group> ExponentialElGamal<G> {
-    pub fn new(g: G::Point) -> Self {
-        let el_gamal = ElGamal::new(g);
+impl<'a, G: Group> ExponentialElGamal<'a, G> {
+    pub fn new(el_gamal: &'a ElGamal<G>) -> Self {
         Self { el_gamal }
-    }
-
-    pub fn derive_public_key(&self, sk: &G::Scalar) -> G::Point {
-        self.el_gamal.derive_public_key(sk)
     }
 
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Scalar) -> (G::Point, G::Point) {
@@ -142,7 +142,7 @@ mod tests {
         el_gamal: &ElGamal<Curve>,
         rng: &mut R,
     ) -> (Scalar, Point, Scalar, Point) {
-        let sk = Curve::scalar_random(rng);
+        let sk = el_gamal.generate_secret_key(rng);
         let pk = el_gamal.derive_public_key(&sk);
         let r = Curve::scalar_random(rng);
         let m = Curve::point_random(rng);
@@ -183,17 +183,12 @@ mod tests {
         assert_eq!(m_decrypted_randomness, m);
     }
 
-    fn new_exponential_el_gamal<R: RngCore + CryptoRng>(rng: &mut R) -> ExponentialElGamal<Curve> {
-        let point = Curve::point_random(rng);
-        ExponentialElGamal::new(point)
-    }
-
     fn new_exponential_el_gamal_sample<R: RngCore + CryptoRng>(
         exponential_el_gamal: &ExponentialElGamal<Curve>,
         rng: &mut R,
     ) -> (Scalar, Point, Scalar, Scalar, (Scalar, Scalar)) {
-        let sk = Curve::scalar_random(rng);
-        let pk = exponential_el_gamal.derive_public_key(&sk);
+        let sk = exponential_el_gamal.el_gamal.generate_secret_key(rng);
+        let pk = exponential_el_gamal.el_gamal.derive_public_key(&sk);
         let r = Curve::scalar_random(rng);
         let m = Scalar::from(2u8);
         let m_start = Scalar::from(2u8);
@@ -205,7 +200,8 @@ mod tests {
     #[test]
     fn exponential_encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let exponential_el_gamal = new_exponential_el_gamal(&mut rng);
+        let el_gamal = new_el_gamal(&mut rng);
+        let exponential_el_gamal = ExponentialElGamal::new(&el_gamal);
         let (sk, pk, r, m, m_range) =
             new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
 
@@ -221,7 +217,8 @@ mod tests {
     #[test]
     fn exponential_encrypt_reencrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let exponential_el_gamal = new_exponential_el_gamal(&mut rng);
+        let el_gamal = new_el_gamal(&mut rng);
+        let exponential_el_gamal = ExponentialElGamal::new(&el_gamal);
         let (sk, pk, r, m, m_range) =
             new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
 
