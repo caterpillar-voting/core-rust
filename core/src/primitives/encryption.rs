@@ -10,7 +10,6 @@ use crate::foundation::discrete_log::DiscreteLog;
 
 pub mod el_gamal;
 mod representation;
-mod builder;
 
 #[derive(Debug)]
 pub struct Encryption<G: Group> {
