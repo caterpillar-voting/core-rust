@@ -32,18 +32,6 @@ impl<G: Group> ops::Sub<&Message<G>> for &Message<G> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct MessageRange<G: Group> {
-    pub start: G::Scalar,
-    pub end: G::Scalar,
-}
-
-impl<G: Group> MessageRange<G> {
-    pub fn new(start: G::Scalar, end: G::Scalar) -> Self {
-        Self { start, end }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct EncodedMessage<G: Group> {
     pub inner: G::Point,
 }
