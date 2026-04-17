@@ -11,17 +11,17 @@ pub use crate::primitives::commitment::representation::{Commitment, Opening};
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Debug, PartialEq)]
-pub struct HidingCommitment<G: Group, const N: usize = 1> {
+pub struct CommitmentHiding<G: Group, const N: usize = 1> {
     pedersen: Pedersen<G>,
 }
 
-impl<G: Group, const N: usize> Default for HidingCommitment<G, N> {
+impl<G: Group, const N: usize> Default for CommitmentHiding<G, N> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<G: Group, const N: usize> HidingCommitment<G, N> {
+impl<G: Group, const N: usize> CommitmentHiding<G, N> {
     pub fn new() -> Self {
         let pedersen = Pedersen::new(
             G::basepoint(),
@@ -76,7 +76,7 @@ mod tests {
     fn commit_and_open() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = HidingCommitment::<Curve, 2>::new();
+        let hiding_commitment = CommitmentHiding::<Curve, 2>::new();
 
         let messages = new_messages::<2>();
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
@@ -91,7 +91,7 @@ mod tests {
     fn commit_and_open_homomorphic() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = HidingCommitment::<Curve, 2>::new();
+        let hiding_commitment = CommitmentHiding::<Curve, 2>::new();
 
         let messages1 = new_messages::<2>();
         let (commitment1, randomness1) = hiding_commitment.commit(&mut rng, &messages1);
