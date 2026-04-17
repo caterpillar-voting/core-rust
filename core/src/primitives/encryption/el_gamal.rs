@@ -7,6 +7,12 @@ pub struct ElGamal<G: Group> {
     g: G::Point,
 }
 
+impl<G: Group> Default for ElGamal<G> {
+    fn default() -> Self {
+        Self { g: G::basepoint() }
+    }
+}
+
 impl<G: Group> ElGamal<G> {
     pub fn new(g: G::Point) -> Self {
         Self { g }
