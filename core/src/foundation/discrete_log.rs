@@ -30,7 +30,7 @@ impl<G: Group> DiscreteLog<G> for GreedyDiscreteLog<G> {
 pub struct PrecomputedDiscreteLog<G: Group> {
     range: (G::Scalar, G::Scalar),
     g: G::Point,
-    table: Vec<G::Point>
+    table: Box<[G::Point]>
 }
 
 impl<G: Group> PrecomputedDiscreteLog<G> where usize: From<<G as Group>::Scalar> {
@@ -51,7 +51,7 @@ impl<G: Group> PrecomputedDiscreteLog<G> where usize: From<<G as Group>::Scalar>
         Self {
             range,
             g,
-            table,
+            table: table.into_boxed_slice(),
         }
     }
 }
