@@ -13,6 +13,7 @@ crate-type = ["cdylib"]
 caterpillar-voting-core = { path = "../core" }
 wasm-bindgen = "0.2"
 rand.workspace = true
+getrandom = { version = "0.2", features = ["js"] } # getrandum used implicitly by wasm-bindgen
 
 [features]
 default = []
