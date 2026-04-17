@@ -23,6 +23,7 @@ pub struct WasmPublicKey {
 }
 
 #[wasm_bindgen]
+#[allow(dead_code)]
 pub struct WasmKeyPair {
     private: WasmSecretKey,
     public: WasmPublicKey,

@@ -19,7 +19,7 @@ impl<G: Group> Default for GreedyDiscreteLog<G> {
 }
 
 impl<G: Group> GreedyDiscreteLog<G> {
-    pub(crate) fn new(start: G::Scalar, end: Option<G::Scalar>) -> Self {
+    pub fn new(start: G::Scalar, end: Option<G::Scalar>) -> Self {
         Self { start, end }
     }
 }
@@ -32,7 +32,7 @@ impl<G: Group> DiscreteLog<G> for GreedyDiscreteLog<G> {
                 return Some(current);
             }
 
-            if self.end.is_some() && current == self.end.unwrap()  {
+            if self.end.is_some() && current == self.end.unwrap() {
                 return None;
             }
 
@@ -48,7 +48,7 @@ pub struct PrecomputedDiscreteLog<G: Group> {
 }
 
 impl<G: Group> PrecomputedDiscreteLog<G> {
-    pub(crate) fn new(range: (G::Scalar, usize), g: G::Point) -> Self {
+    pub fn new(range: (G::Scalar, usize), g: G::Point) -> Self {
         let mut table = Vec::with_capacity(range.1);
 
         let mut point = g * &range.0;
