@@ -1,4 +1,5 @@
 pub mod pedersen;
+mod representation;
 
 use std::ops;
 use crate::foundation::group::Group;
@@ -6,19 +7,12 @@ use crate::foundation::representation::Message;
 use crate::primitives::commitment::pedersen::Pedersen;
 use rand_core::{CryptoRng, RngCore};
 use zeroize::{Zeroize, ZeroizeOnDrop};
+pub use crate::primitives::commitment::representation::{Commitment, Opening};
 
 /// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
 #[derive(Debug, PartialEq)]
 pub struct HidingCommitment<G: Group, const N: usize = 1> {
     pedersen: Pedersen<G>,
-}
-#[derive(Debug, PartialEq, Eq)]
-pub struct Commitment<G: Group> {
-    inner: G::Point,
-}
-#[derive(Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
-pub struct Opening<G: Group> {
-    inner: G::Scalar,
 }
 
 impl<G: Group, const N: usize> Default for HidingCommitment<G, N> {
@@ -64,42 +58,6 @@ impl<G: Group, const N: usize> HidingCommitment<G, N> {
     }
 }
 
-impl<G: Group> ops::Add<&Commitment<G>> for &Commitment<G> {
-    type Output = Commitment<G>;
-    fn add(self, rhs: &Commitment<G>) -> Self::Output {
-        Commitment {
-            inner: self.inner + &rhs.inner,
-        }
-    }
-}
-
-impl<G: Group> ops::Sub<&Commitment<G>> for &Commitment<G> {
-    type Output = Commitment<G>;
-
-    fn sub(self, rhs: &Commitment<G>) -> Self::Output {
-        Commitment {
-            inner: self.inner - &rhs.inner,
-        }
-    }
-}
-
-impl<G: Group> ops::Add<&Opening<G>> for &Opening<G> {
-    type Output = Opening<G>;
-    fn add(self, rhs: &Opening<G>) -> Self::Output {
-        Opening {
-            inner: self.inner + &rhs.inner,
-        }
-    }
-}
-
-impl<G: Group> ops::Sub<&Opening<G>> for &Opening<G> {
-    type Output = Opening<G>;
-    fn sub(self, rhs: &Opening<G>) -> Self::Output {
-        Opening {
-            inner: self.inner - &rhs.inner,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

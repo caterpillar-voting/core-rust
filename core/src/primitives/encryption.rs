@@ -2,31 +2,15 @@ use crate::foundation::group::Group;
 use crate::foundation::representation::{EncodedMessage, Message, MessageRange};
 use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
 use rand_core::{CryptoRng, RngCore};
-use std::ops;
 use zeroize::{Zeroize, ZeroizeOnDrop};
+pub use crate::primitives::encryption::representation::{Ciphertext, HomomorphicCiphertext, PublicKey, SecretKey};
 
 pub mod el_gamal;
+mod representation;
 
 #[derive(Debug)]
 pub struct Encryption<G: Group> {
     el_gamal: ElGamal<G>,
-}
-
-#[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
-pub struct SecretKey<G: Group> {
-    inner: G::Scalar,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PublicKey<G: Group> {
-    inner: G::Point,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Ciphertext<G: Group> {
-    alpha: G::Point,
-    beta: G::Point,
-    // TODO: include ZKP for CCA2
 }
 
 impl<G: Group> Default for Encryption<G> {
@@ -107,13 +91,6 @@ pub struct HomomorphicEncryption<G: Group> {
     exponential_el_gamal: ExponentialElGamal<G>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct HomomorphicCiphertext<G: Group> {
-    alpha: G::Point,
-    beta: G::Point,
-    // TODO: include ZKP for CCA2
-}
-
 impl<G: Group> Default for HomomorphicEncryption<G> {
     fn default() -> Self {
         Self::new()
@@ -192,26 +169,6 @@ impl<G: Group> HomomorphicEncryption<G> {
     }
 }
 
-impl<G: Group> ops::Add<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G> {
-    type Output = HomomorphicCiphertext<G>;
-    fn add(self, rhs: &HomomorphicCiphertext<G>) -> Self::Output {
-        HomomorphicCiphertext {
-            alpha: self.alpha + &rhs.alpha,
-            beta: self.beta + &rhs.beta,
-        }
-    }
-}
-
-impl<G: Group> ops::Sub<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G> {
-    type Output = HomomorphicCiphertext<G>;
-
-    fn sub(self, rhs: &HomomorphicCiphertext<G>) -> Self::Output {
-        HomomorphicCiphertext {
-            alpha: self.alpha - &rhs.alpha,
-            beta: self.beta - &rhs.beta,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
