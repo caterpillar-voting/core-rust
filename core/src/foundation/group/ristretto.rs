@@ -64,6 +64,10 @@ impl Group for RistrettoGroup {
         RistrettoPointRaw::hash_from_bytes::<Sha512>(payload)
     }
 
+    fn hash_to_scalar(payload: &[u8]) -> Self::Scalar {
+        RistrettoScalarRaw::hash_from_bytes::<Sha512>(payload)
+    }
+
     fn independent_generators(prefix: &[u8], size: usize) -> Vec<Self::Point> {
         let mut result = Vec::with_capacity(size);
 

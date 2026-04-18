@@ -56,8 +56,8 @@ pub trait Group {
     /// Return the basepoint, i.e., a generator defined by the spec to be used as a starting point for the group.
     fn basepoint() -> Self::Point;
 
-    /// Hash to group point.
     fn hash_to_point(payload: &[u8]) -> Self::Point;
+    fn hash_to_scalar(payload: &[u8]) -> Self::Scalar;
 
     /// Generate (verifiably) independent generators
     fn independent_generators(prefix: &[u8], size: usize) -> Vec<Self::Point>;
