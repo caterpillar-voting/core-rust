@@ -20,7 +20,7 @@ mod tests {
 
         let hiding_commitment = CommitmentHiding::<Curve>::new();
 
-        let messages = [Message::<Curve>::new(Scalar::from(2u8))];
+        let messages = [Message::<Curve>(Scalar::from(2u8))];
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
 
         assert!(hiding_commitment.open(&messages, &commitment, &randomness));
@@ -29,7 +29,7 @@ mod tests {
     #[test]
     fn encryption() {
         let mut rng = thread_rng();
-        let message = EncodedMessage::new(Curve::point_random(&mut rng));
+        let message = EncodedMessage(Curve::point_random(&mut rng));
 
         let encryption = Encryption::<Curve>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
@@ -43,7 +43,7 @@ mod tests {
     #[test]
     fn encryption_homomorph() {
         let mut rng = thread_rng();
-        let message = Message::new(Scalar::from(2u8));
+        let message = Message(Scalar::from(2u8));
         let message_sum = &message + &message;
         let decoder = GreedyDiscreteLog::new(Scalar::from(4u8), None);
 

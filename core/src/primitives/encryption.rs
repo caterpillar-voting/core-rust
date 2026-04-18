@@ -44,7 +44,7 @@ impl<G: Group> Encryption<G> {
         let randomness = G::scalar_random(rng);
         let (alpha, beta) = self
             .el_gamal
-            .encrypt(&public_key.0, &randomness, &message.inner);
+            .encrypt(&public_key.0, &randomness, &message.0);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -73,11 +73,11 @@ impl<G: Group> Encryption<G> {
         secret_key: &SecretKey<G>,
         ciphertext: &Ciphertext<G>,
     ) -> EncodedMessage<G> {
-        let inner = self
+        let decrypted = self
             .el_gamal
             .decrypt(&secret_key.0, &(ciphertext.0, ciphertext.1));
 
-        EncodedMessage { inner }
+        EncodedMessage(decrypted)
     }
 }
 
@@ -118,7 +118,7 @@ impl<G: Group> EncryptionHomomorph<G> {
         let randomness = G::scalar_random(rng);
         let (alpha, beta) =
             self.exponential_el_gamal
-                .encrypt(&public_key.0, &randomness, &message.inner);
+                .encrypt(&public_key.0, &randomness, &message.0);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -150,13 +150,13 @@ impl<G: Group> EncryptionHomomorph<G> {
         ciphertext: &HomomorphicCiphertext<G>,
         decoder: &dyn DiscreteLog<G>,
     ) -> Option<Message<G>> {
-        let inner = self.exponential_el_gamal.decrypt(
+        let decrypted = self.exponential_el_gamal.decrypt(
             &secret_key.0,
             &(ciphertext.0, ciphertext.1),
             decoder,
         )?;
 
-        Some(Message { inner })
+        Some(Message(decrypted))
     }
 }
 
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = EncodedMessage::new(Curve::point_random(&mut rng));
+        let message = EncodedMessage(Curve::point_random(&mut rng));
 
         let encryption = Encryption::<Curve>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
@@ -190,8 +190,8 @@ mod tests {
     #[test]
     fn homomorphic_encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = Message::new(Scalar::from(1u8));
-        let message_2 = Message::new(Scalar::from(2u8));
+        let message = Message(Scalar::from(1u8));
+        let message_2 = Message(Scalar::from(2u8));
         let message_decoder = GreedyDiscreteLog::new(Scalar::from(2u8), None);
 
         let encryption = EncryptionHomomorph::<Curve>::default();

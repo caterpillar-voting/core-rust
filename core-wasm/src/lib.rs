@@ -1,29 +1,23 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
+use caterpillar_voting_core::foundation::group::{ByteSerialize, Group};
 use caterpillar_voting_core::foundation::representation::EncodedMessage;
 use caterpillar_voting_core::primitives::encryption::{
     Ciphertext, Encryption, PublicKey, SecretKey,
 };
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
-use caterpillar_voting_core::foundation::group::{ByteSerialize, Group};
 
 #[wasm_bindgen]
 #[derive(Debug)]
-pub struct WasmEncryption {
-    inner: Encryption<RistrettoGroup>,
-}
+pub struct WasmEncryption(Encryption<RistrettoGroup>);
 
 #[wasm_bindgen]
 #[derive(Clone)]
-pub struct WasmSecretKey {
-    inner: SecretKey<RistrettoGroup>,
-}
+pub struct WasmSecretKey(SecretKey<RistrettoGroup>);
 
 #[wasm_bindgen]
 #[derive(Clone)]
-pub struct WasmPublicKey {
-    inner: PublicKey<RistrettoGroup>,
-}
+pub struct WasmPublicKey(PublicKey<RistrettoGroup>);
 
 #[wasm_bindgen]
 pub struct WasmKeyPair {
@@ -45,26 +39,22 @@ impl WasmKeyPair {
 }
 
 #[wasm_bindgen]
-pub struct WasmCiphertext {
-    inner: Ciphertext<RistrettoGroup>,
-}
+pub struct WasmCiphertext(Ciphertext<RistrettoGroup>);
 
 #[wasm_bindgen]
 #[derive(Debug)]
-pub struct WasmEncodedMessage {
-    inner: EncodedMessage<RistrettoGroup>,
-}
+pub struct WasmEncodedMessage(EncodedMessage<RistrettoGroup>);
 
 #[wasm_bindgen]
 impl WasmEncodedMessage {
     pub fn from() -> Self {
-        Self { inner: EncodedMessage::new(RistrettoGroup::basepoint()) }
+        Self(EncodedMessage(RistrettoGroup::basepoint()))
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = vec![0u8; <RistrettoGroup as Group>::Point::BUFFER_SIZE];
-        self.inner.inner.to_bytes(&mut bytes);
-        bytes
+        let mut bytes = [0u8; <RistrettoGroup as Group>::Point::BUFFER_SIZE];
+        self.0.0.to_bytes(&mut bytes);
+        bytes.into()
     }
 }
 
@@ -77,18 +67,16 @@ impl Default for WasmEncryption {
 #[wasm_bindgen]
 impl WasmEncryption {
     pub fn new() -> Self {
-        Self {
-            inner: Encryption::<RistrettoGroup>::default(),
-        }
+        Self(Encryption::<RistrettoGroup>::default())
     }
 
     pub fn key_gen(&self) -> WasmKeyPair {
         let mut rng = OsRng;
-        let (secret_key, public_key) = self.inner.key_gen(&mut rng);
+        let (secret_key, public_key) = self.0.key_gen(&mut rng);
 
-        let wrapped_secret_key = WasmSecretKey { inner: secret_key };
+        let wrapped_secret_key = WasmSecretKey(secret_key);
 
-        let wrapped_public_key = WasmPublicKey { inner: public_key };
+        let wrapped_public_key = WasmPublicKey(public_key);
 
         WasmKeyPair {
             private: wrapped_secret_key,
@@ -103,11 +91,7 @@ impl WasmEncryption {
     ) -> WasmCiphertext {
         let mut rng = OsRng;
 
-        WasmCiphertext {
-            inner: self
-                .inner
-                .encrypt(&public_key.inner, &mut rng, &message.inner),
-        }
+        WasmCiphertext(self.0.encrypt(&public_key.0, &mut rng, &message.0))
     }
 
     pub fn decrypt(
@@ -115,9 +99,7 @@ impl WasmEncryption {
         secret_key: &WasmSecretKey,
         ciphertext: &WasmCiphertext,
     ) -> WasmEncodedMessage {
-        WasmEncodedMessage {
-            inner: self.inner.decrypt(&secret_key.inner, &ciphertext.inner),
-        }
+        WasmEncodedMessage(self.0.decrypt(&secret_key.0, &ciphertext.0))
     }
 
     pub fn reencrypt(
@@ -127,10 +109,6 @@ impl WasmEncryption {
     ) -> WasmCiphertext {
         let mut rng = OsRng;
 
-        WasmCiphertext {
-            inner: self
-                .inner
-                .reencrypt(&public_key.inner, &mut rng, &ciphertext.inner),
-        }
+        WasmCiphertext(self.0.reencrypt(&public_key.0, &mut rng, &ciphertext.0))
     }
 }

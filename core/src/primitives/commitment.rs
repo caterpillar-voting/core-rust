@@ -35,13 +35,10 @@ impl<G: Group, const N: usize> CommitmentHiding<G, N> {
         messages: &[Message<G>; N],
     ) -> (Commitment<G>, Opening<G>) {
         let randomness = G::scalar_random(rng);
-        let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.inner).collect();
+        let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.0).collect();
         let commitment = self.pedersen.commit(&randomness, &scalar_messages);
 
-        (
-            Commitment { inner: commitment },
-            Opening { inner: randomness },
-        )
+        (Commitment(commitment), Opening(randomness))
     }
 
     pub fn open(
@@ -50,9 +47,9 @@ impl<G: Group, const N: usize> CommitmentHiding<G, N> {
         commitment: &Commitment<G>,
         opening: &Opening<G>,
     ) -> bool {
-        let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.inner).collect();
+        let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.0).collect();
 
-        self.pedersen.commit(&opening.inner, &scalar_messages) == commitment.inner
+        self.pedersen.commit(&opening.0, &scalar_messages) == commitment.0
     }
 }
 
@@ -66,7 +63,7 @@ mod tests {
     type Scalar = <Curve as Group>::Scalar;
 
     fn new_messages<const N: usize>() -> [Message<Curve>; N] {
-        std::array::from_fn(|i| Message::<Curve>::new(Scalar::from(u32::try_from(i).unwrap())))
+        std::array::from_fn(|i| Message::<Curve>(Scalar::from(u64::try_from(i).unwrap())))
     }
 
     #[test]
