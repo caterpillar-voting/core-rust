@@ -1,5 +1,5 @@
 use crate::foundation::group::Group;
-use crate::primitives::zkp::composite::BooleanTree::{And, Leaf, Or};
+use crate::primitives::zkp::proof::BooleanTree::{And, Leaf, Or};
 use crate::primitives::zkp::statement::{Commit, Statement, Transcript};
 use rand_core::{CryptoRng, RngCore};
 
@@ -24,24 +24,26 @@ type Proof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
 /// https://crypto.ethz.ch/publications/files/Maurer09.pdf
 impl ZeroKnowledgeProof {
     pub fn prepare<G: Group, R: RngCore + CryptoRng>(
+        rng: &mut R,
         claim: &Claim<G>,
         knowledge: &Knowledge<G>,
-        rng: &mut R,
     ) -> PreparedProof<G> {
         match claim {
             Leaf(statements) => {
                 assert!(matches!(knowledge, Leaf(Some(_))));
 
-                let committed = Self::commit(statements, rng);
+                let committed = Self::commit(rng, statements);
 
                 Leaf((Some(committed), None))
             }
             And(nodes) => {
+                assert!(matches!(knowledge, And(_)));
+
                 if let And(knowledge_nodes) = knowledge {
                     let committed = nodes
                         .iter()
                         .zip(knowledge_nodes.iter())
-                        .map(|(node, knowledge_node)| Self::prepare(node, knowledge_node, rng))
+                        .map(|(node, knowledge_node)| Self::prepare(rng, node, knowledge_node))
                         .collect();
 
                     And(committed)
@@ -59,16 +61,10 @@ impl ZeroKnowledgeProof {
                             if let Leaf(None) = &knowledge_node {
                                 let c = G::scalar_random(rng);
 
-                                return Leaf((None, Some(Self::simulate(node, rng, c))));
+                                return Leaf((None, Some(Self::simulate(rng, node, c))));
                             }
 
-                            if let Leaf(statements) = &node {
-                                assert!(matches!(knowledge, Leaf(_)));
-
-                                return Leaf((Some(Self::commit(statements, rng)), None));
-                            }
-
-                            Self::prepare(node, knowledge_node, rng)
+                            Self::prepare(rng, node, knowledge_node)
                         })
                         .collect();
 
@@ -81,8 +77,8 @@ impl ZeroKnowledgeProof {
     }
 
     fn commit<G: Group, R: RngCore + CryptoRng>(
-        statements: &[Statement<G>],
         rng: &mut R,
+        statements: &[Statement<G>],
     ) -> CommittedProof<G> {
         let committed = statements
             .iter()
@@ -93,22 +89,23 @@ impl ZeroKnowledgeProof {
     }
 
     fn simulate<G: Group, R: RngCore + CryptoRng>(
-        proof: &BooleanTree<Box<[Statement<G>]>>,
         rng: &mut R,
+        claim: &Claim<G>,
         c: G::Scalar,
     ) -> SimulatedProof<G> {
-        match proof {
+        match claim {
             Leaf(statements) => {
                 let simulated = statements
                     .iter()
                     .map(|statement| statement.simulate(rng, &c))
                     .collect();
+
                 Leaf((c, simulated))
             }
             And(nodes) => {
                 let simulated = nodes
                     .iter()
-                    .map(|node| Self::simulate(node, rng, c))
+                    .map(|node| Self::simulate(rng, node, c))
                     .collect();
 
                 And(simulated)
@@ -118,7 +115,7 @@ impl ZeroKnowledgeProof {
 
                 let simulated = nodes
                     .iter()
-                    .map(|node| Self::simulate(node, rng, c))
+                    .map(|node| Self::simulate(rng, node, c))
                     .collect();
 
                 Or(simulated)
@@ -169,15 +166,13 @@ impl ZeroKnowledgeProof {
 mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::foundation::group::{ByteSerialize, Group};
-    use crate::foundation::hash::{ContextAwareHash, VectorContextHash};
+    use crate::foundation::group::{Group};
     use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;
 
     type Scalar = <RistrettoGroup as Group>::Scalar;
-    type Point = <RistrettoGroup as Group>::Point;
 
     #[test]
     fn prepare_complex_statement() {
@@ -207,7 +202,7 @@ mod tests {
             Leaf(Box::new([zkp_rerand_u.clone(), zkp_rerand_v.clone()])),
         ]);
         let knowledge: Knowledge<Curve> = Or(vec![Leaf(None), Leaf(Some(r2))]);
-        let prepared_proof = ZeroKnowledgeProof::prepare(&claim, &knowledge, &mut rng);
+        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
 
         assert!(matches!(prepared_proof, Or(_)));
         if let Or(nodes) = prepared_proof {
