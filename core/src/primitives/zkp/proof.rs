@@ -28,51 +28,39 @@ impl ZeroKnowledgeProof {
         claim: &Claim<G>,
         knowledge: &Knowledge<G>,
     ) -> PreparedProof<G> {
-        match claim {
-            Leaf(statements) => {
-                assert!(matches!(knowledge, Leaf(Some(_))));
-
+        match (claim, knowledge) {
+            (Leaf(statements), Leaf(Some(_))) => {
                 let committed = Self::commit(rng, statements);
 
                 Leaf((Some(committed), None))
             }
-            And(nodes) => {
-                assert!(matches!(knowledge, And(_)));
+            (And(nodes), And(knowledge_nodes)) => {
+                let committed = nodes
+                    .iter()
+                    .zip(knowledge_nodes.iter())
+                    .map(|(node, knowledge_node)| Self::prepare(rng, node, knowledge_node))
+                    .collect();
 
-                if let And(knowledge_nodes) = knowledge {
-                    let committed = nodes
-                        .iter()
-                        .zip(knowledge_nodes.iter())
-                        .map(|(node, knowledge_node)| Self::prepare(rng, node, knowledge_node))
-                        .collect();
-
-                    And(committed)
-                } else {
-                    unreachable!("proof and knowledge trees not synchronized")
-                }
+                And(committed)
             }
-            Or(nodes) => {
-                assert!(matches!(knowledge, Or(_)));
-                if let Or(knowledge_nodes) = knowledge {
-                    let simulated = nodes
-                        .iter()
-                        .zip(knowledge_nodes.iter())
-                        .map(|(node, knowledge_node)| {
-                            if let Leaf(None) = &knowledge_node {
-                                let c = G::scalar_random(rng);
+            (Or(nodes), Or(knowledge_nodes)) => {
+                let simulated = nodes
+                    .iter()
+                    .zip(knowledge_nodes.iter())
+                    .map(|(node, knowledge_node)| {
+                        if let Leaf(None) = &knowledge_node {
+                            let c = G::scalar_random(rng);
 
-                                return Leaf((None, Some(Self::simulate(rng, node, c))));
-                            }
+                            return Leaf((None, Some(Self::simulate(rng, node, c))));
+                        }
 
-                            Self::prepare(rng, node, knowledge_node)
-                        })
-                        .collect();
+                        Self::prepare(rng, node, knowledge_node)
+                    })
+                    .collect();
 
-                    Or(simulated)
-                } else {
-                    unreachable!("proof and knowledge trees not synchronized")
-                }
+                Or(simulated)
             }
+            _ => unreachable!("proof and knowledge trees not synchronized"),
         }
     }
 
@@ -111,11 +99,21 @@ impl ZeroKnowledgeProof {
                 And(simulated)
             }
             Or(nodes) => {
-                let c = G::scalar_random(rng);
+                let mut challenges = Vec::with_capacity(nodes.len());
+                let mut sum = G::Scalar::from(0);
+
+                for _ in 0..nodes.len().saturating_sub(1) {
+                    let challenge = G::scalar_random(rng);
+                    sum += challenge;
+                    challenges.push(challenge);
+                }
+
+                challenges.push(c - &sum);
 
                 let simulated = nodes
                     .iter()
-                    .map(|node| Self::simulate(rng, node, c))
+                    .zip(challenges.iter())
+                    .map(|(node, c)| Self::simulate(rng, node, *c))
                     .collect();
 
                 Or(simulated)
@@ -165,8 +163,8 @@ impl ZeroKnowledgeProof {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::foundation::group::{Group};
     use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
     use rand::thread_rng;
 
