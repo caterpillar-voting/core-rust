@@ -26,7 +26,9 @@ impl<G: Group> Statement<G> {
     }
 
     pub fn proof(&self, k: &G::Scalar, x: &G::Scalar, c: &G::Scalar) -> G::Scalar {
-        *k + &(*c * x)
+        let r = *k + &(*c * x);
+
+        r
     }
 
     pub fn verify(&self, r: &G::Scalar, t: &G::Point, c: &G::Scalar) -> bool {
