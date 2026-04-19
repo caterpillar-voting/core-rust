@@ -1,9 +1,6 @@
 use crate::foundation::group::Group;
-use crate::foundation::hash::ContextAwareHash;
 use crate::primitives::zkp::zkp::BooleanTree::{And, Leaf, Or};
 use rand_core::{CryptoRng, RngCore};
-use sha2::Sha512;
-use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement<G: Group> {
@@ -27,9 +24,9 @@ impl<G: Group> Statement<G> {
     }
 
     pub fn proof(&self, k: &G::Scalar, x: &G::Scalar, c: &G::Scalar) -> G::Scalar {
-        let r = *k + &(*c * x);
+        
 
-        r
+        *k + &(*c * x)
     }
 
     pub fn verify(&self, r: &G::Scalar, t: &G::Point, c: &G::Scalar) -> bool {
@@ -42,7 +39,7 @@ impl<G: Group> Statement<G> {
     pub fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R, c: &G::Scalar) -> Transcript<G> {
         let r = G::scalar_random(rng);
 
-        let t = self.g * &r - &(self.z * &c);
+        let t = self.g * &r - &(self.z * c);
 
         (r, t)
     }
@@ -56,11 +53,11 @@ pub enum BooleanTree<T> {
 
 pub struct ZeroKnowledgeProof {}
 
-type Claim<G: Group> = BooleanTree<Box<[Statement<G>]>>;
+type Claim<G> = BooleanTree<Box<[Statement<G>]>>;
 type Knowledge<G: Group> = BooleanTree<Option<G::Scalar>>;
-type CommittedProof<G: Group> = BooleanTree<Box<[Commit<G>]>>;
+type CommittedProof<G> = BooleanTree<Box<[Commit<G>]>>;
 type SimulatedProof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
-type PreparedProof<G: Group> = BooleanTree<(Option<CommittedProof<G>>, Option<SimulatedProof<G>>)>;
+type PreparedProof<G> = BooleanTree<(Option<CommittedProof<G>>, Option<SimulatedProof<G>>)>;
 type Proof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
 
 /// https://crypto.ethz.ch/publications/files/Maurer09.pdf
@@ -83,7 +80,7 @@ impl ZeroKnowledgeProof {
                     let committed = nodes
                         .iter()
                         .zip(knowledge_nodes.iter())
-                        .map(|(node, knowledge_node)| Self::prepare(node, &knowledge_node, rng))
+                        .map(|(node, knowledge_node)| Self::prepare(node, knowledge_node, rng))
                         .collect();
 
                     And(committed)
@@ -110,7 +107,7 @@ impl ZeroKnowledgeProof {
                                 return Leaf((Some(Self::commit(statements, rng)), None));
                             }
 
-                            return Self::prepare(node, &knowledge_node, rng);
+                            Self::prepare(node, knowledge_node, rng)
                         })
                         .collect();
 
@@ -169,10 +166,10 @@ impl ZeroKnowledgeProof {
     }
 
     pub fn proof<G: Group>(
-        claim: &Claim<G>,
-        prepared_proof: &PreparedProof<G>,
-        knowledge: &Knowledge<G>,
-        c: &G::Scalar,
+        _claim: &Claim<G>,
+        _prepared_proof: &PreparedProof<G>,
+        _knowledge: &Knowledge<G>,
+        _c: &G::Scalar,
     ) -> Proof<G> {
         Leaf((
             G::Scalar::from(1u64),
@@ -200,7 +197,7 @@ impl ZeroKnowledgeProof {
         */
     }
 
-    pub fn verify<G: Group>(&self, claim: &Claim<G>, proof: &Proof<G>) -> bool {
+    pub fn verify<G: Group>(&self, _claim: &Claim<G>, _proof: &Proof<G>) -> bool {
         false
     }
 }
