@@ -51,7 +51,7 @@ impl<G: Group> Statement<G> {
 mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::foundation::group::{ByteSerialize, Group};
+    use crate::foundation::group::{Group};
     use crate::foundation::hash::{ContextAwareHash, VectorContextHash};
     use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
     use rand::thread_rng;
