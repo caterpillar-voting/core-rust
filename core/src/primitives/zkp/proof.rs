@@ -3,6 +3,7 @@ use crate::primitives::zkp::proof::BooleanTree::{And, Leaf, Or};
 use crate::primitives::zkp::statement::{Commit, Statement, Transcript};
 use rand_core::{CryptoRng, RngCore};
 
+#[derive(Clone)]
 pub enum BooleanTree<T> {
     Leaf(T),
     And(Vec<BooleanTree<T>>),
@@ -14,7 +15,7 @@ pub struct ZeroKnowledgeProof {}
 type Claim<G> = BooleanTree<Box<[Statement<G>]>>;
 #[allow(type_alias_bounds)]
 type Knowledge<G: Group> = BooleanTree<Option<G::Scalar>>;
-type CommittedProof<G> = BooleanTree<Box<[Commit<G>]>>;
+type CommittedProof<G> = Box<[Commit<G>]>;
 #[allow(type_alias_bounds)]
 type SimulatedProof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
 type PreparedProof<G> = BooleanTree<(Option<CommittedProof<G>>, Option<SimulatedProof<G>>)>;
@@ -73,7 +74,7 @@ impl ZeroKnowledgeProof {
             .map(|statement| statement.commit(rng))
             .collect();
 
-        Leaf(committed)
+        committed
     }
 
     fn simulate<G: Group, R: RngCore + CryptoRng>(
@@ -121,36 +122,35 @@ impl ZeroKnowledgeProof {
         }
     }
 
-    pub fn proof<G: Group>(
-        _claim: &Claim<G>,
-        _prepared_proof: &PreparedProof<G>,
-        _knowledge: &Knowledge<G>,
-        _c: &G::Scalar,
+    pub fn finalize<G: Group>(
+        claim: &Claim<G>,
+        prepared_proof: &PreparedProof<G>,
+        knowledge: &Knowledge<G>,
+        c: &G::Scalar,
     ) -> Proof<G> {
-        Leaf((
-            G::Scalar::from(1u64),
-            vec![(G::Scalar::from(1), G::basepoint())]
-                .into_iter()
-                .collect(),
-        ))
-        /*
-        match claim {
-            Leaf(statements) => {
-                if let Leaf(committed_or_simulated) = prepared_proof {
-                    assert_ne!(committed_or_simulated.0.is_some(), committed_or_simulated.1.is_some());
-
-                    if committed_or_simulated.1.is_some() {
-                        assert_eq!(c, committed_or_simulated.1.unwrap());
-                        return committed_or_simulated.1
-                    }
-                }
-
-                unreachable!("proof and knowledge trees not synchronized")
+        match (claim, prepared_proof, knowledge) {
+            (Leaf(_), Leaf((None, Some(simulated))), Leaf(_)) => {
+                simulated.clone()
             }
-            And(nodes) => {}
-            Or(nodes) => {}
+            (Leaf(statements), Leaf((Some(commits), None)), Leaf(Some(x))) => {
+                let transcripts = Self::proof(statements, commits, x, c);
+
+                Leaf((*c, transcripts))
+            }
+            _ => unreachable!("proof and knowledge trees not synchronized"),
         }
-        */
+    }
+
+    fn proof<G: Group>(statements: &[Statement<G>], commits: &[Commit<G>], x: &G::Scalar, c: &G::Scalar) -> Box<[Transcript<G>]> {
+        statements
+            .iter()
+            .zip(commits.iter())
+            .map(|(statement, (k, t))| {
+                let r = statement.proof(k, x, c);
+
+                (r, *t)
+            })
+            .collect()
     }
 
     pub fn verify<G: Group>(&self, _claim: &Claim<G>, _proof: &Proof<G>) -> bool {
