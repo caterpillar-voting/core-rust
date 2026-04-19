@@ -16,9 +16,9 @@ impl<G: Group> VectorContextHash<G> {
             context: Vec::new(),
             _marker: core::marker::PhantomData,
         };
-        
+
         global.iter().for_each(|p| own.add_context(p));
-        
+
         own
     }
 }
