@@ -4,7 +4,6 @@ use crate::primitives::zkp::zkp::BooleanTree::{And, Leaf, Or};
 use rand_core::{CryptoRng, RngCore};
 use sha2::Sha512;
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use crate::primitives::zkp::zkp::DoubleBooleanTree::Leaf1;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement<G: Group> {
@@ -83,50 +82,69 @@ impl<G: Group> ZeroKnowledgeProof<G> {
             Leaf(statements) => {
                 assert!(matches!(knowledge, Leaf(Some(_))));
 
-                let committed = statements
-                    .iter()
-                    .map(|statement| statement.commit(rng))
-                    .collect();
+                let committed = Self::commit(statements, rng);
 
-                Leaf((Some(Leaf(committed)), None))
+                Leaf((Some(committed), None))
             }
             And(nodes) => {
-                assert!(matches!(knowledge, And(_)));
+                if let And(knowledge_nodes) = knowledge {
+                    let committed = nodes
+                        .iter()
+                        .zip(knowledge_nodes.iter())
+                        .map(|(node, knowledge_node)| Self::prepare(node, &knowledge_node, rng))
+                        .collect();
 
-                let And(knowledge_nodes) = knowledge;
-
-                let committed = nodes
-                    .iter()
-                    .zip(knowledge_nodes.iter())
-                    .map(|(node, knowledge_node)| Self::prepare(node, &knowledge_node, rng))
-                    .collect();
-
-                And(committed)
+                    And(committed)
+                } else {
+                    unreachable!("proof and knowledge trees not synchronized")
+                }
             }
             Or(nodes) => {
                 assert!(matches!(knowledge, Or(_)));
-                let Or(knowledge_nodes) = knowledge;
+                if let Or(knowledge_nodes) = knowledge {
+                    let simulated = nodes
+                        .iter()
+                        .zip(knowledge_nodes.iter())
+                        .map(|(node, knowledge_node)| {
+                            if let Leaf(None) = &knowledge_node {
+                                let c = G::scalar_random(rng);
 
-                let simulated = nodes
-                    .iter()
-                    .zip(knowledge_nodes.iter())
-                    .map(|(node, knowledge_node)| {
-                        if let Leaf(None) = &knowledge_node {
-                            let c = G::scalar_random(rng);
+                                return Leaf((None, Some(Self::simulate(node, rng, c))))
+                            }
 
-                            (None, Some(Self::simulate(node, rng, c)))
-                        } else {
-                            (Some(Self::prepare(node, &knowledge_node, rng)), None)
-                        }
-                    })
-                    .collect();
+                            // otherwise, I MUST commit, correct?
+                            // yes, but inside there might still be a simulated proof...
+                            if let Leaf(statements) = &node {
+                                assert!(matches!(knowledge, Leaf(_)));
 
-                Or(simulated)
+                                return Leaf((Some(Self::commit(statements, rng)), None))
+                            }
+
+                            return Self::prepare(node, &knowledge_node, rng);
+                        })
+                        .collect();
+
+                    Or(simulated)
+                } else {
+                    unreachable!("proof and knowledge trees not synchronized")
+                }
             }
         }
     }
 
-    pub fn simulate<R: RngCore + CryptoRng>(
+    fn commit<R: RngCore + CryptoRng>(
+        statements: &Box<[Statement<G>]>,
+        rng: &mut R,
+    ) -> CommittedProof<G> {
+        let committed = statements
+            .iter()
+            .map(|statement| statement.commit(rng))
+            .collect();
+
+        Leaf(committed)
+    }
+
+    fn simulate<R: RngCore + CryptoRng>(
         proof: &BooleanTree<Box<[Statement<G>]>>,
         rng: &mut R,
         c: G::Scalar,
