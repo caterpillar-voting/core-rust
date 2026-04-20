@@ -62,30 +62,31 @@ mod tests {
     type Curve = RistrettoGroup;
 
     type Scalar = <RistrettoGroup as Group>::Scalar;
-    type Point = <RistrettoGroup as Group>::Point;
+
+    fn construct_statement<R: RngCore + CryptoRng>(rng: &mut R) -> (Statement<Curve>, Scalar) {
+        let x = Scalar::random(rng);
+        let z = Curve::basepoint() * x;
+        let zkp = Statement::<Curve>::new(Curve::basepoint(), z);
+
+        (zkp, x)
+    }
 
     #[test]
     fn proof_statement() {
         let mut rng = thread_rng();
-        let x = Scalar::random(&mut rng);
-        let z = Curve::basepoint() * x;
-        let mut context = VectorContextHash::<Curve>::new(vec![z]);
-
-        let zkp = Statement::<Curve>::new(Curve::basepoint(), z);
+        let (zkp, x) = construct_statement(&mut rng);
 
         let (k, t) = zkp.commit(&mut rng);
-        context.add_context(&t);
-        let c = context.hash();
-
+        let c = Scalar::random(&mut rng);
         let r = zkp.proof(&k, &x, &c);
+
         assert!(zkp.verify(&r, &t, &c));
     }
 
     #[test]
     fn simulate_statement() {
         let mut rng = thread_rng();
-        let z = Point::random(&mut rng);
-        let zkp = Statement::<Curve>::new(Curve::basepoint(), z);
+        let (zkp, _) = construct_statement(&mut rng);
 
         let c = Curve::scalar_random(&mut rng);
         let (r, t) = zkp.simulate(&mut rng, &c);
