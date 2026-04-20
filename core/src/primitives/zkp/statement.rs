@@ -29,7 +29,7 @@ impl<G: Group> Statement<G> {
     pub fn proof(&self, k: &G::Scalar, x: &G::Scalar, c: &G::Scalar) -> G::Scalar {
         let r = *k + &(*c * x);
 
-        black_box(r)
+        black_box(r) // prevent clippy from removing intermediate value
     }
 
     pub fn verify(&self, r: &G::Scalar, t: &G::Point, c: &G::Scalar) -> bool {
