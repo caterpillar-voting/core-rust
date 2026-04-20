@@ -35,9 +35,9 @@ impl ZeroKnowledgeProof {
         claim: &Claim<G>,
         knowledge: &Knowledge<G>,
     ) -> PreparedProof<G> {
+        // we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
+        // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
         match (claim, knowledge) {
-            // we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
-            // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
             (Leaf(statements), Leaf(Some(_))) => {
                 let committed = Self::commit(rng, statements);
 
@@ -115,11 +115,11 @@ impl ZeroKnowledgeProof {
         knowledge: &Knowledge<G>,
         c: &G::Scalar,
     ) -> Proof<G> {
+        // we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
+        // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
         match (prepared_proof, claim, knowledge) {
-            // we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
-            // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
             (Leaf((None, Some((actual_c, simulated)))), Leaf(_), Leaf(_)) => {
-                assert_eq!(actual_c, c);
+                assert_eq!(actual_c, c, "simulated challenge does not match actual challenge. this hints at an inconsistency in the proof tree.");
 
                 Leaf((*c, simulated.clone()))
             }
@@ -230,7 +230,7 @@ impl ZeroKnowledgeProof {
 
                         challenge
                     } else {
-                        current_challenge_sum - c
+                        *c - &current_challenge_sum
                     }
                 }
             })
@@ -347,6 +347,151 @@ mod tests {
     type Curve = RistrettoGroup;
 
     type Scalar = <RistrettoGroup as Group>::Scalar;
+
+    #[test]
+    fn prepare_unit_statement() {
+        let mut rng = thread_rng();
+
+        let el_gamal = ElGamal::<Curve>::default();
+        let exponential_el_gamal = ExponentialElGamal(el_gamal);
+        let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
+        let pk = exponential_el_gamal.0.derive_public_key(&sk);
+
+        // encrypt 0
+        let r = Scalar::random(&mut rng);
+        let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
+
+        // re-encrypt
+        let r2 = Scalar::random(&mut rng);
+        let (u_dash, _) = exponential_el_gamal.0.reencrypt(&pk, &r2, &(u, v));
+
+        // enc proof (simulated) and rerand proof (true)
+        let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);
+
+        let claim: Claim<Curve> = Leaf(Box::new([zkp_rerand_u.clone()]));
+        let knowledge: Knowledge<Curve> = Leaf(Some(r2));
+        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
+        let challenge = Scalar::random(&mut rng);
+        let finalized_proof =
+            ZeroKnowledgeProof::finalize(&mut rng, &prepared_proof, &claim, &knowledge, &challenge);
+
+        assert!(ZeroKnowledgeProof::check(
+            &claim,
+            &finalized_proof,
+            &challenge
+        ))
+    }
+
+    #[test]
+    fn prepare_unit_statements() {
+        let mut rng = thread_rng();
+
+        let el_gamal = ElGamal::<Curve>::default();
+        let exponential_el_gamal = ExponentialElGamal(el_gamal);
+        let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
+        let pk = exponential_el_gamal.0.derive_public_key(&sk);
+
+        // encrypt 0
+        let r = Scalar::random(&mut rng);
+        let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
+
+        // re-encrypt
+        let r2 = Scalar::random(&mut rng);
+        let (u_dash, v_dash) = exponential_el_gamal.0.reencrypt(&pk, &r2, &(u, v));
+
+        // enc proof (simulated) and rerand proof (true)
+        let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);
+        let zkp_rerand_v = Statement::<Curve>::new(pk, v_dash - v);
+
+        let claim: Claim<Curve> = Leaf(Box::new([zkp_rerand_u.clone(), zkp_rerand_v.clone()]));
+        let knowledge: Knowledge<Curve> = Leaf(Some(r2));
+        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
+        let challenge = Scalar::random(&mut rng);
+        let finalized_proof =
+            ZeroKnowledgeProof::finalize(&mut rng, &prepared_proof, &claim, &knowledge, &challenge);
+
+        assert!(ZeroKnowledgeProof::check(
+            &claim,
+            &finalized_proof,
+            &challenge
+        ))
+    }
+
+    #[test]
+    fn prepare_and_statement() {
+        let mut rng = thread_rng();
+
+        let el_gamal = ElGamal::<Curve>::default();
+        let exponential_el_gamal = ExponentialElGamal(el_gamal);
+        let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
+        let pk = exponential_el_gamal.0.derive_public_key(&sk);
+
+        // encrypt 0
+        let r = Scalar::random(&mut rng);
+        let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
+
+        // re-encrypt
+        let r2 = Scalar::random(&mut rng);
+        let (u_dash, v_dash) = exponential_el_gamal.0.reencrypt(&pk, &r2, &(u, v));
+
+        // enc proof (simulated) and rerand proof (true)
+        let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);
+        let zkp_rerand_v = Statement::<Curve>::new(pk, v_dash - v);
+
+        let claim: Claim<Curve> = And(vec![
+            Leaf(Box::new([zkp_rerand_u.clone()])),
+            Leaf(Box::new([zkp_rerand_v.clone()])),
+        ]);
+        let knowledge: Knowledge<Curve> = And(vec![Leaf(Some(r2)), Leaf(Some(r2))]);
+        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
+        let challenge = Scalar::random(&mut rng);
+        let finalized_proof =
+            ZeroKnowledgeProof::finalize(&mut rng, &prepared_proof, &claim, &knowledge, &challenge);
+
+        assert!(ZeroKnowledgeProof::check(
+            &claim,
+            &finalized_proof,
+            &challenge
+        ))
+    }
+
+    #[test]
+    fn prepare_or_statement() {
+        let mut rng = thread_rng();
+
+        let el_gamal = ElGamal::<Curve>::default();
+        let exponential_el_gamal = ExponentialElGamal(el_gamal);
+        let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
+        let pk = exponential_el_gamal.0.derive_public_key(&sk);
+
+        // encrypt 0
+        let r = Scalar::random(&mut rng);
+        let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
+
+        // re-encrypt
+        let r2 = Scalar::random(&mut rng);
+        let (u_dash, v_dash) = exponential_el_gamal.0.reencrypt(&pk, &r2, &(u, v));
+
+        // enc proof (simulated) and rerand proof (true)
+        let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);
+        let zkp_rerand_v = Statement::<Curve>::new(pk, v_dash - v);
+
+        let claim: Claim<Curve> = Or(vec![
+            Leaf(Box::new([zkp_rerand_u.clone()])),
+            Leaf(Box::new([zkp_rerand_v.clone()])),
+        ]);
+        let knowledge: Knowledge<Curve> = Or(vec![Leaf(None), Leaf(Some(r2))]);
+        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
+        let challenge = Scalar::random(&mut rng);
+        let finalized_proof =
+            ZeroKnowledgeProof::finalize(&mut rng, &prepared_proof, &claim, &knowledge, &challenge);
+
+        assert!(ZeroKnowledgeProof::check(
+            &claim,
+            &finalized_proof,
+            &challenge
+        ))
+    }
 
     #[test]
     fn prepare_complex_statement() {
