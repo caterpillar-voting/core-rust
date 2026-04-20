@@ -28,7 +28,7 @@ impl<G: Group> ReEncProof<G> {
 }
 
 impl<G: Group> ProofBuilder<G> for ReEncProof<G> {
-    fn build(self) -> (Claim<G>, Knowledge<G>) {
+    fn build(&self) -> (Claim<G>, Knowledge<G>) {
         let rerand_u = Statement::<G>::new(G::basepoint(), self.uv_dash.0 - &self.uv.0);
         let rerand_v = Statement::<G>::new(self.pk, self.uv_dash.1 - &self.uv.1);
 
@@ -63,7 +63,7 @@ impl<G: Group> EncProof<G> {
 }
 
 impl<G: Group> ProofBuilder<G> for EncProof<G> {
-    fn build(self) -> (Claim<G>, Knowledge<G>) {
+    fn build(&self) -> (Claim<G>, Knowledge<G>) {
         let encm_u = Statement::<G>::new(G::basepoint(), self.uv.0);
         let encm_v = Statement::<G>::new(self.pk, self.uv.1 - &self.message);
 
