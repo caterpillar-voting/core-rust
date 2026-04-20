@@ -18,6 +18,7 @@ type Knowledge<G: Group> = BooleanTree<Option<G::Scalar>>;
 type CommittedProof<G> = Box<[Commit<G>]>;
 #[allow(type_alias_bounds)]
 type SimulatedProof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
+#[allow(type_alias_bounds)]
 type PreparedProof<G: Group> = BooleanTree<(
     Option<CommittedProof<G>>,
     Option<(G::Scalar, SimulatedProof<G>)>,
