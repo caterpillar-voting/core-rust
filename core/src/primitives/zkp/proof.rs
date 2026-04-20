@@ -6,9 +6,9 @@ use crate::utils::tree::BooleanTree;
 
 pub struct ZeroKnowledgeProof {}
 
-type Claim<G> = BooleanTree<Box<[Statement<G>]>>;
+pub type Claim<G> = BooleanTree<Box<[Statement<G>]>>;
 #[allow(type_alias_bounds)]
-type Knowledge<G: Group> = BooleanTree<Option<G::Scalar>>;
+pub type Knowledge<G: Group> = BooleanTree<Option<G::Scalar>>;
 type CommittedProof<G> = Box<[Commit<G>]>;
 #[allow(type_alias_bounds)]
 type SimulatedProof<G: Group> = Box<[Transcript<G>]>;
