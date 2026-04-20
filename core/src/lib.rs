@@ -1,5 +1,6 @@
 pub mod foundation;
 pub mod primitives;
+mod utils;
 
 #[cfg(test)]
 mod tests {

@@ -2,13 +2,7 @@ use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::BooleanTree::{And, Leaf, Or};
 use crate::primitives::zkp::statement::{Commit, Statement, Transcript};
 use rand_core::{CryptoRng, RngCore};
-
-#[derive(Clone)]
-pub enum BooleanTree<T> {
-    Leaf(T),
-    And(Vec<BooleanTree<T>>),
-    Or(Vec<BooleanTree<T>>),
-}
+use crate::utils::tree::BooleanTree;
 
 pub struct ZeroKnowledgeProof {}
 
@@ -28,15 +22,14 @@ type PreparedProof<G: Group> = BooleanTree<CommittedOrSimulatedProof<G>>;
 #[allow(type_alias_bounds)]
 type Proof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
 
-/// https://crypto.ethz.ch/publications/files/Maurer09.pdf
+// we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
+// we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
 impl ZeroKnowledgeProof {
     pub fn prepare<G: Group, R: RngCore + CryptoRng>(
         rng: &mut R,
         claim: &Claim<G>,
         knowledge: &Knowledge<G>,
     ) -> PreparedProof<G> {
-        // we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
-        // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
         match (claim, knowledge) {
             (Leaf(statements), Leaf(Some(_))) => {
                 let committed = Self::commit(rng, statements);
@@ -115,8 +108,6 @@ impl ZeroKnowledgeProof {
         knowledge: &Knowledge<G>,
         c: &G::Scalar,
     ) -> Proof<G> {
-        // we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
-        // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
         match (prepared_proof, claim, knowledge) {
             (Leaf((None, Some((actual_c, simulated)))), Leaf(_), Leaf(_)) => {
                 assert_eq!(
