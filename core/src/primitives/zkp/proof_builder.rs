@@ -1,68 +1,97 @@
+pub mod el_gamal;
+
 use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::{Claim, Knowledge};
-use crate::primitives::zkp::statement::Statement;
-use crate::utils::tree::BooleanTree::{And, Leaf, Or};
+use crate::utils::tree::BooleanTree::{And, Or};
+use std::marker::PhantomData;
 
-trait ProofBuilder<G: Group> {
+pub trait ProofBuilder<G: Group> {
     fn build(self) -> (Claim<G>, Knowledge<G>);
 }
 
-struct ReEncProof<G: Group> {
-    pk: G::Point,
-    uv: (G::Point, G::Point),
-    uv_dash: (G::Point, G::Point),
-    randomness: Option<G::Scalar>,
+pub struct AndProofBuilder<G: Group, P: ProofBuilder<G>>
+where
+    P: Sized,
+{
+    proof_builders: Vec<P>,
+    _marker: PhantomData<G>,
 }
 
-impl<G: Group> ReEncProof<G> {
-    pub fn new(pk: G::Point, uv: (G::Point, G::Point), uv_dash: (G::Point, G::Point), randomness: Option<G::Scalar>) -> Self {
+impl<G: Group, P: ProofBuilder<G>> Default for AndProofBuilder<G, P> {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
+impl<G: Group, P: ProofBuilder<G>> AndProofBuilder<G, P> {
+    pub fn new(proof_builders: Vec<P>) -> Self {
         Self {
-            pk,
-            uv,
-            uv_dash,
-            randomness,
+            proof_builders,
+            _marker: PhantomData,
         }
     }
-}
 
-impl<G: Group> ProofBuilder<G> for ReEncProof<G> {
-     fn build(self) -> (Claim<G>, Knowledge<G>) {
-        let rerand_u = Statement::<G>::new(G::basepoint(), self.uv_dash.0 - &self.uv.0);
-        let rerand_v = Statement::<G>::new(self.pk, self.uv_dash.1 - &self.uv.1);
+    pub fn and(&mut self, proof_builder: P) -> &mut AndProofBuilder<G, P> {
+        self.proof_builders.push(proof_builder);
 
-        let claim: Claim<G> = Leaf(Box::new([rerand_u, rerand_v]));
-        let knowledge = Leaf(self.randomness);
+        self
+    }
 
-        (claim, knowledge)
+    fn collect_proof_builders(proof_builders: Vec<P>) -> (Vec<Claim<G>>, Vec<Knowledge<G>>) {
+        proof_builders.into_iter().fold(
+            (Vec::new(), Vec::new()),
+            |(mut claims, mut knowledges), pb| {
+                let (claim, knowledge) = pb.build();
+                claims.push(claim);
+                knowledges.push(knowledge);
+                (claims, knowledges)
+            },
+        )
     }
 }
 
-struct EncProof<G: Group> {
-    pk: G::Point,
-    uv: (G::Point, G::Point),
-    message: G::Point,
-    randomness: Option<G::Scalar>,
-}
-impl<G: Group> EncProof<G> {
-    pub fn new(pk: G::Point, uv: (G::Point, G::Point), message: G::Point, randomness: Option<G::Scalar>) -> Self {
-        Self {
-            pk,
-            uv,
-            message,
-            randomness,
-        }
-    }
-}
-
-impl<G: Group> ProofBuilder<G> for EncProof<G> {
+impl<G: Group, P: ProofBuilder<G>> ProofBuilder<G> for AndProofBuilder<G, P> {
     fn build(self) -> (Claim<G>, Knowledge<G>) {
-        let encm_u = Statement::<G>::new(G::basepoint(), self.uv.0);
-        let encm_v = Statement::<G>::new(self.pk, self.uv.1 - &self.message);
+        let (claims, knowledges) = Self::collect_proof_builders(self.proof_builders);
+
+        (And(claims), And(knowledges))
+    }
+}
 
 
-        let claim: Claim<G> = Leaf(Box::new([encm_u, encm_v]));
-        let knowledge = Leaf(self.randomness);
+pub struct OrProofBuilder<G: Group, P: ProofBuilder<G>>
+where
+    P: Sized,
+{
+    proof_builders: Vec<P>,
+    _marker: PhantomData<G>,
+}
 
-        (claim, knowledge)
+impl<G: Group, P: ProofBuilder<G>> Default for OrProofBuilder<G, P> {
+    fn default() -> Self {
+        Self::new(Vec::new())
+    }
+}
+
+impl<G: Group, P: ProofBuilder<G>> OrProofBuilder<G, P> {
+    pub fn new(proof_builders: Vec<P>) -> Self {
+        Self {
+            proof_builders,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn or(&mut self, proof_builder: P) -> &mut OrProofBuilder<G, P> {
+        self.proof_builders.push(proof_builder);
+
+        self
+    }
+}
+
+impl<G: Group, P: ProofBuilder<G>> ProofBuilder<G> for OrProofBuilder<G, P> {
+    fn build(self) -> (Claim<G>, Knowledge<G>) {
+        let (claims, knowledges) = AndProofBuilder::collect_proof_builders(self.proof_builders);
+
+        (Or(claims), Or(knowledges))
     }
 }
