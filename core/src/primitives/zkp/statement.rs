@@ -140,7 +140,6 @@ mod tests {
 
         assert!(zkp_rerand_u.verify(&r_rerand_u, &t_rerand_u, &c2));
         assert!(zkp_rerand_v.verify(&r_rerand_v, &t_rerand_v, &c2));
-
     }
 
     #[test]

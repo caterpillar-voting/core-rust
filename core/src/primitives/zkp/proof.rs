@@ -196,7 +196,7 @@ impl ZeroKnowledgeProof {
 
     fn finalize_challenges<G: Group, R: RngCore + CryptoRng>(
         rng: &mut R,
-        prepared_nodes: &Vec<BooleanTree<CommittedOrSimulatedProof<G>>>,
+        prepared_nodes: &[BooleanTree<CommittedOrSimulatedProof<G>>],
         c: &G::Scalar,
     ) -> Vec<G::Scalar> {
         let challenges: Vec<Option<G::Scalar>> = prepared_nodes
@@ -293,7 +293,8 @@ impl ZeroKnowledgeProof {
                 if statements
                     .iter()
                     .zip(transcripts.iter())
-                    .all(|(statement, (r, t))| statement.verify(r, t, c)) {
+                    .all(|(statement, (r, t))| statement.verify(r, t, c))
+                {
                     Some(*c)
                 } else {
                     None
@@ -389,7 +390,11 @@ mod tests {
             unreachable!()
         }
 
-        assert!(ZeroKnowledgeProof::check(&claim, &finalized_proof, &challenge))
+        assert!(ZeroKnowledgeProof::check(
+            &claim,
+            &finalized_proof,
+            &challenge
+        ))
     }
 }
 
