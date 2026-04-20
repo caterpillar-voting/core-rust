@@ -1,3 +1,4 @@
+use curve25519_dalek::Scalar;
 use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::BooleanTree::{And, Leaf, Or};
 use crate::primitives::zkp::statement::{Commit, Statement, Transcript};
@@ -18,7 +19,10 @@ type Knowledge<G: Group> = BooleanTree<Option<G::Scalar>>;
 type CommittedProof<G> = Box<[Commit<G>]>;
 #[allow(type_alias_bounds)]
 type SimulatedProof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
-type PreparedProof<G> = BooleanTree<(Option<CommittedProof<G>>, Option<SimulatedProof<G>>)>;
+type PreparedProof<G: Group> = BooleanTree<(
+    Option<CommittedProof<G>>,
+    Option<(G::Scalar, SimulatedProof<G>)>,
+)>;
 #[allow(type_alias_bounds)]
 type Proof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
 
@@ -49,10 +53,11 @@ impl ZeroKnowledgeProof {
                     .iter()
                     .zip(knowledge_nodes.iter())
                     .map(|(node, knowledge_node)| {
+                        // TODO: this assumes the Leaf(None) is placed as the highest node possible (e.g., not a AND(Leaf(None), Leaf(None)) node)
                         if let Leaf(None) = &knowledge_node {
                             let c = G::scalar_random(rng);
 
-                            return Leaf((None, Some(Self::simulate(rng, node, c))));
+                            return Leaf((None, Some((c, Self::simulate(rng, node, c)))));
                         }
 
                         Self::prepare(rng, node, knowledge_node)
@@ -122,14 +127,17 @@ impl ZeroKnowledgeProof {
         }
     }
 
-    pub fn finalize<G: Group>(
+    pub fn finalize<G: Group, R: RngCore + CryptoRng>(
+        rng: &mut R,
         claim: &Claim<G>,
         prepared_proof: &PreparedProof<G>,
         knowledge: &Knowledge<G>,
         c: &G::Scalar,
     ) -> Proof<G> {
         match (claim, prepared_proof, knowledge) {
-            (Leaf(_), Leaf((None, Some(simulated))), Leaf(_)) => {
+            (Leaf(_), Leaf((None, Some((actual_c, simulated)))), Leaf(_)) => {
+                assert_eq!(actual_c, c);
+
                 simulated.clone()
             }
             (Leaf(statements), Leaf((Some(commits), None)), Leaf(Some(x))) => {
@@ -137,11 +145,73 @@ impl ZeroKnowledgeProof {
 
                 Leaf((*c, transcripts))
             }
+            (And(claim_nodes), And(prepared_nodes), And(knowledge_nodes)) => {
+                let proofs = claim_nodes
+                    .iter()
+                    .zip(prepared_nodes.iter())
+                    .zip(knowledge_nodes.iter())
+                    .map(|((claim_node, prepared_node), knowledge_node)| {
+                        Self::finalize(rng, claim_node, prepared_node, knowledge_node, c)
+                    })
+                    .collect();
+
+                And(proofs)
+            }
+            (Or(claim_nodes), Or(prepared_nodes), Or(knowledge_nodes)) => {
+                let challenges: Vec<Option<G::Scalar>> = prepared_nodes.iter().map(|prepared_node| {
+                    // TODO: this assumes the simulated transcript is placed at the highest node possible (e.g., no AND(Leaf(_, simulated), Leaf(_, simulated)) node)
+                    if let Leaf((None, Some((inner_challenge, _)))) = prepared_node {
+                        Some(*inner_challenge)
+                    } else {
+                        None
+                    }
+                }).collect();
+
+                let existing_challenges: Vec<G::Scalar> = challenges.iter().filter_map(|challenge| *challenge).collect();
+                let mut current_missing_challenges = prepared_nodes.len() - existing_challenges.len();
+                let mut current_challenge_sum = existing_challenges.iter().fold(G::Scalar::from(0), |current, next| current + next);
+                assert!(current_missing_challenges > 0 || current_challenge_sum == *c, "challenges do not sum up to c");
+
+                let actual_challenges: Vec<G::Scalar> = challenges.iter().map(|challenge| {
+                    if let Some(predefined) = challenge {
+                        *predefined
+                    } else {
+                        if current_missing_challenges > 1 {
+                            let challenge = G::scalar_random(rng);
+                            current_missing_challenges -= 1;
+                            current_challenge_sum += challenge;
+
+                            challenge
+                        } else {
+                            let challenge = current_challenge_sum - c;
+
+                            challenge
+                        }
+                    }
+                }).collect();
+
+                let proofs = claim_nodes
+                    .iter()
+                    .zip(prepared_nodes.iter())
+                    .zip(knowledge_nodes.iter())
+                    .zip(actual_challenges.iter())
+                    .map(|(((claim_node, prepared_node), knowledge_node), challenge)| {
+                        Self::finalize(rng, claim_node, prepared_node, knowledge_node, challenge)
+                    })
+                    .collect();
+
+                Or(proofs)
+            }
             _ => unreachable!("proof and knowledge trees not synchronized"),
         }
     }
 
-    fn proof<G: Group>(statements: &[Statement<G>], commits: &[Commit<G>], x: &G::Scalar, c: &G::Scalar) -> Box<[Transcript<G>]> {
+    fn proof<G: Group>(
+        statements: &[Statement<G>],
+        commits: &[Commit<G>],
+        x: &G::Scalar,
+        c: &G::Scalar,
+    ) -> Box<[Transcript<G>]> {
         statements
             .iter()
             .zip(commits.iter())
@@ -201,6 +271,8 @@ mod tests {
         ]);
         let knowledge: Knowledge<Curve> = Or(vec![Leaf(None), Leaf(Some(r2))]);
         let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
+        let challenge = Scalar::random(&mut rng);
+        let finalized_proof = ZeroKnowledgeProof::finalize(&mut rng, &claim, &prepared_proof, &knowledge, &challenge);
 
         assert!(matches!(prepared_proof, Or(_)));
         if let Or(nodes) = prepared_proof {
