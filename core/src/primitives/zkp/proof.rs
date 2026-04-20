@@ -119,7 +119,10 @@ impl ZeroKnowledgeProof {
         // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
         match (prepared_proof, claim, knowledge) {
             (Leaf((None, Some((actual_c, simulated)))), Leaf(_), Leaf(_)) => {
-                assert_eq!(actual_c, c, "simulated challenge does not match actual challenge. this hints at an inconsistency in the proof tree.");
+                assert_eq!(
+                    actual_c, c,
+                    "simulated challenge does not match actual challenge. this hints at an inconsistency in the proof tree."
+                );
 
                 Leaf((*c, simulated.clone()))
             }
@@ -347,199 +350,112 @@ mod tests {
     type Curve = RistrettoGroup;
 
     type Scalar = <RistrettoGroup as Group>::Scalar;
+    type Point = <RistrettoGroup as Group>::Point;
 
-    #[test]
-    fn prepare_unit_statement() {
-        let mut rng = thread_rng();
-
+    fn create<R: RngCore + CryptoRng>(
+        rng: &mut R,
+    ) -> (Point, (Point, Point), (Point, Point, Scalar)) {
         let el_gamal = ElGamal::<Curve>::default();
         let exponential_el_gamal = ExponentialElGamal(el_gamal);
-        let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
+        let sk = exponential_el_gamal.0.generate_secret_key(rng);
         let pk = exponential_el_gamal.0.derive_public_key(&sk);
 
         // encrypt 0
-        let r = Scalar::random(&mut rng);
+        let r = Scalar::random(rng);
         let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
 
-        // re-encrypt
-        let r2 = Scalar::random(&mut rng);
-        let (u_dash, _) = exponential_el_gamal.0.reencrypt(&pk, &r2, &(u, v));
+        // encrypt 1
+        let r_enc1 = Scalar::random(rng);
+        let (u_enc1, v_enc1) = exponential_el_gamal.encrypt(&pk, &r_enc1, &Scalar::ONE);
 
-        // enc proof (simulated) and rerand proof (true)
-        let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);
-
-        let claim: Claim<Curve> = Leaf(Box::new([zkp_rerand_u.clone()]));
-        let knowledge: Knowledge<Curve> = Leaf(Some(r2));
-        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
-        let challenge = Scalar::random(&mut rng);
-        let finalized_proof =
-            ZeroKnowledgeProof::finalize(&mut rng, &prepared_proof, &claim, &knowledge, &challenge);
-
-        assert!(ZeroKnowledgeProof::check(
-            &claim,
-            &finalized_proof,
-            &challenge
-        ))
+        (pk, (u, v), (u_enc1, v_enc1, r_enc1))
     }
 
-    #[test]
-    fn prepare_unit_statements() {
-        let mut rng = thread_rng();
-
-        let el_gamal = ElGamal::<Curve>::default();
-        let exponential_el_gamal = ExponentialElGamal(el_gamal);
-        let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
-        let pk = exponential_el_gamal.0.derive_public_key(&sk);
-
-        // encrypt 0
-        let r = Scalar::random(&mut rng);
-        let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
-
-        // re-encrypt
-        let r2 = Scalar::random(&mut rng);
-        let (u_dash, v_dash) = exponential_el_gamal.0.reencrypt(&pk, &r2, &(u, v));
-
-        // enc proof (simulated) and rerand proof (true)
-        let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);
-        let zkp_rerand_v = Statement::<Curve>::new(pk, v_dash - v);
-
-        let claim: Claim<Curve> = Leaf(Box::new([zkp_rerand_u.clone(), zkp_rerand_v.clone()]));
-        let knowledge: Knowledge<Curve> = Leaf(Some(r2));
-        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
-        let challenge = Scalar::random(&mut rng);
-        let finalized_proof =
-            ZeroKnowledgeProof::finalize(&mut rng, &prepared_proof, &claim, &knowledge, &challenge);
-
-        assert!(ZeroKnowledgeProof::check(
-            &claim,
-            &finalized_proof,
-            &challenge
-        ))
-    }
-
-    #[test]
-    fn prepare_and_statement() {
-        let mut rng = thread_rng();
-
-        let el_gamal = ElGamal::<Curve>::default();
-        let exponential_el_gamal = ExponentialElGamal(el_gamal);
-        let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
-        let pk = exponential_el_gamal.0.derive_public_key(&sk);
-
-        // encrypt 0
-        let r = Scalar::random(&mut rng);
-        let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
-
-        // re-encrypt
-        let r2 = Scalar::random(&mut rng);
-        let (u_dash, v_dash) = exponential_el_gamal.0.reencrypt(&pk, &r2, &(u, v));
-
-        // enc proof (simulated) and rerand proof (true)
-        let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);
-        let zkp_rerand_v = Statement::<Curve>::new(pk, v_dash - v);
-
-        let claim: Claim<Curve> = And(vec![
-            Leaf(Box::new([zkp_rerand_u.clone()])),
-            Leaf(Box::new([zkp_rerand_v.clone()])),
-        ]);
-        let knowledge: Knowledge<Curve> = And(vec![Leaf(Some(r2)), Leaf(Some(r2))]);
-        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
-        let challenge = Scalar::random(&mut rng);
-        let finalized_proof =
-            ZeroKnowledgeProof::finalize(&mut rng, &prepared_proof, &claim, &knowledge, &challenge);
-
-        assert!(ZeroKnowledgeProof::check(
-            &claim,
-            &finalized_proof,
-            &challenge
-        ))
-    }
-
-    #[test]
-    fn prepare_or_statement() {
-        let mut rng = thread_rng();
-
-        let el_gamal = ElGamal::<Curve>::default();
-        let exponential_el_gamal = ExponentialElGamal(el_gamal);
-        let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
-        let pk = exponential_el_gamal.0.derive_public_key(&sk);
-
-        // encrypt 0
-        let r = Scalar::random(&mut rng);
-        let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
-
-        // re-encrypt
-        let r2 = Scalar::random(&mut rng);
-        let (u_dash, v_dash) = exponential_el_gamal.0.reencrypt(&pk, &r2, &(u, v));
-
-        // enc proof (simulated) and rerand proof (true)
-        let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);
-        let zkp_rerand_v = Statement::<Curve>::new(pk, v_dash - v);
-
-        let claim: Claim<Curve> = Or(vec![
-            Leaf(Box::new([zkp_rerand_u.clone()])),
-            Leaf(Box::new([zkp_rerand_v.clone()])),
-        ]);
-        let knowledge: Knowledge<Curve> = Or(vec![Leaf(None), Leaf(Some(r2))]);
-        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
-        let challenge = Scalar::random(&mut rng);
-        let finalized_proof =
-            ZeroKnowledgeProof::finalize(&mut rng, &prepared_proof, &claim, &knowledge, &challenge);
-
-        assert!(ZeroKnowledgeProof::check(
-            &claim,
-            &finalized_proof,
-            &challenge
-        ))
-    }
-
-    #[test]
-    fn prepare_complex_statement() {
-        let mut rng = thread_rng();
-
-        let el_gamal = ElGamal::<Curve>::default();
-        let exponential_el_gamal = ExponentialElGamal(el_gamal);
-        let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
-        let pk = exponential_el_gamal.0.derive_public_key(&sk);
-
-        // encrypt 0
-        let r = Scalar::random(&mut rng);
-        let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
-
-        // re-encrypt
-        let r2 = Scalar::random(&mut rng);
-        let (u_dash, v_dash) = exponential_el_gamal.0.reencrypt(&pk, &r2, &(u, v));
-
-        // enc proof (simulated) and rerand proof (true)
+    fn prepare_statements(
+        pk: Point,
+        u: Point,
+        v: Point,
+        u_dash: Point,
+        v_dash: Point,
+    ) -> (
+        Statement<Curve>,
+        Statement<Curve>,
+        Statement<Curve>,
+        Statement<Curve>,
+    ) {
         let zkp_enc1_u = Statement::<Curve>::new(Curve::basepoint(), u_dash);
         let zkp_enc1_v = Statement::<Curve>::new(pk, v_dash - Curve::basepoint());
         let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);
         let zkp_rerand_v = Statement::<Curve>::new(pk, v_dash - v);
 
-        let claim: Claim<Curve> = Or(vec![
-            Leaf(Box::new([zkp_enc1_u.clone(), zkp_enc1_v.clone()])),
-            Leaf(Box::new([zkp_rerand_u.clone(), zkp_rerand_v.clone()])),
-        ]);
-        let knowledge: Knowledge<Curve> = Or(vec![Leaf(None), Leaf(Some(r2))]);
-        let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
-        let challenge = Scalar::random(&mut rng);
-        let finalized_proof =
-            ZeroKnowledgeProof::finalize(&mut rng, &prepared_proof, &claim, &knowledge, &challenge);
+        (zkp_enc1_u, zkp_enc1_v, zkp_rerand_u, zkp_rerand_v)
+    }
 
-        assert!(matches!(prepared_proof, Or(_)));
-        if let Or(nodes) = prepared_proof {
-            assert_eq!(nodes.len(), 2);
-            assert!(matches!(nodes[0], Leaf(_)));
-            assert!(matches!(nodes[1], Leaf(_)));
-        } else {
-            unreachable!()
-        }
+    fn check_proof_valid<R: RngCore + CryptoRng>(
+        rng: &mut R,
+        claim: Claim<Curve>,
+        knowledge: Knowledge<Curve>,
+    ) {
+        let prepared_proof = ZeroKnowledgeProof::prepare(rng, &claim, &knowledge);
+        let challenge = Scalar::random(rng);
+        let finalized_proof =
+            ZeroKnowledgeProof::finalize(rng, &prepared_proof, &claim, &knowledge, &challenge);
 
         assert!(ZeroKnowledgeProof::check(
             &claim,
             &finalized_proof,
             &challenge
         ))
+    }
+
+    #[test]
+    fn check_composition() {
+        let mut rng = thread_rng();
+
+        let (pk, (u, v), (u_enc1, v_enc1, r_enc1)) = create(&mut rng);
+        let (zkp_enc1_u, zkp_enc1_v, zkp_rerand_u, zkp_rerand_v) =
+            prepare_statements(pk, u, v, u_enc1, v_enc1);
+
+        /*
+        compositions checked:
+        - And with Or, Leaf, And inside (all resolving to true)
+        - Or with Leaf, And, Or inside (both true and false)
+        - Leaf, And, Or with 1 and 1+ statement(s) true
+        - Or with 1 and 1+ statement(s) false
+        - And, Or with simulated subtree
+        */
+        let claim: Claim<Curve> = And(vec![
+            Leaf(Box::new([zkp_enc1_u.clone(), zkp_enc1_v.clone()])),
+            And(vec![Leaf(Box::new([
+                zkp_enc1_u.clone(),
+                zkp_enc1_v.clone(),
+            ]))]),
+            Or(vec![
+                Leaf(Box::new([zkp_enc1_u.clone()])),             // true
+                Leaf(Box::new([zkp_rerand_u.clone()])),           // false
+                Or(vec![Leaf(Box::new([zkp_enc1_u.clone()]))]),   // true
+                Or(vec![Leaf(Box::new([zkp_rerand_u.clone()]))]), // false
+                And(vec![Leaf(Box::new([zkp_enc1_u.clone()]))]),  // true
+                And(vec![Leaf(Box::new([
+                    zkp_rerand_u.clone(),
+                    zkp_rerand_v.clone(),
+                ]))]), // false
+            ]),
+        ]);
+        let knowledge: Knowledge<Curve> = And(vec![
+            Leaf(Some(r_enc1)),
+            And(vec![Leaf(Some(r_enc1))]),
+            Or(vec![
+                Leaf(Some(r_enc1)),
+                Leaf(None),
+                Or(vec![Leaf(Some(r_enc1))]),
+                Leaf(None),
+                And(vec![Leaf(Some(r_enc1))]),
+                Leaf(None),
+            ]),
+        ]);
+
+        check_proof_valid(&mut rng, claim, knowledge);
     }
 }
 
