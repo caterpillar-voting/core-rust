@@ -1,7 +1,6 @@
 use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::BooleanTree::{And, Leaf, Or};
 use crate::primitives::zkp::statement::{Commit, Statement, Transcript};
-use curve25519_dalek::Scalar;
 use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone)]
@@ -282,8 +281,55 @@ impl ZeroKnowledgeProof {
             .collect()
     }
 
-    pub fn verify<G: Group>(&self, _claim: &Claim<G>, _proof: &Proof<G>) -> bool {
-        false
+    pub fn check<G: Group>(claim: &Claim<G>, proof: &Proof<G>, c: &G::Scalar) -> bool {
+        let recovered = Self::verify(claim, proof);
+
+        recovered == Some(*c)
+    }
+
+    fn verify<G: Group>(claim: &Claim<G>, proof: &Proof<G>) -> Option<G::Scalar> {
+        match (claim, proof) {
+            (Leaf(statements), Leaf((c, transcripts))) => {
+                if statements
+                    .iter()
+                    .zip(transcripts.iter())
+                    .all(|(statement, (r, t))| statement.verify(r, t, c)) {
+                    Some(*c)
+                } else {
+                    None
+                }
+            }
+            (And(nodes), And(proofs)) => {
+                let mut candidate: Option<G::Scalar> = None;
+
+                for (node, proof) in nodes.iter().zip(proofs.iter()) {
+                    let c = Self::verify(node, proof)?;
+
+                    match candidate {
+                        Some(first) if first == c => { /* if equal, do nothing */ }
+                        Some(_) => return None,
+                        None => candidate = Some(c),
+                    }
+                }
+
+                candidate
+            }
+            (Or(nodes), Or(proofs)) => {
+                let mut sum: Option<G::Scalar> = None;
+
+                for (node, proof) in nodes.iter().zip(proofs.iter()) {
+                    let c = Self::verify(node, proof)?;
+
+                    sum = Some(match sum {
+                        Some(acc) => acc + &c,
+                        None => c,
+                    });
+                }
+
+                sum
+            }
+            _ => unreachable!("claim and proof trees not synchronized"),
+        }
     }
 }
 
@@ -342,6 +388,8 @@ mod tests {
         } else {
             unreachable!()
         }
+
+        assert!(ZeroKnowledgeProof::check(&claim, &finalized_proof, &challenge))
     }
 }
 

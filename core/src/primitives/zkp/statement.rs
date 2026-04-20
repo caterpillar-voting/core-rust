@@ -133,11 +133,14 @@ mod tests {
         let r_rerand_u = zkp_rerand_u.proof(&k_rerand_u, &r2, &c2);
         let r_rerand_v = zkp_rerand_v.proof(&k_rerand_v, &r2, &c2);
 
+        assert_eq!(c, c1 + c2);
+
         assert!(zkp_enc1_u.verify(&r_enc1_u, &t_enc1_u, &c1));
         assert!(zkp_enc1_v.verify(&r_enc1_v, &t_enc1_v, &c1));
 
         assert!(zkp_rerand_u.verify(&r_rerand_u, &t_rerand_u, &c2));
         assert!(zkp_rerand_v.verify(&r_rerand_v, &t_rerand_v, &c2));
+
     }
 
     #[test]
