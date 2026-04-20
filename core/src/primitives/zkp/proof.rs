@@ -1,4 +1,3 @@
-use curve25519_dalek::Scalar;
 use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::BooleanTree::{And, Leaf, Or};
 use crate::primitives::zkp::statement::{Commit, Statement, Transcript};
@@ -74,12 +73,10 @@ impl ZeroKnowledgeProof {
         rng: &mut R,
         statements: &[Statement<G>],
     ) -> CommittedProof<G> {
-        let committed = statements
+        statements
             .iter()
             .map(|statement| statement.commit(rng))
-            .collect();
-
-        committed
+            .collect()
     }
 
     fn simulate<G: Group, R: RngCore + CryptoRng>(
@@ -158,46 +155,67 @@ impl ZeroKnowledgeProof {
                 And(proofs)
             }
             (Or(claim_nodes), Or(prepared_nodes), Or(knowledge_nodes)) => {
-                let challenges: Vec<Option<G::Scalar>> = prepared_nodes.iter().map(|prepared_node| {
-                    // TODO: this assumes the simulated transcript is placed at the highest node possible (e.g., no AND(Leaf(_, simulated), Leaf(_, simulated)) node)
-                    if let Leaf((None, Some((inner_challenge, _)))) = prepared_node {
-                        Some(*inner_challenge)
-                    } else {
-                        None
-                    }
-                }).collect();
-
-                let existing_challenges: Vec<G::Scalar> = challenges.iter().filter_map(|challenge| *challenge).collect();
-                let mut current_missing_challenges = prepared_nodes.len() - existing_challenges.len();
-                let mut current_challenge_sum = existing_challenges.iter().fold(G::Scalar::from(0), |current, next| current + next);
-                assert!(current_missing_challenges > 0 || current_challenge_sum == *c, "challenges do not sum up to c");
-
-                let actual_challenges: Vec<G::Scalar> = challenges.iter().map(|challenge| {
-                    if let Some(predefined) = challenge {
-                        *predefined
-                    } else {
-                        if current_missing_challenges > 1 {
-                            let challenge = G::scalar_random(rng);
-                            current_missing_challenges -= 1;
-                            current_challenge_sum += challenge;
-
-                            challenge
+                let challenges: Vec<Option<G::Scalar>> = prepared_nodes
+                    .iter()
+                    .map(|prepared_node| {
+                        // TODO: this assumes the simulated transcript is placed at the highest node possible (e.g., no AND(Leaf(_, simulated), Leaf(_, simulated)) node)
+                        if let Leaf((None, Some((inner_challenge, _)))) = prepared_node {
+                            Some(*inner_challenge)
                         } else {
-                            let challenge = current_challenge_sum - c;
-
-                            challenge
+                            None
                         }
-                    }
-                }).collect();
+                    })
+                    .collect();
+
+                let existing_challenges: Vec<G::Scalar> = challenges
+                    .iter()
+                    .filter_map(|challenge| *challenge)
+                    .collect();
+                let mut current_missing_challenges =
+                    prepared_nodes.len() - existing_challenges.len();
+                let mut current_challenge_sum = existing_challenges
+                    .iter()
+                    .fold(G::Scalar::from(0), |current, next| current + next);
+                assert!(
+                    current_missing_challenges > 0 || current_challenge_sum == *c,
+                    "challenges do not sum up to c"
+                );
+
+                let actual_challenges: Vec<G::Scalar> = challenges
+                    .iter()
+                    .map(|challenge| {
+                        if let Some(predefined) = challenge {
+                            *predefined
+                        } else {
+                            if current_missing_challenges > 1 {
+                                let challenge = G::scalar_random(rng);
+                                current_missing_challenges -= 1;
+                                current_challenge_sum += challenge;
+
+                                challenge
+                            } else {
+                                current_challenge_sum - c
+                            }
+                        }
+                    })
+                    .collect();
 
                 let proofs = claim_nodes
                     .iter()
                     .zip(prepared_nodes.iter())
                     .zip(knowledge_nodes.iter())
                     .zip(actual_challenges.iter())
-                    .map(|(((claim_node, prepared_node), knowledge_node), challenge)| {
-                        Self::finalize(rng, claim_node, prepared_node, knowledge_node, challenge)
-                    })
+                    .map(
+                        |(((claim_node, prepared_node), knowledge_node), challenge)| {
+                            Self::finalize(
+                                rng,
+                                claim_node,
+                                prepared_node,
+                                knowledge_node,
+                                challenge,
+                            )
+                        },
+                    )
                     .collect();
 
                 Or(proofs)
@@ -272,7 +290,8 @@ mod tests {
         let knowledge: Knowledge<Curve> = Or(vec![Leaf(None), Leaf(Some(r2))]);
         let prepared_proof = ZeroKnowledgeProof::prepare(&mut rng, &claim, &knowledge);
         let challenge = Scalar::random(&mut rng);
-        let finalized_proof = ZeroKnowledgeProof::finalize(&mut rng, &claim, &prepared_proof, &knowledge, &challenge);
+        let finalized_proof =
+            ZeroKnowledgeProof::finalize(&mut rng, &claim, &prepared_proof, &knowledge, &challenge);
 
         assert!(matches!(prepared_proof, Or(_)));
         if let Or(nodes) = prepared_proof {

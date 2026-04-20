@@ -1,5 +1,6 @@
 use crate::foundation::group::Group;
 use rand_core::{CryptoRng, RngCore};
+use std::hint::black_box;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement<G: Group> {
@@ -28,7 +29,7 @@ impl<G: Group> Statement<G> {
     pub fn proof(&self, k: &G::Scalar, x: &G::Scalar, c: &G::Scalar) -> G::Scalar {
         let r = *k + &(*c * x);
 
-        r
+        black_box(r)
     }
 
     pub fn verify(&self, r: &G::Scalar, t: &G::Point, c: &G::Scalar) -> bool {
@@ -52,8 +53,8 @@ impl<G: Group> Statement<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::foundation::group::{Group};
     use crate::foundation::hash::{ContextAwareHash, VectorContextHash};
     use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
     use rand::thread_rng;
