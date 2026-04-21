@@ -7,7 +7,6 @@ mod tests {
     use crate::foundation::discrete_log::GreedyDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::foundation::representation::{EncodedMessage, Message};
     use crate::primitives::commitment::HHomomorphicCommitment;
     use crate::primitives::encryption::{Encryption, EncryptionHomomorph};
     use rand::thread_rng;
@@ -30,7 +29,7 @@ mod tests {
     #[test]
     fn encryption() {
         let mut rng = thread_rng();
-        let message = EncodedMessage(Curve::point_random(&mut rng));
+        let message = Curve::point_random(&mut rng);
 
         let encryption = Encryption::<Curve>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
