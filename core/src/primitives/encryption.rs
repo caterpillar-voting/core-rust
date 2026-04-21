@@ -45,7 +45,7 @@ impl<G: Group> Encryption<G> {
         message: &EncodedMessage<G>,
     ) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
-        let (alpha, beta) = self.el_gamal.encrypt(public_key, &randomness, &message);
+        let (alpha, beta) = self.el_gamal.encrypt(public_key, &randomness, message);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -74,11 +74,8 @@ impl<G: Group> Encryption<G> {
         secret_key: &SecretKey<G>,
         ciphertext: &Ciphertext<G>,
     ) -> EncodedMessage<G> {
-        let decrypted = self
-            .el_gamal
-            .decrypt(&secret_key.0, &(ciphertext.0, ciphertext.1));
-
-        decrypted
+        self.el_gamal
+            .decrypt(&secret_key.0, &(ciphertext.0, ciphertext.1))
     }
 }
 

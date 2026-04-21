@@ -48,12 +48,12 @@ pub struct WasmEncodedMessage(EncodedMessage<RistrettoGroup>);
 #[wasm_bindgen]
 impl WasmEncodedMessage {
     pub fn from() -> Self {
-        Self(EncodedMessage(RistrettoGroup::basepoint()))
+        Self(RistrettoGroup::basepoint())
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = [0u8; <RistrettoGroup as Group>::Point::BUFFER_SIZE];
-        self.0.0.to_bytes(&mut bytes);
+        self.0.to_bytes(&mut bytes);
         bytes.into()
     }
 }
