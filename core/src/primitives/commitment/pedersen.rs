@@ -1,19 +1,19 @@
 use crate::foundation::group::Group;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Pedersen<G: Group> {
+pub struct Pedersen<G: Group, const N: usize = 1> {
     pub g: G::Point,
-    pub h: Vec<G::Point>,
+    pub h: Box<[G::Point; N]>,
 }
 
-impl<G: Group> Default for Pedersen<G> {
+impl<G: Group, const N: usize> Default for Pedersen<G, N> {
     fn default() -> Self {
-        Self::new(G::basepoint(), G::independent_generators(b"Pedersen", 1))
+        Self::new(G::basepoint(), G::independent_generators::<N>(b"Pedersen"))
     }
 }
 
-impl<G: Group> Pedersen<G> {
-    pub fn new(g: G::Point, h: Vec<G::Point>) -> Self {
+impl<G: Group, const N: usize> Pedersen<G, N> {
+    pub fn new(g: G::Point, h: Box<[G::Point; N]>) -> Self {
         Self { g, h }
     }
 
@@ -41,6 +41,7 @@ impl<G: Group> Pedersen<G> {
 
 #[cfg(test)]
 mod tests {
+    use rand::rngs::ThreadRng;
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
@@ -50,36 +51,33 @@ mod tests {
     type Curve = RistrettoGroup;
     type Scalar = <Curve as Group>::Scalar;
 
-    fn new_pedersen_sample<R: RngCore + CryptoRng>(n: usize, rng: &mut R) -> (Scalar, Vec<Scalar>) {
+    fn new_pedersen_sample<R: RngCore + CryptoRng, const N: usize>(rng: &mut R) -> (Scalar, [Scalar; N]) {
         let randomness = Curve::scalar_random(rng);
-        let messages: Vec<Scalar> = (0..n).map(|_| Curve::scalar_random(rng)).collect();
+        let messages: Vec<Scalar> = (0..N).map(|_| Curve::scalar_random(rng)).collect();
 
-        (randomness, messages)
+        (randomness, messages.try_into().expect("incorrect number of messages"))
     }
 
     #[test]
     fn commit_and_open() {
         let mut rng = thread_rng();
-        let pedersen = Pedersen::<Curve>::default();
-        let (randomness, messages) = new_pedersen_sample(1, &mut rng);
+        let pedersen = Pedersen::<Curve, 1>::default();
+        let (randomness, messages) = new_pedersen_sample::<ThreadRng, 1>(&mut rng);
 
         let commitment = pedersen.commit(&randomness, &messages);
-        assert_eq!(pedersen.verify(&randomness, &messages, &commitment), true);
+        assert!(pedersen.verify(&randomness, &messages, &commitment));
 
-        let (randomness, messages) = new_pedersen_sample(1, &mut rng);
+        let (randomness, messages) = new_pedersen_sample::<ThreadRng, 1>(&mut rng);
         assert_eq!(pedersen.verify(&randomness, &messages, &commitment), false);
     }
 
     #[test]
     fn homomorphic_properties() {
         let mut rng = thread_rng();
-        let pedersen = Pedersen::<Curve>::new(
-            Curve::basepoint(),
-            Curve::independent_generators(b"Pedersen", 5),
-        );
+        let pedersen = Pedersen::<Curve, 5>::default();
 
-        let (r_1, m_1) = new_pedersen_sample(5, &mut rng);
-        let (r_2, m_2) = new_pedersen_sample(5, &mut rng);
+        let (r_1, m_1) = new_pedersen_sample::<ThreadRng, 5>(&mut rng);
+        let (r_2, m_2) = new_pedersen_sample::<ThreadRng, 5>(&mut rng);
 
         let commitment_1 = pedersen.commit(&r_1, &m_1);
         let commitment_2 = pedersen.commit(&r_2, &m_2);
@@ -90,10 +88,7 @@ mod tests {
         let expected = pedersen.commit(&summed_randomness, &summed_messages);
 
         assert_eq!(commitment_1 + &commitment_2, expected);
-        assert_eq!(
-            pedersen.verify(&summed_randomness, &summed_messages, &expected),
-            true
-        );
+        assert!(pedersen.verify(&summed_randomness, &summed_messages, &expected));
         assert_eq!(pedersen.verify(&summed_randomness, &m_1, &expected), false);
         assert_eq!(pedersen.verify(&r_1, &summed_messages, &expected), false);
         assert_eq!(pedersen.verify(&r_1, &m_1, &expected), false);
