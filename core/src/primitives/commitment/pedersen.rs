@@ -47,21 +47,10 @@ mod tests {
     use rand::rngs::ThreadRng;
     use rand::thread_rng;
     use rand_core::{CryptoRng, RngCore};
+    use crate::primitives::commitment::_test_utils::new_pedersen_sample;
 
     type Curve = RistrettoGroup;
     type Scalar = <Curve as Group>::Scalar;
-
-    fn new_pedersen_sample<R: RngCore + CryptoRng, const N: usize>(
-        rng: &mut R,
-    ) -> (Scalar, [Scalar; N]) {
-        let randomness = Curve::scalar_random(rng);
-        let messages: Vec<Scalar> = (0..N).map(|_| Curve::scalar_random(rng)).collect();
-
-        (
-            randomness,
-            messages.try_into().expect("incorrect number of messages"),
-        )
-    }
 
     #[test]
     fn commit_and_open() {
