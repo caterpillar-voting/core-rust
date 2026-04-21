@@ -10,6 +10,9 @@ use rand_core::{CryptoRng, RngCore};
 pub mod el_gamal;
 mod representation;
 
+#[cfg(test)]
+mod _test_utils;
+
 #[derive(Debug)]
 pub struct Encryption<G: Group> {
     el_gamal: ElGamal<G>,
