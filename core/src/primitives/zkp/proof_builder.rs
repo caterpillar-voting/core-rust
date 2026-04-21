@@ -2,56 +2,44 @@ pub mod el_gamal;
 
 use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::{Claim, Knowledge};
-use crate::utils::tree::BooleanTree::Or;
-use std::marker::PhantomData;
+use crate::utils::tree::BooleanTree;
+use crate::utils::tree::BooleanTree::{And, Leaf, Or};
 
 pub trait ProofBuilder<G: Group> {
     fn build(&self) -> (Claim<G>, Knowledge<G>);
 }
+#[allow(type_alias_bounds)]
+pub type ProofBuilderTree<'a, G: Group> = BooleanTree<&'a dyn ProofBuilder<G>>;
 
-pub struct OrProofBuilder<'a, G: Group> {
-    proof_builders: Vec<&'a dyn ProofBuilder<G>>,
-    _marker: PhantomData<G>,
-}
+struct ProofTreeBuilder {}
 
-impl<'a, G: Group> Default for OrProofBuilder<'a, G> {
-    fn default() -> Self {
-        Self::new(Vec::new())
-    }
-}
-
-impl<'a, G: Group> OrProofBuilder<'a, G> {
-    pub fn new(proof_builders: Vec<&'a dyn ProofBuilder<G>>) -> Self {
-        Self {
-            proof_builders,
-            _marker: PhantomData,
+impl ProofTreeBuilder {
+    pub fn build<G: Group>(proof_builder_tree: &ProofBuilderTree<G>) -> (Claim<G>, Knowledge<G>) {
+        match proof_builder_tree {
+            Leaf(pb) => pb.build(),
+            And(proof_builders) => {
+                let (claims, knowledges) = Self::collect(proof_builders);
+                (And(claims), And(knowledges))
+            }
+            Or(proof_builders) => {
+                let (claims, knowledges) = Self::collect(proof_builders);
+                (Or(claims), Or(knowledges))
+            }
         }
     }
 
-    pub fn or(&mut self, proof_builder: &'a dyn ProofBuilder<G>) -> &mut OrProofBuilder<'a, G> {
-        self.proof_builders.push(proof_builder);
-
-        self
-    }
-
-    fn collect_proof_builders(&self) -> (Vec<Claim<G>>, Vec<Knowledge<G>>) {
-        self.proof_builders.iter().fold(
+    fn collect<G: Group>(
+        proof_builders: &Vec<ProofBuilderTree<G>>,
+    ) -> (Vec<Claim<G>>, Vec<Knowledge<G>>) {
+        proof_builders.iter().fold(
             (Vec::new(), Vec::new()),
             |(mut claims, mut knowledges), pb| {
-                let (claim, knowledge) = pb.build();
+                let (claim, knowledge) = Self::build(pb);
                 claims.push(claim);
                 knowledges.push(knowledge);
                 (claims, knowledges)
             },
         )
-    }
-}
-
-impl<'a, G: Group> ProofBuilder<G> for OrProofBuilder<'a, G> {
-    fn build(&self) -> (Claim<G>, Knowledge<G>) {
-        let (claims, knowledges) = self.collect_proof_builders();
-
-        (Or(claims), Or(knowledges))
     }
 }
 
@@ -62,6 +50,7 @@ mod tests {
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::zkp::_test_utils::{create_enc0_and_enc1, do_proof};
     use crate::primitives::zkp::proof_builder::el_gamal::{EncProof, ReEncProof};
+    use crate::utils::tree::BooleanTree::Leaf;
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;
@@ -74,7 +63,9 @@ mod tests {
 
         let enc1 = EncProof::<Curve>::new(pk, (u_enc1, v_enc1), Curve::basepoint(), Some(r_enc1));
         let renenc = ReEncProof::<Curve>::new(pk, (u, v), (u_enc1, v_enc1), None);
-        let (claim, knowledge) = OrProofBuilder::<Curve>::new(vec![&enc1, &renenc]).build();
+        let tree: ProofBuilderTree<Curve> = And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]);
+
+        let (claim, knowledge) = ProofTreeBuilder::build(&tree);
 
         do_proof(&mut rng, claim, knowledge);
     }
