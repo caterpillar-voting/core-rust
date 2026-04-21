@@ -94,7 +94,7 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1};
-    use crate::primitives::zkp::proof_builder::{ProofBuilder, TreeProofBuilder};
+    use crate::primitives::zkp::proof_builder::{TreeProofBuilder};
     use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
     use crate::utils::tree::BooleanTree::Leaf;
     use rand::thread_rng;
@@ -113,6 +113,8 @@ mod tests {
 
         let tree: TreeProofBuilder<Curve> = Or(vec![Leaf(&enc1), Leaf(&renenc)]);
         let (zkp, knowledge) = ZeroKnowledgeProof::from_builder(&tree);
+
+         // TODO: introduce SecretKnowledge
 
         let nizkp = NonInteractiveZeroKnowledgeProof::new(zkp, VectorContextHash::default());
         let proof = nizkp.proof(&mut rng, &knowledge);

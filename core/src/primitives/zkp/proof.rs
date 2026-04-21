@@ -335,7 +335,7 @@ mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::zkp::_test_utils::{
-        create_elgamal_enc0_and_enc1, do_proof, prepare_enc1_reenc_statements,
+        create_elgamal_enc0_and_enc1, proof_claims, create_elgamal_enc1_reenc_statements,
     };
     use rand::thread_rng;
 
@@ -347,7 +347,7 @@ mod tests {
 
         let (pk, (uv, _), (uv_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
         let ((zkp_enc1_u, zkp_enc1_v), (zkp_rerand_u, zkp_rerand_v)) =
-            prepare_enc1_reenc_statements(pk, uv, uv_enc1);
+            create_elgamal_enc1_reenc_statements(pk, uv, uv_enc1);
 
         /*
         compositions checked:
@@ -388,7 +388,7 @@ mod tests {
             ]),
         ]);
 
-        do_proof(&mut rng, claim, knowledge);
+        proof_claims(&mut rng, claim, knowledge);
     }
 }
 
