@@ -81,9 +81,7 @@ fn homomorphic_encryption() {
 ## Future steps
 
 features NOW:
-- add claim hasher
 - add high-level interface for ZKPs; including NIZKP
-- add fiat-shamir transformation
 
 features:
 - add ZKP for CCA2

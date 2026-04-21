@@ -10,7 +10,7 @@ type Curve = RistrettoGroup;
 type Scalar = <RistrettoGroup as Group>::Scalar;
 type Point = <RistrettoGroup as Group>::Point;
 
-pub fn create_enc0_and_enc1<R: RngCore + CryptoRng>(
+pub fn create_elgamal_enc0_and_enc1<R: RngCore + CryptoRng>(
     rng: &mut R,
 ) -> (Point, (Point, Point), (Point, Point, Scalar)) {
     let el_gamal = ElGamal::<Curve>::default();
