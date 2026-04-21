@@ -4,6 +4,7 @@ use crate::primitives::zkp::context::ProofTreeContextHash;
 use crate::primitives::zkp::proof::{Claim, Knowledge, PreparedProof, ProofTranscript, Proof};
 use crate::utils::tree::BooleanTree::{And, Or};
 use rand_core::{CryptoRng, RngCore};
+use crate::primitives::zkp::proof_builder::ProofBuilder;
 
 pub mod proof;
 pub mod proof_builder;
@@ -19,6 +20,11 @@ pub struct ZeroKnowledgeProof<G: Group> {
 }
 
 impl<G: Group> ZeroKnowledgeProof<G> {
+    fn from_builder(proof_builder: &dyn ProofBuilder<G>) -> (Self, Knowledge<G>) {
+        let (claim, knowledge) = proof_builder.build();
+        (Self { claim }, knowledge)
+    }
+
     pub fn prepare<R: RngCore + CryptoRng>(
         &self,
         rng: &mut R,
@@ -106,9 +112,8 @@ mod tests {
         let renenc = ReEncProofBuilder::<Curve>::new(pk, uv, uv_enc1, None);
 
         let tree: TreeProofBuilder<Curve> = Or(vec![Leaf(&enc1), Leaf(&renenc)]);
-        let (claim, knowledge) = tree.build();
+        let (zkp, knowledge) = ZeroKnowledgeProof::from_builder(&tree);
 
-        let zkp = ZeroKnowledgeProof { claim };
         let nizkp = NonInteractiveZeroKnowledgeProof::new(zkp, VectorContextHash::default());
         let proof = nizkp.proof(&mut rng, &knowledge);
 
