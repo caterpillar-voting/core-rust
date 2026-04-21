@@ -11,7 +11,7 @@ pub trait ProofBuilder<G: Group> {
 #[allow(type_alias_bounds)]
 type ProofTreeBuilderTree<'a, G: Group> = BooleanTree<&'a dyn ProofBuilder<G>>;
 
-struct ProofTreeBuilder<'a, G: Group> {
+pub struct ProofTreeBuilder<'a, G: Group> {
     tree: ProofTreeBuilderTree<'a, G>,
 }
 

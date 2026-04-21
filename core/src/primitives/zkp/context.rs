@@ -18,17 +18,19 @@ impl<G: Group> ProofTreeContextHash<G> for VectorContextHash {
     }
 
     fn add_prepared_proof(&mut self, prepared_proof: &PreparedProof<G>) {
-        prepared_proof.into_iter().for_each(|(committed_proof, simulated_proof)| {
-            if let Some(commits) = committed_proof {
-                for (_, t) in commits.iter() {
-                    <VectorContextHash as ContextHash<G>>::add_point(self, t);
+        prepared_proof
+            .into_iter()
+            .for_each(|(committed_proof, simulated_proof)| {
+                if let Some(commits) = committed_proof {
+                    for (_, t) in commits.iter() {
+                        <VectorContextHash as ContextHash<G>>::add_point(self, t);
+                    }
+                } else if let Some((_, simulated)) = simulated_proof {
+                    for (_, t) in simulated.iter() {
+                        <VectorContextHash as ContextHash<G>>::add_point(self, t);
+                    }
                 }
-            } else if let Some((_, simulated)) = simulated_proof {
-                for (_, t) in simulated.iter() {
-                    <VectorContextHash as ContextHash<G>>::add_point(self, t);
-                }
-            }
-        });
+            });
     }
 
     fn add_proof(&mut self, transcript: &Proof<G>) {
