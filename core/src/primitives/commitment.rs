@@ -14,7 +14,7 @@ use rand_core::{CryptoRng, RngCore};
 /// A hiding commitment (Pedersen) with N messages.
 #[derive(Debug, PartialEq)]
 pub struct HHomomorphicCommitment<G: Group, const N: usize = 1> {
-    pedersen: Pedersen<G, N>,
+    pub pedersen: Pedersen<G, N>,
 }
 
 impl<G: Group, const N: usize> Default for HHomomorphicCommitment<G, N> {
