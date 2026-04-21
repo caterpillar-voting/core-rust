@@ -1,10 +1,9 @@
-use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
 use crate::foundation::group::ristretto::RistrettoGroup;
+use rand_core::{CryptoRng, RngCore};
 
 type Curve = RistrettoGroup;
 type Scalar = <Curve as Group>::Scalar;
-
 
 pub fn new_pedersen_sample<R: RngCore + CryptoRng, const N: usize>(
     rng: &mut R,

@@ -54,12 +54,7 @@ pub fn do_proof<R: RngCore + CryptoRng>(
 ) {
     let prepared_proof = ProofTree::prepare(rng, &claim, &knowledge);
     let challenge = Scalar::random(rng);
-    let finalized_proof =
-        ProofTree::finalize(rng, &prepared_proof, &claim, &knowledge, &challenge);
+    let finalized_proof = ProofTree::finalize(rng, &prepared_proof, &claim, &knowledge, &challenge);
 
-    assert!(ProofTree::check(
-        &claim,
-        &finalized_proof,
-        &challenge
-    ))
+    assert!(ProofTree::check(&claim, &finalized_proof, &challenge))
 }

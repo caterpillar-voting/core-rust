@@ -44,10 +44,10 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
+    use crate::primitives::commitment::_test_utils::new_pedersen_sample;
     use rand::rngs::ThreadRng;
     use rand::thread_rng;
     use rand_core::{CryptoRng, RngCore};
-    use crate::primitives::commitment::_test_utils::new_pedersen_sample;
 
     type Curve = RistrettoGroup;
     type Scalar = <Curve as Group>::Scalar;

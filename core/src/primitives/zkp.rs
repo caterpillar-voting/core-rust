@@ -41,12 +41,17 @@ impl<G: Group> ZeroKnowledgeProof<G> {
     }
 }
 
-pub struct NonInteractiveZeroKnowledgeProof<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> {
+pub struct NonInteractiveZeroKnowledgeProof<
+    G: Group,
+    H: ProofTreeContextHash<G> + ContextHash<G> + Clone,
+> {
     zero_knowledge_proof: ZeroKnowledgeProof<G>,
     claim_context_hash: H,
 }
 
-impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NonInteractiveZeroKnowledgeProof<G, H> {
+impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone>
+    NonInteractiveZeroKnowledgeProof<G, H>
+{
     pub fn new(zero_knowledge_proof: ZeroKnowledgeProof<G>, context_hash: H) -> Self {
         let mut claim_context_hash = context_hash;
         claim_context_hash.add_claim(&zero_knowledge_proof.claim);
@@ -57,11 +62,7 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NonInteracti
         }
     }
 
-    pub fn proof<R: RngCore + CryptoRng>(
-        &self,
-        rng: &mut R,
-        knowledge: &Knowledge<G>,
-    ) -> Proof<G> {
+    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &Knowledge<G>) -> Proof<G> {
         let prepared_proof = self.zero_knowledge_proof.prepare(rng, knowledge);
 
         let mut context_hash = self.claim_context_hash.clone();
@@ -77,13 +78,9 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NonInteracti
         )
     }
 
-    pub fn verify(
-        &self,
-        claim: &Claim<G>,
-        proof: &Proof<G>,
-    ) -> bool {
+    pub fn verify(&self, claim: &Claim<G>, proof: &Proof<G>) -> bool {
         let mut context_hash = self.claim_context_hash.clone();
-        context_hash.add_proof(&proof);
+        context_hash.add_proof(proof);
         let c = context_hash.hash_to_scalar();
 
         ProofTree::check(claim, proof, &c)
