@@ -28,7 +28,8 @@ impl<G: Group> Pedersen<G> {
     }
 
     pub fn verify(&self, r: &G::Scalar, m: &[G::Scalar], commitment: &G::Point) -> bool {
-        assert!(m.len() <= self.h.len()); // TODO discuss: remove; exposes implementation details of commit(), duplicates code
+        // TODO remove; exposes implementation details of commit()
+        assert!(m.len() <= self.h.len());
 
         let recomputed_commitment = self.commit(r, m);
 
