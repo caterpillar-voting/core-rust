@@ -1,11 +1,11 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, VectorContextHash};
-use crate::primitives::zkp::proof::{Claim, PreparedProof, Proof};
+use crate::primitives::zkp::proof::{Claim, PreparedProof, ProofTranscript};
 
 pub trait ProofTreeContextHash<G: Group> {
     fn add_claim(&mut self, claim: &Claim<G>);
     fn add_prepared_proof(&mut self, prepared_proof: &PreparedProof<G>);
-    fn add_proof(&mut self, proof: &Proof<G>);
+    fn add_proof(&mut self, proof: &ProofTranscript<G>);
 }
 
 impl<G: Group> ProofTreeContextHash<G> for VectorContextHash {
@@ -33,7 +33,7 @@ impl<G: Group> ProofTreeContextHash<G> for VectorContextHash {
             });
     }
 
-    fn add_proof(&mut self, transcript: &Proof<G>) {
+    fn add_proof(&mut self, transcript: &ProofTranscript<G>) {
         transcript.into_iter().for_each(|(_, statements)| {
             statements.iter().for_each(|statement| {
                 <VectorContextHash as ContextHash<G>>::add_point(self, &statement.1);

@@ -9,16 +9,16 @@ pub trait ProofBuilder<G: Group> {
     fn build(&self) -> (Claim<G>, Knowledge<G>);
 }
 #[allow(type_alias_bounds)]
-pub type ProofBuilderTree<'a, G: Group> = BooleanTree<&'a dyn ProofBuilder<G>>;
+pub type TreeProofBuilder<'a, G: Group> = BooleanTree<&'a dyn ProofBuilder<G>>;
 
-impl<'a, G: Group> ProofBuilder<G> for ProofBuilderTree<'a, G> {
+impl<'a, G: Group> ProofBuilder<G> for TreeProofBuilder<'a, G> {
     fn build(&self) -> (Claim<G>, Knowledge<G>) {
         compose(&self)
     }
 
 }
 
-fn compose<'a, G: Group>(proof_builder_tree: &ProofBuilderTree<G>) -> (Claim<G>, Knowledge<G>) {
+fn compose<'a, G: Group>(proof_builder_tree: &TreeProofBuilder<G>) -> (Claim<G>, Knowledge<G>) {
     match proof_builder_tree {
         Leaf(pb) => pb.build(),
         And(proof_builders) => {
@@ -33,7 +33,7 @@ fn compose<'a, G: Group>(proof_builder_tree: &ProofBuilderTree<G>) -> (Claim<G>,
 }
 
 fn collect<'a, G: Group>(
-    proof_builders: &Vec<ProofBuilderTree<G>>,
+    proof_builders: &Vec<TreeProofBuilder<G>>,
 ) -> (Vec<Claim<G>>, Vec<Knowledge<G>>) {
     proof_builders.iter().fold(
         (Vec::new(), Vec::new()),
@@ -52,7 +52,7 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1, do_proof};
-    use crate::primitives::zkp::proof_builder::el_gamal::{EncProof, ReEncProof};
+    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
     use crate::utils::tree::BooleanTree::Leaf;
     use rand::thread_rng;
 
@@ -62,11 +62,11 @@ mod tests {
     fn el_gamal_or_proof() {
         let mut rng = thread_rng();
 
-        let (pk, (u, v), (u_enc1, v_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
+        let (pk, (uv, _), (uv_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
 
-        let enc1 = EncProof::<Curve>::new(pk, (u_enc1, v_enc1), Curve::basepoint(), Some(r_enc1));
-        let renenc = ReEncProof::<Curve>::new(pk, (u, v), (u_enc1, v_enc1), None);
-        let tree: ProofBuilderTree<Curve> = And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]);
+        let enc1 = EncProofBuilder::<Curve>::new(pk, uv_enc1, Curve::basepoint(), Some(r_enc1));
+        let renenc = ReEncProofBuilder::<Curve>::new(pk, uv, uv_enc1, None);
+        let tree: TreeProofBuilder<Curve> = And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]);
 
         let (claim, knowledge) = tree.build();
 

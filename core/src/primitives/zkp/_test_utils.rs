@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 use crate::foundation::group::ristretto::RistrettoGroup;
 use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
-use crate::primitives::zkp::proof::{Claim, Knowledge, ProofTree};
+use crate::primitives::zkp::proof::{Claim, Knowledge, Proof};
 use crate::primitives::zkp::statement::Statement;
 use rand_core::{CryptoRng, RngCore};
 
@@ -12,7 +12,7 @@ type Point = <RistrettoGroup as Group>::Point;
 
 pub fn create_elgamal_enc0_and_enc1<R: RngCore + CryptoRng>(
     rng: &mut R,
-) -> (Point, (Point, Point), (Point, Point, Scalar)) {
+) -> (Point, ((Point, Point), Scalar), ((Point, Point), Scalar)) {
     let el_gamal = ElGamal::<Curve>::default();
     let exponential_el_gamal = ExponentialElGamal(el_gamal);
     let sk = exponential_el_gamal.0.generate_secret_key(rng);
@@ -26,15 +26,13 @@ pub fn create_elgamal_enc0_and_enc1<R: RngCore + CryptoRng>(
     let r_enc1 = Scalar::random(rng);
     let (u_enc1, v_enc1) = exponential_el_gamal.encrypt(&pk, &r_enc1, &Scalar::ONE);
 
-    (pk, (u, v), (u_enc1, v_enc1, r_enc1))
+    (pk, ((u, v), r), ((u_enc1, v_enc1), r_enc1))
 }
 
 pub fn prepare_enc1_reenc_statements(
     pk: Point,
-    u: Point,
-    v: Point,
-    u_dash: Point,
-    v_dash: Point,
+    (u, v): (Point, Point),
+    (u_dash, v_dash): (Point, Point),
 ) -> (
     (Statement<Curve>, Statement<Curve>),
     (Statement<Curve>, Statement<Curve>),
@@ -52,9 +50,9 @@ pub fn do_proof<R: RngCore + CryptoRng>(
     claim: Claim<Curve>,
     knowledge: Knowledge<Curve>,
 ) {
-    let prepared_proof = ProofTree::prepare(rng, &claim, &knowledge);
+    let prepared_proof = Proof::prepare(rng, &claim, &knowledge);
     let challenge = Scalar::random(rng);
-    let finalized_proof = ProofTree::finalize(rng, &prepared_proof, &claim, &knowledge, &challenge);
+    let finalized_proof = Proof::finalize(rng, &prepared_proof, &claim, &knowledge, &challenge);
 
-    assert!(ProofTree::check(&claim, &finalized_proof, &challenge))
+    assert!(Proof::check(&claim, &finalized_proof, &challenge))
 }

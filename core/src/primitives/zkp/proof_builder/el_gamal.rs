@@ -4,14 +4,14 @@ use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::statement::Statement;
 use crate::utils::tree::BooleanTree::Leaf;
 
-pub struct ReEncProof<G: Group> {
+pub struct ReEncProofBuilder<G: Group> {
     pk: G::Point,
     uv: (G::Point, G::Point),
     uv_dash: (G::Point, G::Point),
     randomness: Option<G::Scalar>,
 }
 
-impl<G: Group> ReEncProof<G> {
+impl<G: Group> ReEncProofBuilder<G> {
     pub fn new(
         pk: G::Point,
         uv: (G::Point, G::Point),
@@ -27,7 +27,7 @@ impl<G: Group> ReEncProof<G> {
     }
 }
 
-impl<G: Group> ProofBuilder<G> for ReEncProof<G> {
+impl<G: Group> ProofBuilder<G> for ReEncProofBuilder<G> {
     fn build(&self) -> (Claim<G>, Knowledge<G>) {
         let rerand_u = Statement::<G>::new(G::basepoint(), self.uv_dash.0 - &self.uv.0);
         let rerand_v = Statement::<G>::new(self.pk, self.uv_dash.1 - &self.uv.1);
@@ -39,14 +39,14 @@ impl<G: Group> ProofBuilder<G> for ReEncProof<G> {
     }
 }
 
-pub struct EncProof<G: Group> {
+pub struct EncProofBuilder<G: Group> {
     pk: G::Point,
     uv: (G::Point, G::Point),
     message: G::Point,
     randomness: Option<G::Scalar>,
 }
 
-impl<G: Group> EncProof<G> {
+impl<G: Group> EncProofBuilder<G> {
     pub fn new(
         pk: G::Point,
         uv: (G::Point, G::Point),
@@ -62,7 +62,7 @@ impl<G: Group> EncProof<G> {
     }
 }
 
-impl<G: Group> ProofBuilder<G> for EncProof<G> {
+impl<G: Group> ProofBuilder<G> for EncProofBuilder<G> {
     fn build(&self) -> (Claim<G>, Knowledge<G>) {
         let encm_u = Statement::<G>::new(G::basepoint(), self.uv.0);
         let encm_v = Statement::<G>::new(self.pk, self.uv.1 - &self.message);
