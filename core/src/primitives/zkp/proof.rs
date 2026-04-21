@@ -335,7 +335,7 @@ mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::zkp::_test_utils::{
-        create_elgamal_enc0_and_enc1, proof_claims, create_elgamal_enc1_reenc_statements,
+        create_elgamal_enc0_and_enc1, create_elgamal_enc1_reenc_statements, proof_claims,
     };
     use rand::thread_rng;
 

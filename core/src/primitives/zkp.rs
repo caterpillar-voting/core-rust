@@ -1,11 +1,10 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::ContextHash;
 use crate::primitives::zkp::context::ProofTreeContextHash;
-use crate::primitives::zkp::proof::{Claim, Knowledge, PreparedProof, ProofTranscript, Proof};
-use crate::utils::tree::BooleanTree::{And, Or};
-use rand_core::{CryptoRng, RngCore};
+use crate::primitives::zkp::proof::{Claim, PreparedProof, Proof, ProofTranscript};
 use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::representation::SecretKnowledge;
+use rand_core::{CryptoRng, RngCore};
 
 pub mod proof;
 pub mod proof_builder;
@@ -21,7 +20,7 @@ pub struct ZKProof<G: Group> {
 }
 
 impl<G: Group> ZKProof<G> {
-    fn from_builder(proof_builder: &dyn ProofBuilder<G>) -> (Self, SecretKnowledge<G>) {
+    pub fn from_builder(proof_builder: &dyn ProofBuilder<G>) -> (Self, SecretKnowledge<G>) {
         let (claim, knowledge) = proof_builder.build();
         (Self { claim }, SecretKnowledge(knowledge))
     }
@@ -49,17 +48,12 @@ impl<G: Group> ZKProof<G> {
     }
 }
 
-pub struct NIZKProof<
-    G: Group,
-    H: ProofTreeContextHash<G> + ContextHash<G> + Clone,
-> {
+pub struct NIZKProof<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> {
     zk_proof: ZKProof<G>,
     claim_context_hash: H,
 }
 
-impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone>
-    NIZKProof<G, H>
-{
+impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NIZKProof<G, H> {
     pub fn new(zk_proof: ZKProof<G>, context_hash: H) -> Self {
         let mut claim_context_hash = context_hash;
         claim_context_hash.add_claim(&zk_proof.claim);
@@ -70,7 +64,11 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone>
         }
     }
 
-    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofTranscript<G> {
+    pub fn proof<R: RngCore + CryptoRng>(
+        &self,
+        rng: &mut R,
+        knowledge: &SecretKnowledge<G>,
+    ) -> ProofTranscript<G> {
         let prepared_proof = self.zk_proof.prepare(rng, knowledge);
 
         let mut context_hash = self.claim_context_hash.clone();
@@ -94,12 +92,12 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1};
-    use crate::primitives::zkp::proof_builder::{TreeProofBuilder};
-    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
-    use crate::utils::tree::BooleanTree::Leaf;
-    use rand::thread_rng;
     use crate::foundation::hash::VectorContextHash;
+    use crate::primitives::zkp::_test_utils::create_elgamal_enc0_and_enc1;
+    use crate::primitives::zkp::proof_builder::TreeProofBuilder;
+    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
+    use crate::utils::tree::BooleanTree::{Leaf, Or};
+    use rand::thread_rng;
 
     type Curve = RistrettoGroup;
 
