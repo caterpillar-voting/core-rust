@@ -51,7 +51,7 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1, do_proof};
+    use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1, proof_claims};
     use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
     use crate::utils::tree::BooleanTree::Leaf;
     use rand::thread_rng;
@@ -70,6 +70,6 @@ mod tests {
 
         let (claim, knowledge) = tree.build();
 
-        do_proof(&mut rng, claim, knowledge);
+        proof_claims(&mut rng, claim, knowledge);
     }
 }
