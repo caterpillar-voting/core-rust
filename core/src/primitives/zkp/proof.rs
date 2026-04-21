@@ -18,13 +18,13 @@ type CommittedOrSimulatedProof<G: Group> = (
 #[allow(type_alias_bounds)]
 pub type PreparedProof<G: Group> = BooleanTree<CommittedOrSimulatedProof<G>>;
 #[allow(type_alias_bounds)]
-pub type Proof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
+pub type ProofTranscript<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
 
-pub struct ProofTree {}
+pub struct Proof {}
 
 // we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
 // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
-impl ProofTree {
+impl Proof {
     pub fn prepare<G: Group, R: RngCore + CryptoRng>(
         rng: &mut R,
         claim: &Claim<G>,
@@ -107,7 +107,7 @@ impl ProofTree {
         claim: &Claim<G>,
         knowledge: &Knowledge<G>,
         c: &G::Scalar,
-    ) -> Proof<G> {
+    ) -> ProofTranscript<G> {
         match (prepared_proof, claim, knowledge) {
             (Leaf((None, Some((actual_c, simulated)))), Leaf(_), Leaf(_)) => {
                 assert_eq!(
@@ -275,13 +275,13 @@ impl ProofTree {
             .collect()
     }
 
-    pub fn check<G: Group>(claim: &Claim<G>, proof: &Proof<G>, c: &G::Scalar) -> bool {
+    pub fn check<G: Group>(claim: &Claim<G>, proof: &ProofTranscript<G>, c: &G::Scalar) -> bool {
         let recovered = Self::verify(claim, proof);
 
         recovered == Some(*c)
     }
 
-    fn verify<G: Group>(claim: &Claim<G>, proof: &Proof<G>) -> Option<G::Scalar> {
+    fn verify<G: Group>(claim: &Claim<G>, proof: &ProofTranscript<G>) -> Option<G::Scalar> {
         match (claim, proof) {
             (Leaf(statements), Leaf((c, transcripts))) => {
                 if statements
@@ -345,9 +345,9 @@ mod tests {
     fn check_composition() {
         let mut rng = thread_rng();
 
-        let (pk, (u, v), (u_enc1, v_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
+        let (pk, (uv, _), (uv_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
         let ((zkp_enc1_u, zkp_enc1_v), (zkp_rerand_u, zkp_rerand_v)) =
-            prepare_enc1_reenc_statements(pk, u, v, u_enc1, v_enc1);
+            prepare_enc1_reenc_statements(pk, uv, uv_enc1);
 
         /*
         compositions checked:
