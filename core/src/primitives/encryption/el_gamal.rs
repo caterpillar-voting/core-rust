@@ -127,7 +127,6 @@ mod tests {
 
     type Curve = RistrettoGroup;
 
-
     #[test]
     fn encrypt_and_decrypt() {
         let mut rng = thread_rng();

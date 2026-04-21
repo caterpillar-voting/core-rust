@@ -1,8 +1,8 @@
 use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::BooleanTree::{And, Leaf, Or};
 use crate::primitives::zkp::statement::{Commit, Statement, Transcript};
-use rand_core::{CryptoRng, RngCore};
 use crate::utils::tree::BooleanTree;
+use rand_core::{CryptoRng, RngCore};
 
 pub struct ZeroKnowledgeProof {}
 
@@ -334,8 +334,10 @@ impl ZeroKnowledgeProof {
 mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
+    use crate::primitives::zkp::_test_utils::{
+        create_enc0_and_enc1, do_proof, prepare_enc1_reenc_statements,
+    };
     use rand::thread_rng;
-    use crate::primitives::zkp::_test_utils::{do_proof, create_enc0_and_enc1, prepare_enc1_reenc_statements};
 
     type Curve = RistrettoGroup;
 
