@@ -45,6 +45,8 @@ impl<G: Group> ElGamal<G> {
         r: &G::Scalar,
         ciphertext: &(G::Point, G::Point),
     ) -> G::Point {
+        // we explicitly do not check here whether g^r = alpha, as this is expensive
+
         let (_, beta) = ciphertext;
         let hiding_factor = *pk * r;
 
@@ -107,41 +109,29 @@ impl<G: Group> ExponentialElGamal<G> {
 
         decoder.log(&self.0.g, &m_point)
     }
+
+    // we explicitly do not repeat the methods that remain the same towards ElGamal (e.g., key generation, renecryption)
 }
 
 // region: --- Tests
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::foundation::discrete_log::GreedyDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
+    use crate::primitives::encryption::_test_utils::{
+        new_el_gamal_sample, new_exponential_el_gamal_sample,
+    };
     use rand::thread_rng;
-    use rand_core::{CryptoRng, RngCore};
 
     type Curve = RistrettoGroup;
 
-    type Scalar = <RistrettoGroup as Group>::Scalar;
-    type Point = <RistrettoGroup as Group>::Point;
-
-    fn new_el_gamal_sample<R: RngCore + CryptoRng>(
-        el_gamal: &ElGamal<Curve>,
-        rng: &mut R,
-    ) -> (Scalar, Point, Scalar, Point) {
-        let sk = el_gamal.generate_secret_key(rng);
-        let pk = el_gamal.derive_public_key(&sk);
-        let r = Curve::scalar_random(rng);
-        let m = Curve::point_random(rng);
-
-        (sk, pk, r, m)
-    }
 
     #[test]
     fn encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let el_gamal = ElGamal::default();
-        let (sk, pk, r, m) = new_el_gamal_sample(&el_gamal, &mut rng);
+        let (el_gamal, sk, pk, r, m) = new_el_gamal_sample(&mut rng);
 
         let ciphertext = el_gamal.encrypt(&pk, &r, &m);
         let m_decrypted = el_gamal.decrypt(&sk, &ciphertext);
@@ -154,8 +144,7 @@ mod tests {
     #[test]
     fn encrypt_reencrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let el_gamal = ElGamal::default();
-        let (sk, pk, r, m) = new_el_gamal_sample(&el_gamal, &mut rng);
+        let (el_gamal, sk, pk, r, m) = new_el_gamal_sample(&mut rng);
 
         let ciphertext = el_gamal.encrypt(&pk, &r, &m);
 
@@ -170,24 +159,10 @@ mod tests {
         assert_eq!(m_decrypted_randomness, m);
     }
 
-    fn new_exponential_el_gamal_sample<R: RngCore + CryptoRng>(
-        exponential_el_gamal: &ExponentialElGamal<Curve>,
-        rng: &mut R,
-    ) -> (Scalar, Point, Scalar, Scalar) {
-        let sk = exponential_el_gamal.0.generate_secret_key(rng);
-        let pk = exponential_el_gamal.0.derive_public_key(&sk);
-        let r = Curve::scalar_random(rng);
-        let m = Scalar::from(2u8);
-
-        (sk, pk, r, m)
-    }
-
     #[test]
     fn exponential_encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let el_gamal = ElGamal::default();
-        let exponential_el_gamal = ExponentialElGamal::new(el_gamal);
-        let (sk, pk, r, m) = new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
+        let (exponential_el_gamal, sk, pk, r, m) = new_exponential_el_gamal_sample(&mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
         let m_decoder = GreedyDiscreteLog::new(m, None);
@@ -202,9 +177,7 @@ mod tests {
     #[test]
     fn exponential_encrypt_reencrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let el_gamal = ElGamal::default();
-        let exponential_el_gamal = ExponentialElGamal::new(el_gamal);
-        let (sk, pk, r, m) = new_exponential_el_gamal_sample(&exponential_el_gamal, &mut rng);
+        let (exponential_el_gamal, sk, pk, r, m) = new_exponential_el_gamal_sample(&mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
 
