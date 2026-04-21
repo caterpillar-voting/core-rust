@@ -9,12 +9,18 @@ pub trait ProofBuilder<G: Group> {
     fn build(&self) -> (Claim<G>, Knowledge<G>);
 }
 #[allow(type_alias_bounds)]
-pub type ProofBuilderTree<'a, G: Group> = BooleanTree<&'a dyn ProofBuilder<G>>;
+type ProofTreeBuilderTree<'a, G: Group> = BooleanTree<&'a dyn ProofBuilder<G>>;
 
-struct ProofTreeBuilder {}
+struct ProofTreeBuilder<'a, G: Group> {
+    tree: ProofTreeBuilderTree<'a, G>,
+}
 
-impl ProofTreeBuilder {
-    pub fn build<G: Group>(proof_builder_tree: &ProofBuilderTree<G>) -> (Claim<G>, Knowledge<G>) {
+impl<'a, G: Group> ProofTreeBuilder<'a, G> {
+    pub fn new(tree: ProofTreeBuilderTree<'a, G>) -> Self {
+        Self { tree }
+    }
+
+    fn compose(proof_builder_tree: &ProofTreeBuilderTree<G>) -> (Claim<G>, Knowledge<G>) {
         match proof_builder_tree {
             Leaf(pb) => pb.build(),
             And(proof_builders) => {
@@ -28,18 +34,24 @@ impl ProofTreeBuilder {
         }
     }
 
-    fn collect<G: Group>(
-        proof_builders: &Vec<ProofBuilderTree<G>>,
+    fn collect(
+        proof_builders: &Vec<ProofTreeBuilderTree<G>>,
     ) -> (Vec<Claim<G>>, Vec<Knowledge<G>>) {
         proof_builders.iter().fold(
             (Vec::new(), Vec::new()),
             |(mut claims, mut knowledges), pb| {
-                let (claim, knowledge) = Self::build(pb);
+                let (claim, knowledge) = Self::compose(pb);
                 claims.push(claim);
                 knowledges.push(knowledge);
                 (claims, knowledges)
             },
         )
+    }
+}
+
+impl<'a, G: Group> ProofBuilder<G> for ProofTreeBuilder<'a, G> {
+    fn build(&self) -> (Claim<G>, Knowledge<G>) {
+        Self::compose(&self.tree)
     }
 }
 
@@ -63,9 +75,10 @@ mod tests {
 
         let enc1 = EncProof::<Curve>::new(pk, (u_enc1, v_enc1), Curve::basepoint(), Some(r_enc1));
         let renenc = ReEncProof::<Curve>::new(pk, (u, v), (u_enc1, v_enc1), None);
-        let tree: ProofBuilderTree<Curve> = And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]);
+        let tree =
+            ProofTreeBuilder::new(And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]));
 
-        let (claim, knowledge) = ProofTreeBuilder::build(&tree);
+        let (claim, knowledge) = tree.build();
 
         do_proof(&mut rng, claim, knowledge);
     }

@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 use crate::foundation::group::ristretto::RistrettoGroup;
 use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
-use crate::primitives::zkp::proof::{Claim, Knowledge, ZeroKnowledgeProof};
+use crate::primitives::zkp::proof::{Claim, Knowledge, ProofTree};
 use crate::primitives::zkp::statement::Statement;
 use rand_core::{CryptoRng, RngCore};
 
@@ -52,12 +52,12 @@ pub fn do_proof<R: RngCore + CryptoRng>(
     claim: Claim<Curve>,
     knowledge: Knowledge<Curve>,
 ) {
-    let prepared_proof = ZeroKnowledgeProof::prepare(rng, &claim, &knowledge);
+    let prepared_proof = ProofTree::prepare(rng, &claim, &knowledge);
     let challenge = Scalar::random(rng);
     let finalized_proof =
-        ZeroKnowledgeProof::finalize(rng, &prepared_proof, &claim, &knowledge, &challenge);
+        ProofTree::finalize(rng, &prepared_proof, &claim, &knowledge, &challenge);
 
-    assert!(ZeroKnowledgeProof::check(
+    assert!(ProofTree::check(
         &claim,
         &finalized_proof,
         &challenge

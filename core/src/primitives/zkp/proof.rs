@@ -4,8 +4,6 @@ use crate::primitives::zkp::statement::{Commit, Statement, Transcript};
 use crate::utils::tree::BooleanTree;
 use rand_core::{CryptoRng, RngCore};
 
-pub struct ZeroKnowledgeProof {}
-
 pub type Claim<G> = BooleanTree<Box<[Statement<G>]>>;
 #[allow(type_alias_bounds)]
 pub type Knowledge<G: Group> = BooleanTree<Option<G::Scalar>>;
@@ -22,9 +20,11 @@ type PreparedProof<G: Group> = BooleanTree<CommittedOrSimulatedProof<G>>;
 #[allow(type_alias_bounds)]
 type Proof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
 
+pub struct ProofTree {}
+
 // we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
 // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
-impl ZeroKnowledgeProof {
+impl ProofTree {
     pub fn prepare<G: Group, R: RngCore + CryptoRng>(
         rng: &mut R,
         claim: &Claim<G>,
