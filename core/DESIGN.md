@@ -40,10 +40,12 @@ the high-level API shields implementation details from the user, and instead giv
 general:
 - secret values: secret keys or randomness (pedersen) are wrapped and annotated with ZeroOnDrop
 - validation: done at compile time, unless type system not expressive enough
+- naming: add core functionality in name (e.g., `HomomorphicEncryption`)
+- naming: add property prefix if needed to disambiguate with representation names (e.g., prefix `H` for hiding to `HHomomorphicCommittment` because needs to return `HomomorphicCommitment`)
 
 primitives/encryption/*:
 - Do not expose decryption using randomness; this is an advanced scenario not need for the normal user
-- Explicitly allow to homomorphically add ciphertext by overriding + and - operators.
+- Explicitly allow homomorphically adding ciphertext by overriding + and - operators
 
 primitives/commitment/*:
-- include number of generators in type to avoid misuse
+- include the number of generators in the type to avoid misuse
