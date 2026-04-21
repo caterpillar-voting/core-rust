@@ -4,8 +4,8 @@ use std::hint::black_box;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement<G: Group> {
-    g: G::Point,
-    z: G::Point,
+    pub g: G::Point,
+    pub z: G::Point,
 }
 
 #[allow(type_alias_bounds)]

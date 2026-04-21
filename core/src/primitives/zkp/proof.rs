@@ -16,9 +16,9 @@ type CommittedOrSimulatedProof<G: Group> = (
     Option<(G::Scalar, SimulatedProof<G>)>,
 );
 #[allow(type_alias_bounds)]
-type PreparedProof<G: Group> = BooleanTree<CommittedOrSimulatedProof<G>>;
+pub type PreparedProof<G: Group> = BooleanTree<CommittedOrSimulatedProof<G>>;
 #[allow(type_alias_bounds)]
-type Proof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
+pub type Proof<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
 
 pub struct ProofTree {}
 
