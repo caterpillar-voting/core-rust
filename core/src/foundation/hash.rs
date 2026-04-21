@@ -6,6 +6,7 @@ pub trait ContextHash<G: Group> {
     fn hash_to_point(&self) -> G::Point;
 }
 
+#[derive(Clone)]
 pub struct VectorContextHash {
     context: Vec<u8>,
 }
