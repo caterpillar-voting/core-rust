@@ -19,7 +19,7 @@ mod tests {
     fn commitment() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = CommitmentHiding::<Curve>::new();
+        let hiding_commitment = CommitmentHiding::<Curve>::default();
 
         let messages = [Message::<Curve>(Scalar::from(2u8))];
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);

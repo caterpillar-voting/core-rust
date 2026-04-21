@@ -10,23 +10,22 @@ use rand_core::{CryptoRng, RngCore};
 /// A hiding commitment (Pedersen) with N messages.
 #[derive(Debug, PartialEq)]
 pub struct CommitmentHiding<G: Group, const N: usize = 1> {
-    pedersen: Pedersen<G>,
+    pedersen: Pedersen<G, N>,
 }
 
 impl<G: Group, const N: usize> Default for CommitmentHiding<G, N> {
     fn default() -> Self {
-        Self::new()
+        let pedersen = Pedersen::new(
+            G::basepoint(),
+            G::independent_generators::<N>(b"PedersenParameters"),
+        );
+
+        Self::new(pedersen)
     }
 }
 
 impl<G: Group, const N: usize> CommitmentHiding<G, N> {
-    pub fn new() -> Self {
-        // TODO: inconsistent with ElGamal, should take Pedersen as argument. however, then lose type safety with N
-        let pedersen = Pedersen::new(
-            G::basepoint(),
-            G::independent_generators(b"PedersenParameters", N),
-        );
-
+    pub fn new(pedersen: Pedersen<G, N>) -> Self {
         Self { pedersen }
     }
 
@@ -71,22 +70,19 @@ mod tests {
     fn commit_and_open() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = CommitmentHiding::<Curve, 2>::new();
+        let hiding_commitment = CommitmentHiding::<Curve, 2>::default();
 
         let messages = new_messages::<2>();
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
 
-        assert_eq!(
-            hiding_commitment.open(&messages, &commitment, &randomness),
-            true
-        );
+        assert!(hiding_commitment.open(&messages, &commitment, &randomness));
     }
 
     #[test]
     fn commit_and_open_homomorphic() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = CommitmentHiding::<Curve, 2>::new();
+        let hiding_commitment = CommitmentHiding::<Curve, 2>::default();
 
         let messages1 = new_messages::<2>();
         let (commitment1, randomness1) = hiding_commitment.commit(&mut rng, &messages1);
@@ -98,9 +94,6 @@ mod tests {
         let commitment = &commitment1 + &commitment2;
         let randomness = &randomness1 + &randomness2;
 
-        assert_eq!(
-            hiding_commitment.open(&messages, &commitment, &randomness),
-            true
-        );
+        assert!(hiding_commitment.open(&messages, &commitment, &randomness));
     }
 }
