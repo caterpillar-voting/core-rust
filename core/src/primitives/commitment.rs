@@ -1,5 +1,7 @@
 pub mod pedersen;
 mod representation;
+#[cfg(test)]
+mod _test_utils;
 
 use crate::foundation::group::Group;
 use crate::foundation::representation::Message;
