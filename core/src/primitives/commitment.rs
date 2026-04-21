@@ -7,7 +7,7 @@ use crate::primitives::commitment::pedersen::Pedersen;
 pub use crate::primitives::commitment::representation::{Commitment, Opening};
 use rand_core::{CryptoRng, RngCore};
 
-/// A Pedersen commitment: `C = [r]H + Σ [mᵢ]Gᵢ`.
+/// A hiding commitment (Pedersen) with N messages.
 #[derive(Debug, PartialEq)]
 pub struct CommitmentHiding<G: Group, const N: usize = 1> {
     pedersen: Pedersen<G>,
@@ -21,6 +21,7 @@ impl<G: Group, const N: usize> Default for CommitmentHiding<G, N> {
 
 impl<G: Group, const N: usize> CommitmentHiding<G, N> {
     pub fn new() -> Self {
+        // TODO: inconsistent with ElGamal, should take Pedersen as argument. however, then lose type safety with N
         let pedersen = Pedersen::new(
             G::basepoint(),
             G::independent_generators(b"PedersenParameters", N),

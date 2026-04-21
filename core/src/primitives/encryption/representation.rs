@@ -11,10 +11,12 @@ pub struct PublicKey<G: Group>(pub G::Point);
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ciphertext<G: Group>(pub G::Point, pub G::Point);
 // TODO: include ZKP for CCA2
+// TODO: what ZKP to include for reencryption?
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HomomorphicCiphertext<G: Group>(pub G::Point, pub G::Point);
 // TODO: include ZKP for CCA2
+// TODO: what ZKP to include for reencryption?
 
 impl<G: Group> ops::Add<&HomomorphicCiphertext<G>> for &HomomorphicCiphertext<G> {
     type Output = HomomorphicCiphertext<G>;
