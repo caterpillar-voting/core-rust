@@ -61,62 +61,22 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
     use rand::thread_rng;
-    use rand_core::{CryptoRng, RngCore};
-    use crate::primitives::zkp::proof::ZeroKnowledgeProof;
     use crate::primitives::zkp::proof_builder::el_gamal::{EncProof, ReEncProof};
+    use crate::primitives::zkp::_test_utils::{do_proof, create_enc0_and_enc1};
 
     type Curve = RistrettoGroup;
 
-    type Scalar = <RistrettoGroup as Group>::Scalar;
-    type Point = <RistrettoGroup as Group>::Point;
-
-    fn create<R: RngCore + CryptoRng>(
-        rng: &mut R,
-    ) -> (Point, (Point, Point), (Point, Point, Scalar)) {
-        let el_gamal = ElGamal::<Curve>::default();
-        let exponential_el_gamal = ExponentialElGamal(el_gamal);
-        let sk = exponential_el_gamal.0.generate_secret_key(rng);
-        let pk = exponential_el_gamal.0.derive_public_key(&sk);
-
-        // encrypt 0
-        let r = Scalar::random(rng);
-        let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
-
-        // encrypt 1
-        let r_enc1 = Scalar::random(rng);
-        let (u_enc1, v_enc1) = exponential_el_gamal.encrypt(&pk, &r_enc1, &Scalar::ONE);
-
-        (pk, (u, v), (u_enc1, v_enc1, r_enc1))
-    }
-
-    fn check_proof_valid<R: RngCore + CryptoRng>(
-        rng: &mut R,
-        claim: Claim<Curve>,
-        knowledge: Knowledge<Curve>,
-    ) {
-        let prepared_proof = ZeroKnowledgeProof::prepare(rng, &claim, &knowledge);
-        let challenge = Scalar::random(rng);
-        let finalized_proof =
-            ZeroKnowledgeProof::finalize(rng, &prepared_proof, &claim, &knowledge, &challenge);
-
-        assert!(ZeroKnowledgeProof::check(
-            &claim,
-            &finalized_proof,
-            &challenge))
-    }
-
     #[test]
-    fn zkp_OR_proof() {
+    fn el_gamal_or_proof() {
         let mut rng = thread_rng();
 
-        let (pk, (u, v), (u_enc1, v_enc1, r_enc1)) = create(&mut rng);
+        let (pk, (u, v), (u_enc1, v_enc1, r_enc1)) = create_enc0_and_enc1(&mut rng);
 
         let enc1 = EncProof::<Curve>::new(pk, (u_enc1, v_enc1), Curve::basepoint(), Some(r_enc1));
         let renenc = ReEncProof::<Curve>::new(pk, (u, v), (u_enc1, v_enc1), None);
         let (claim, knowledge) = OrProofBuilder::<Curve>::new(vec![&enc1, &renenc]).build();
 
-        check_proof_valid(&mut rng, claim, knowledge);
+        do_proof(&mut rng, claim, knowledge);
     }
 }
