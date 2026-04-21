@@ -63,6 +63,28 @@ mod tests {
     }
 
     #[test]
+    fn zk_proof() {
+        let mut rng = thread_rng();
+        let message1 = Curve::point_random(&mut rng);
+        let message2 = Curve::point_random(&mut rng);
+
+        let encryption = Encryption::<Curve>::default();
+        let (secret_key, public_key) = encryption.key_gen(&mut rng);
+
+        let randomness = Curve::scalar_random(&mut rng);
+        let ciphertext = encryption.el_gamal.encrypt(&public_key, &randomness, &message1);
+
+        let enc1 = EncProofBuilder::<Curve>::new(public_key, ciphertext, message1, Some(randomness));
+        let (zk_proof, knowledge) = ZKProof::from_builder(&enc1);
+
+        let proof_preparation = zk_proof.prepare(&mut rng, &knowledge);
+        let c = Curve::scalar_random(&mut rng);
+        let proof = zk_proof.finalize(&mut rng, &proof_preparation, &knowledge, &c);
+
+        assert!(zk_proof.check(&proof, &c))
+    }
+
+    #[test]
     fn nizk_proof() {
         let mut rng = thread_rng();
         let message1 = Curve::point_random(&mut rng);

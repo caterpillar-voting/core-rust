@@ -5,10 +5,6 @@
 Implementation of commitment with pedersen.
 
 ```rust
-use crate::foundation::group::Group;
-use crate::foundation::group::ristretto::RistrettoGroup;
-use crate::primitives::commitment::{HidingCommitment, Message};
-use rand::thread_rng;
 type Curve = RistrettoGroup;
 type Scalar = <RistrettoGroup as Group>::Scalar;
 
@@ -27,12 +23,9 @@ fn commitment() {
 
 ## Encryption
 
-Implementation of encryption with ElGamal; and homomorphic encryption with Exponential ElGamal.
+Implementation of encryption with ElGamal.
 
 ```rust
-use crate::foundation::group::Group;
-use crate::foundation::group::ristretto::RistrettoGroup;
-use crate::primitives::encryption::{Encryption, Message};
 type Curve = RistrettoGroup;
 type Scalar = <RistrettoGroup as Group>::Scalar;
 
@@ -52,10 +45,9 @@ fn encryption() {
 }
 ```
 
+Implementation of homomorphic encryption with Exponential ElGamal.
+
 ```rust
-use crate::foundation::group::Group;
-use crate::foundation::group::ristretto::RistrettoGroup;
-use crate::primitives::encryption::{HomomorphicEncryption, HomomorphicMessage, HomomorphicMessageRange,};
 type Curve = RistrettoGroup;
 type Scalar = <RistrettoGroup as Group>::Scalar;
 
@@ -76,6 +68,65 @@ fn homomorphic_encryption() {
 
     assert_eq!(message_recovered, Some(message_sum));
 }
+```
+
+## (Non-Interactive) Zero Knowledge Proofs
+
+Implementation of an interactive Zero Knowledge Proof.
+
+```rust
+type Curve = RistrettoGroup;
+type Scalar = <RistrettoGroup as Group>::Scalar;
+
+#[test]
+fn zk_proof() {
+    let mut rng = thread_rng();
+    let message1 = Curve::point_random(&mut rng);
+    let message2 = Curve::point_random(&mut rng);
+
+    let encryption = Encryption::<Curve>::default();
+    let (secret_key, public_key) = encryption.key_gen(&mut rng);
+
+    let randomness = Curve::scalar_random(&mut rng);
+    let ciphertext = encryption.el_gamal.encrypt(&public_key, &randomness, &message1);
+
+    let enc1 = EncProofBuilder::<Curve>::new(public_key, ciphertext, message1, Some(randomness));
+    let (zk_proof, knowledge) = ZKProof::from_builder(&enc1);
+
+    let proof_preparation = zk_proof.prepare(&mut rng, &knowledge);
+    let c = Curve::scalar_random(&mut rng);
+    let proof = zk_proof.finalize(&mut rng, &proof_preparation, &knowledge, &c);
+
+    assert!(zk_proof.check(&proof, &c))
+}
+```
+
+Implementation of non-interactive Zero Knowledge Proofs.
+
+```rust
+#[test]
+fn nizk_proof() {
+    let mut rng = thread_rng();
+    let message1 = Curve::point_random(&mut rng);
+    let message2 = Curve::point_random(&mut rng);
+
+    let encryption = Encryption::<Curve>::default();
+    let (secret_key, public_key) = encryption.key_gen(&mut rng);
+
+    let randomness = Curve::scalar_random(&mut rng);
+    let ciphertext = encryption.el_gamal.encrypt(&public_key, &randomness, &message1);
+
+    let enc1 = EncProofBuilder::<Curve>::new(public_key, ciphertext, message1, Some(randomness));
+    let enc2 = EncProofBuilder::<Curve>::new(public_key, ciphertext, message2, None);
+    let tree: TreeProofBuilder<Curve> = Or(vec![Leaf(&enc1), Leaf(&enc2)]);
+    let (zk_proof, knowledge) = ZKProof::from_builder(&tree);
+
+    let nizkp = NIZKProof::new(zk_proof, VectorContextHash::default());
+    let proof = nizkp.proof(&mut rng, &knowledge);
+
+    assert!(nizkp.verify(&proof))
+}
+
 ```
 
 ## Future steps

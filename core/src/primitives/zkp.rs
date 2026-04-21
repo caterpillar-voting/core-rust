@@ -16,7 +16,7 @@ mod _test_utils;
 mod context;
 
 pub struct ZKProof<G: Group> {
-    claim: Claim<G>,
+    pub claim: Claim<G>,
 }
 
 impl<G: Group> ZKProof<G> {
@@ -49,7 +49,7 @@ impl<G: Group> ZKProof<G> {
 }
 
 pub struct NIZKProof<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> {
-    zk_proof: ZKProof<G>,
+    pub zk_proof: ZKProof<G>,
     claim_context_hash: H,
 }
 
