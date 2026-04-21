@@ -80,13 +80,16 @@ fn homomorphic_encryption() {
 
 ## Future steps
 
-technical:
-- fully test unit homomorphism of messages / ciphertexts
-- when to implement which default traits? is there any harm in doing so?
+features NOW:
+- add claim hasher
+- add high-level interface for ZKPs; including NIZKP
+- add fiat-shamir transformation
 
-conceptual:
-- add ZKP for CCA2 -> ZKPs needed before?
+features:
+- add ZKP for CCA2
 - add encoding of plaintext to EncodedMessage (i.e., numbers to group points)
 - serialization and deserialization of ciphertexts, public keys, private keys and messages
-- when decrypting using randomness, check the validity of r using alpha?
 
+technical:
+- fully test modules (e.g., homomorphism of messages / ciphertexts, invalid ZKP trees)
+- when to implement which default traits? is there any harm in doing so?
