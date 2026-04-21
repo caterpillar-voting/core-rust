@@ -2,7 +2,6 @@ use crate::foundation::group::Group;
 use crate::foundation::hash::ContextHash;
 use crate::primitives::zkp::context::ProofTreeContextHash;
 use crate::primitives::zkp::proof::{Claim, Knowledge, PreparedProof, Proof, ProofTree};
-use crate::primitives::zkp::proof_builder::ProofTreeBuilder;
 use crate::utils::tree::BooleanTree::{And, Or};
 use rand_core::{CryptoRng, RngCore};
 
@@ -88,8 +87,8 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::primitives::zkp::_test_utils::{create_enc0_and_enc1, do_proof};
-    use crate::primitives::zkp::proof_builder::ProofBuilder;
+    use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1};
+    use crate::primitives::zkp::proof_builder::{ProofBuilder, ProofBuilderTree};
     use crate::primitives::zkp::proof_builder::el_gamal::{EncProof, ReEncProof};
     use crate::utils::tree::BooleanTree::Leaf;
     use rand::thread_rng;
@@ -101,12 +100,12 @@ mod tests {
     fn non_interactive_zero_knowledge_proof() {
         let mut rng = thread_rng();
 
-        let (pk, (u, v), (u_enc1, v_enc1, r_enc1)) = create_enc0_and_enc1(&mut rng);
+        let (pk, (u, v), (u_enc1, v_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
 
         let enc1 = EncProof::<Curve>::new(pk, (u_enc1, v_enc1), Curve::basepoint(), Some(r_enc1));
         let renenc = ReEncProof::<Curve>::new(pk, (u, v), (u_enc1, v_enc1), None);
 
-        let tree = ProofTreeBuilder::new(Or(vec![Leaf(&enc1), Leaf(&renenc)]));
+        let tree: ProofBuilderTree<Curve> = Or(vec![Leaf(&enc1), Leaf(&renenc)]);
         let (claim, knowledge) = tree.build();
 
         let zkp = ZeroKnowledgeProof { claim };

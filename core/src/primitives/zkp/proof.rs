@@ -335,7 +335,7 @@ mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::zkp::_test_utils::{
-        create_enc0_and_enc1, do_proof, prepare_enc1_reenc_statements,
+        create_elgamal_enc0_and_enc1, do_proof, prepare_enc1_reenc_statements,
     };
     use rand::thread_rng;
 
@@ -345,7 +345,7 @@ mod tests {
     fn check_composition() {
         let mut rng = thread_rng();
 
-        let (pk, (u, v), (u_enc1, v_enc1, r_enc1)) = create_enc0_and_enc1(&mut rng);
+        let (pk, (u, v), (u_enc1, v_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
         let ((zkp_enc1_u, zkp_enc1_v), (zkp_rerand_u, zkp_rerand_v)) =
             prepare_enc1_reenc_statements(pk, u, v, u_enc1, v_enc1);
 
