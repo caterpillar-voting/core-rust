@@ -68,22 +68,25 @@ impl Group for RistrettoGroup {
         RistrettoScalarRaw::hash_from_bytes::<Sha512>(payload)
     }
 
-    fn independent_generators(prefix: &[u8], size: usize) -> Vec<Self::Point> {
-        let mut result = Vec::with_capacity(size);
+    fn independent_generators<const N: usize>(prefix: &[u8]) -> Box<[Self::Point; N]> {
+        let mut result = Vec::with_capacity(N);
 
-        for i in 0..size {
-            let mut payload =
-                Vec::with_capacity(prefix.len() + Self::GROUP_IDENTIFIER.len() + size_of::<u32>());
-            payload.extend_from_slice(prefix);
-            payload.extend_from_slice(Self::GROUP_IDENTIFIER);
+        let shared_prefix_len = prefix.len() + Self::GROUP_IDENTIFIER.len();
+        let mut payload = Vec::with_capacity(shared_prefix_len + size_of::<u32>());
+        payload.extend_from_slice(prefix);
+        payload.extend_from_slice(Self::GROUP_IDENTIFIER);
 
+        for i in 0..N {
             let i = u32::try_from(i).expect("index does not fit in u32");
+            payload.truncate(shared_prefix_len);
             payload.extend_from_slice(&i.to_le_bytes());
 
             result.push(RistrettoPointRaw::hash_from_bytes::<Sha512>(&payload));
         }
 
         result
+            .try_into()
+            .expect("incorrect number of generators generated")
     }
 
     fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point {
