@@ -15,7 +15,7 @@ mod _test_utils;
 
 #[derive(Debug)]
 pub struct Encryption<G: Group> {
-    el_gamal: ElGamal<G>,
+    pub el_gamal: ElGamal<G>,
 }
 
 impl<G: Group> Default for Encryption<G> {
@@ -45,7 +45,7 @@ impl<G: Group> Encryption<G> {
         message: &EncodedMessage<G>,
     ) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
-        let (alpha, beta) = self.el_gamal.encrypt(public_key, &randomness, &message.0);
+        let (alpha, beta) = self.el_gamal.encrypt(public_key, &randomness, &message);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -78,7 +78,7 @@ impl<G: Group> Encryption<G> {
             .el_gamal
             .decrypt(&secret_key.0, &(ciphertext.0, ciphertext.1));
 
-        EncodedMessage(decrypted)
+        decrypted
     }
 }
 
@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = EncodedMessage(Curve::point_random(&mut rng));
+        let message = Curve::point_random(&mut rng);
 
         let encryption = Encryption::<Curve>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
