@@ -60,7 +60,7 @@ pub trait Group {
     fn hash_to_scalar(payload: &[u8]) -> Self::Scalar;
 
     /// Generate (verifiably) independent generators
-    fn independent_generators(prefix: &[u8], size: usize) -> Vec<Self::Point>;
+    fn independent_generators<const N: usize>(prefix: &[u8]) -> Box<[Self::Point; N]>;
 
     /// Generate a random Point.
     fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point;
