@@ -1,4 +1,6 @@
-#[derive(Clone)]
+use zeroize::Zeroize;
+
+#[derive(Clone, Zeroize)]
 pub enum BooleanTree<T> {
     Leaf(T),
     And(Vec<BooleanTree<T>>),

@@ -33,7 +33,7 @@ impl<G: Group> Encryption<G> {
     pub fn key_gen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (SecretKey<G>, PublicKey<G>) {
         let secret_key = SecretKey(self.el_gamal.generate_secret_key(rng));
 
-        let public_key = PublicKey(self.el_gamal.derive_public_key(&secret_key.0));
+        let public_key = self.el_gamal.derive_public_key(&secret_key.0);
 
         (secret_key, public_key)
     }
@@ -45,15 +45,13 @@ impl<G: Group> Encryption<G> {
         message: &EncodedMessage<G>,
     ) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
-        let (alpha, beta) = self
-            .el_gamal
-            .encrypt(&public_key.0, &randomness, &message.0);
+        let (alpha, beta) = self.el_gamal.encrypt(&public_key, &randomness, &message.0);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
         // this deliberate choice also leads to not providing the method to decrypt using the randomness.
 
-        Ciphertext(alpha, beta)
+        (alpha, beta)
     }
 
     pub fn reencrypt<R: RngCore + CryptoRng>(
@@ -66,9 +64,9 @@ impl<G: Group> Encryption<G> {
 
         let (alpha, beta) =
             self.el_gamal
-                .reencrypt(&public_key.0, &randomness, &(ciphertext.0, ciphertext.1));
+                .reencrypt(&public_key, &randomness, &(ciphertext.0, ciphertext.1));
 
-        Ciphertext(alpha, beta)
+        (alpha, beta)
     }
 
     pub fn decrypt(
@@ -107,7 +105,7 @@ impl<G: Group> EncryptionHomomorph<G> {
     pub fn key_gen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (SecretKey<G>, PublicKey<G>) {
         let secret_key = SecretKey(self.exponential_el_gamal.0.generate_secret_key(rng));
 
-        let public_key = PublicKey(self.exponential_el_gamal.0.derive_public_key(&secret_key.0));
+        let public_key = self.exponential_el_gamal.0.derive_public_key(&secret_key.0);
 
         (secret_key, public_key)
     }
@@ -119,9 +117,9 @@ impl<G: Group> EncryptionHomomorph<G> {
         message: &Message<G>,
     ) -> HomomorphicCiphertext<G> {
         let randomness = G::scalar_random(rng);
-        let (alpha, beta) =
-            self.exponential_el_gamal
-                .encrypt(&public_key.0, &randomness, &message.0);
+        let (alpha, beta) = self
+            .exponential_el_gamal
+            .encrypt(&public_key, &randomness, &message);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -139,7 +137,7 @@ impl<G: Group> EncryptionHomomorph<G> {
         let randomness = G::scalar_random(rng);
 
         let (alpha, beta) = self.exponential_el_gamal.0.reencrypt(
-            &public_key.0,
+            &public_key,
             &randomness,
             &(ciphertext.0, ciphertext.1),
         );
@@ -159,7 +157,7 @@ impl<G: Group> EncryptionHomomorph<G> {
             decoder,
         )?;
 
-        Some(Message(decrypted))
+        Some(decrypted)
     }
 }
 
@@ -193,8 +191,8 @@ mod tests {
     #[test]
     fn homomorphic_encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = Message(Scalar::from(1u8));
-        let message_2 = Message(Scalar::from(2u8));
+        let message = Scalar::from(1u8);
+        let message_2 = Scalar::from(2u8);
         let message_decoder = GreedyDiscreteLog::new(Scalar::from(2u8), None);
 
         let encryption = EncryptionHomomorph::<Curve>::default();

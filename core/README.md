@@ -78,6 +78,11 @@ fn homomorphic_encryption() {
 }
 ```
 
+## Discuss
+
+How to resolve the inconsistencies:
+- `CommittmentHiding`, but `HomomophicEncryption`
+
 ## Future steps
 
 features NOW:

@@ -5,6 +5,7 @@ use crate::primitives::zkp::proof::{Claim, Knowledge, PreparedProof, ProofTransc
 use crate::utils::tree::BooleanTree::{And, Or};
 use rand_core::{CryptoRng, RngCore};
 use crate::primitives::zkp::proof_builder::ProofBuilder;
+use crate::primitives::zkp::representation::SecretKnowledge;
 
 pub mod proof;
 pub mod proof_builder;
@@ -15,32 +16,32 @@ pub mod statement;
 mod _test_utils;
 mod context;
 
-pub struct ZeroKnowledgeProof<G: Group> {
+pub struct ZKProof<G: Group> {
     claim: Claim<G>,
 }
 
-impl<G: Group> ZeroKnowledgeProof<G> {
-    fn from_builder(proof_builder: &dyn ProofBuilder<G>) -> (Self, Knowledge<G>) {
+impl<G: Group> ZKProof<G> {
+    fn from_builder(proof_builder: &dyn ProofBuilder<G>) -> (Self, SecretKnowledge<G>) {
         let (claim, knowledge) = proof_builder.build();
-        (Self { claim }, knowledge)
+        (Self { claim }, SecretKnowledge(knowledge))
     }
 
     pub fn prepare<R: RngCore + CryptoRng>(
         &self,
         rng: &mut R,
-        knowledge: &Knowledge<G>,
+        knowledge: &SecretKnowledge<G>,
     ) -> PreparedProof<G> {
-        Proof::prepare(rng, &self.claim, knowledge)
+        Proof::prepare(rng, &self.claim, &knowledge.0)
     }
 
     pub fn finalize<R: RngCore + CryptoRng>(
         &self,
         rng: &mut R,
         prepared_proof: &PreparedProof<G>,
-        knowledge: &Knowledge<G>,
+        knowledge: &SecretKnowledge<G>,
         c: &G::Scalar,
     ) -> ProofTranscript<G> {
-        Proof::finalize(rng, prepared_proof, &self.claim, knowledge, c)
+        Proof::finalize(rng, prepared_proof, &self.claim, &knowledge.0, c)
     }
 
     pub fn check(&self, proof: &ProofTranscript<G>, c: &G::Scalar) -> bool {
@@ -48,35 +49,35 @@ impl<G: Group> ZeroKnowledgeProof<G> {
     }
 }
 
-pub struct NonInteractiveZeroKnowledgeProof<
+pub struct NIZKProof<
     G: Group,
     H: ProofTreeContextHash<G> + ContextHash<G> + Clone,
 > {
-    zero_knowledge_proof: ZeroKnowledgeProof<G>,
+    zk_proof: ZKProof<G>,
     claim_context_hash: H,
 }
 
 impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone>
-    NonInteractiveZeroKnowledgeProof<G, H>
+    NIZKProof<G, H>
 {
-    pub fn new(zero_knowledge_proof: ZeroKnowledgeProof<G>, context_hash: H) -> Self {
+    pub fn new(zk_proof: ZKProof<G>, context_hash: H) -> Self {
         let mut claim_context_hash = context_hash;
-        claim_context_hash.add_claim(&zero_knowledge_proof.claim);
+        claim_context_hash.add_claim(&zk_proof.claim);
 
         Self {
-            zero_knowledge_proof,
+            zk_proof,
             claim_context_hash,
         }
     }
 
-    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &Knowledge<G>) -> ProofTranscript<G> {
-        let prepared_proof = self.zero_knowledge_proof.prepare(rng, knowledge);
+    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofTranscript<G> {
+        let prepared_proof = self.zk_proof.prepare(rng, knowledge);
 
         let mut context_hash = self.claim_context_hash.clone();
         context_hash.add_prepared_proof(&prepared_proof);
         let c = context_hash.hash_to_scalar();
 
-        self.zero_knowledge_proof.finalize(rng, &prepared_proof, knowledge, &c)
+        self.zk_proof.finalize(rng, &prepared_proof, knowledge, &c)
     }
 
     pub fn verify(&self, proof: &ProofTranscript<G>) -> bool {
@@ -84,7 +85,7 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone>
         context_hash.add_proof(proof);
         let c = context_hash.hash_to_scalar();
 
-        self.zero_knowledge_proof.check(proof, &c)
+        self.zk_proof.check(proof, &c)
     }
 }
 
@@ -103,7 +104,7 @@ mod tests {
     type Curve = RistrettoGroup;
 
     #[test]
-    fn non_interactive_zero_knowledge_proof() {
+    fn nizk_proof() {
         let mut rng = thread_rng();
 
         let (pk, (uv, _), (uv_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
@@ -112,11 +113,9 @@ mod tests {
         let renenc = ReEncProofBuilder::<Curve>::new(pk, uv, uv_enc1, None);
 
         let tree: TreeProofBuilder<Curve> = Or(vec![Leaf(&enc1), Leaf(&renenc)]);
-        let (zkp, knowledge) = ZeroKnowledgeProof::from_builder(&tree);
+        let (zk_proof, knowledge) = ZKProof::from_builder(&tree);
 
-         // TODO: introduce SecretKnowledge
-
-        let nizkp = NonInteractiveZeroKnowledgeProof::new(zkp, VectorContextHash::default());
+        let nizkp = NIZKProof::new(zk_proof, VectorContextHash::default());
         let proof = nizkp.proof(&mut rng, &knowledge);
 
         assert!(nizkp.verify(&proof))

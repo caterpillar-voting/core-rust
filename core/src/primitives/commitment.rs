@@ -6,16 +6,16 @@ mod representation;
 use crate::foundation::group::Group;
 use crate::foundation::representation::Message;
 use crate::primitives::commitment::pedersen::Pedersen;
-pub use crate::primitives::commitment::representation::{Commitment, Opening};
+pub use crate::primitives::commitment::representation::{HomomorphicCommitment, HomomorphicOpening};
 use rand_core::{CryptoRng, RngCore};
 
 /// A hiding commitment (Pedersen) with N messages.
 #[derive(Debug, PartialEq)]
-pub struct CommitmentHiding<G: Group, const N: usize = 1> {
+pub struct HHomomorphicCommitment<G: Group, const N: usize = 1> {
     pedersen: Pedersen<G, N>,
 }
 
-impl<G: Group, const N: usize> Default for CommitmentHiding<G, N> {
+impl<G: Group, const N: usize> Default for HHomomorphicCommitment<G, N> {
     fn default() -> Self {
         let pedersen = Pedersen::new(
             G::basepoint(),
@@ -26,7 +26,7 @@ impl<G: Group, const N: usize> Default for CommitmentHiding<G, N> {
     }
 }
 
-impl<G: Group, const N: usize> CommitmentHiding<G, N> {
+impl<G: Group, const N: usize> HHomomorphicCommitment<G, N> {
     pub fn new(pedersen: Pedersen<G, N>) -> Self {
         Self { pedersen }
     }
@@ -35,21 +35,21 @@ impl<G: Group, const N: usize> CommitmentHiding<G, N> {
         &self,
         rng: &mut R,
         messages: &[Message<G>; N],
-    ) -> (Commitment<G>, Opening<G>) {
+    ) -> (HomomorphicCommitment<G>, HomomorphicOpening<G>) {
         let randomness = G::scalar_random(rng);
-        let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.0).collect();
+        let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| *m).collect();
         let commitment = self.pedersen.commit(&randomness, &scalar_messages);
 
-        (Commitment(commitment), Opening(randomness))
+        (HomomorphicCommitment(commitment), HomomorphicOpening(randomness))
     }
 
     pub fn open(
         &self,
         messages: &[Message<G>; N],
-        commitment: &Commitment<G>,
-        opening: &Opening<G>,
+        commitment: &HomomorphicCommitment<G>,
+        opening: &HomomorphicOpening<G>,
     ) -> bool {
-        let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| m.0).collect();
+        let scalar_messages: Vec<G::Scalar> = messages.iter().map(|m| *m).collect();
 
         self.pedersen.commit(&opening.0, &scalar_messages) == commitment.0
     }
@@ -65,14 +65,14 @@ mod tests {
     type Scalar = <Curve as Group>::Scalar;
 
     fn new_messages<const N: usize>() -> [Message<Curve>; N] {
-        std::array::from_fn(|i| Message::<Curve>(Scalar::from(u64::try_from(i).unwrap())))
+        std::array::from_fn(|i| Scalar::from(u64::try_from(i).unwrap()))
     }
 
     #[test]
     fn commit_and_open() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = CommitmentHiding::<Curve, 2>::default();
+        let hiding_commitment = HHomomorphicCommitment::<Curve, 2>::default();
 
         let messages = new_messages::<2>();
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
@@ -84,7 +84,7 @@ mod tests {
     fn commit_and_open_homomorphic() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = CommitmentHiding::<Curve, 2>::default();
+        let hiding_commitment = HHomomorphicCommitment::<Curve, 2>::default();
 
         let messages1 = new_messages::<2>();
         let (commitment1, randomness1) = hiding_commitment.commit(&mut rng, &messages1);
