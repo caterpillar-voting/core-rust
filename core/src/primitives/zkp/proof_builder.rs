@@ -13,12 +13,11 @@ pub type TreeProofBuilder<'a, G: Group> = BooleanTree<&'a dyn ProofBuilder<G>>;
 
 impl<'a, G: Group> ProofBuilder<G> for TreeProofBuilder<'a, G> {
     fn build(&self) -> (Claim<G>, Knowledge<G>) {
-        compose(&self)
+        compose(self)
     }
-
 }
 
-fn compose<'a, G: Group>(proof_builder_tree: &TreeProofBuilder<G>) -> (Claim<G>, Knowledge<G>) {
+fn compose<G: Group>(proof_builder_tree: &TreeProofBuilder<G>) -> (Claim<G>, Knowledge<G>) {
     match proof_builder_tree {
         Leaf(pb) => pb.build(),
         And(proof_builders) => {
@@ -32,7 +31,7 @@ fn compose<'a, G: Group>(proof_builder_tree: &TreeProofBuilder<G>) -> (Claim<G>,
     }
 }
 
-fn collect<'a, G: Group>(
+fn collect<G: Group>(
     proof_builders: &Vec<TreeProofBuilder<G>>,
 ) -> (Vec<Claim<G>>, Vec<Knowledge<G>>) {
     proof_builders.iter().fold(
@@ -66,7 +65,8 @@ mod tests {
 
         let enc1 = EncProofBuilder::<Curve>::new(pk, uv_enc1, Curve::basepoint(), Some(r_enc1));
         let renenc = ReEncProofBuilder::<Curve>::new(pk, uv, uv_enc1, None);
-        let tree: TreeProofBuilder<Curve> = And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]);
+        let tree: TreeProofBuilder<Curve> =
+            And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]);
 
         let (claim, knowledge) = tree.build();
 

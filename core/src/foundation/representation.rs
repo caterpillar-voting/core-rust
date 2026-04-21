@@ -1,6 +1,6 @@
 use crate::foundation::group::Group;
-use std::ops;
 
+#[allow(type_alias_bounds)]
 pub type Message<G: Group> = G::Scalar;
 
 #[derive(Clone, Debug, PartialEq)]

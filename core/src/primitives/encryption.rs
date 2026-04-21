@@ -45,7 +45,7 @@ impl<G: Group> Encryption<G> {
         message: &EncodedMessage<G>,
     ) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
-        let (alpha, beta) = self.el_gamal.encrypt(&public_key, &randomness, &message.0);
+        let (alpha, beta) = self.el_gamal.encrypt(public_key, &randomness, &message.0);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -64,7 +64,7 @@ impl<G: Group> Encryption<G> {
 
         let (alpha, beta) =
             self.el_gamal
-                .reencrypt(&public_key, &randomness, &(ciphertext.0, ciphertext.1));
+                .reencrypt(public_key, &randomness, &(ciphertext.0, ciphertext.1));
 
         (alpha, beta)
     }
@@ -119,7 +119,7 @@ impl<G: Group> EncryptionHomomorph<G> {
         let randomness = G::scalar_random(rng);
         let (alpha, beta) = self
             .exponential_el_gamal
-            .encrypt(&public_key, &randomness, &message);
+            .encrypt(public_key, &randomness, message);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -137,7 +137,7 @@ impl<G: Group> EncryptionHomomorph<G> {
         let randomness = G::scalar_random(rng);
 
         let (alpha, beta) = self.exponential_el_gamal.0.reencrypt(
-            &public_key,
+            public_key,
             &randomness,
             &(ciphertext.0, ciphertext.1),
         );
