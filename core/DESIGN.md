@@ -39,6 +39,7 @@ the high-level API shields implementation details from the user, and instead giv
 
 general:
 - secret values: secret keys or randomness (pedersen) are wrapped and annotated with ZeroOnDrop
+- wrapper types: only introduce wrapper types to add functionality (e.g., for secret values). else, use a type alias.
 - validation: done at compile time, unless type system not expressive enough
 - naming: add core functionality in name (e.g., `HomomorphicEncryption`)
 - naming: add property prefix if needed to disambiguate with representation names (e.g., prefix `H` for hiding to `HHomomorphicCommittment` because needs to return `HomomorphicCommitment`)
