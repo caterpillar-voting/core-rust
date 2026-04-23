@@ -1,6 +1,7 @@
 //! Wrapper around different rust implementations of prime-order groups
 
 pub mod ristretto;
+pub mod electionguard;
 
 /// Define a Trait for a generic Elliptic Curve Group
 use core::{fmt, ops};

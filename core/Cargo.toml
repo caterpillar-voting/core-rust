@@ -13,6 +13,7 @@ curve25519-dalek.workspace = true
 rand_core.workspace = true
 zeroize.workspace = true
 sha3.workspace = true
+crypto-bigint.workspace = true
 
 [dev-dependencies]
 rand = { workspace = true }
