@@ -22,6 +22,7 @@ rust-version = "1.94.0"
 [workspace.dependencies]
 curve25519-dalek = { version = "4.1.3", features = ["rand_core", "digest"] } # Curve25519/Ristretto
 sha3 = "0.10.9"
+crypto-bigint = "0.7.3"
 rand_core = "0.6.4"   # version used in the EC implementations
 zeroize = { version = "1.8.1", default-features = false, features = ["alloc", "derive"] }
 
