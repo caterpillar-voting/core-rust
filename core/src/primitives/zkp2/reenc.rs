@@ -3,6 +3,7 @@ use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, VectorContextHash};
 use crate::primitives::zkp2::{ZKP, SigmaZKP, SimulableZKP};
 
+#[derive(Clone)]
 pub struct ReEncZKP<G> where G: Group {
     pub public_data: ReEncZKPPublicData<G>,
     pub context: Vec<u8>,
@@ -15,12 +16,14 @@ pub type ReEncZKPResponse<G> = <G as Group>::Scalar;
 pub type ReEncZKPChallenge<G> = <G as Group>::Scalar;
 pub type ReEncZKPState<G> = (<G as Group>::Scalar, <G as Group>::Scalar);
 
+#[derive(Copy, Clone)]
 pub struct ReEncZKPProof<G: Group> {
     pub commit: ReEncZKPCommit<G>,
     pub challenge: ReEncZKPChallenge<G>,
     pub response: ReEncZKPResponse<G>
 }
 
+#[derive(Copy, Clone)]
 pub struct ReEncZKPPublicData<G> where G: Group {
     public_key : G::Point,
     ciphertext: (G::Point, G::Point),
