@@ -1,6 +1,7 @@
 use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, VectorContextHash};
+use crate::primitives::zkp2;
 use crate::primitives::zkp2::reenc::{ReEncZKP, ReEncZKPChallenge, ReEncZKPCommit, ReEncZKPContext, ReEncZKPProof, ReEncZKPPublicData, ReEncZKPResponse, ReEncZKPState, ReEncZKPWitness};
 use crate::primitives::zkp2::{ZKP, SigmaZKP, SimulableZKP};
 
@@ -30,18 +31,20 @@ pub struct OrTwoReEncZKPCommit<G> where G: Group {
     zkp1_commit: <ZKP1<G> as SigmaZKP<G>>::Commit,
     zkp2_commit: <ZKP2<G> as SigmaZKP<G>>::Commit,
 }
+
+#[derive(Copy, Clone)]
+pub struct OrTwoReEncZKPInnerChallenges<G> where G: Group{
+    chal1: zkp2::Challenge<G>,
+    chal2: zkp2::Challenge<G>,
+}
 #[derive(Copy, Clone)]
 pub struct OrTwoReEncZKPResponse<G> where G: Group {
     zkp1_response: <ZKP1<G> as SigmaZKP<G>>::Response,
     zkp2_response: <ZKP2<G> as SigmaZKP<G>>::Response,
+    inner_challenges: OrTwoReEncZKPInnerChallenges<G>,
 }
-#[derive(Copy, Clone)]
-pub struct OrTwoReEncZKPProofChallenge<G> where G: Group{
-    chal1: <G as Group>::Scalar,
-    chal2: <G as Group>::Scalar,
-}
-// The real challenge is the sum of the two challenges in the Proof structure
-pub type OrTwoReEncZKPChallenge<G> = <G as Group>::Scalar;
+// The real challenge is the sum of the two inner challenges
+pub type OrTwoReEncZKPChallenge<G> = zkp2::Challenge<G>;
 #[derive(Copy, Clone)]
 pub struct OrTwoReEncZKPState<G> where G: Group {
     side: u8, // remember which one is the one that is simulated
@@ -60,7 +63,7 @@ pub struct OrTwoReEncZKPPublicData<G> where G: Group {
 #[derive(Copy, Clone)]
 pub struct OrTwoReEncZKPProof<G: Group> {
     commit: OrTwoReEncZKPCommit<G>,
-    challenge: OrTwoReEncZKPProofChallenge<G>,
+    challenge: zkp2::Challenge<G>,
     response: OrTwoReEncZKPResponse<G>
 }
 
@@ -108,7 +111,7 @@ impl<G> OrTwoReEncZKP<G> where G: Group
     }
 
     fn respond(&self, state: OrTwoReEncZKPState<G>, challenge: OrTwoReEncZKPChallenge<G>)
-            -> (OrTwoReEncZKPResponse<G>, OrTwoReEncZKPProofChallenge<G>) {
+            -> OrTwoReEncZKPResponse<G> {
         assert!(state.side == 1 || state.side == 2);
         if state.side == 1 {
             assert!(state.zkp1_state.is_some());
@@ -116,30 +119,32 @@ impl<G> OrTwoReEncZKP<G> where G: Group
             let st2 = state.zkp2_simulated.unwrap();
             let chal1 = st2.challenge - &challenge;
             let resp1 = self.zkp1.respond(&state.zkp1_state.unwrap(), &chal1);
-            let chal = OrTwoReEncZKPProofChallenge {
+            let chal = OrTwoReEncZKPInnerChallenges {
                 chal1: chal1,
                 chal2: st2.challenge,
             };
             let resp = OrTwoReEncZKPResponse {
                 zkp1_response: resp1,
                 zkp2_response: st2.response,
+                inner_challenges: chal,
             };
-            (resp, chal)
+            resp
         } else {
             assert!(state.zkp2_state.is_some());
             assert!(state.zkp1_simulated.is_some());
             let st1 = state.zkp1_simulated.unwrap();
             let chal2 = st1.challenge - &challenge;
             let resp2 = self.zkp2.respond(&state.zkp2_state.unwrap(), &chal2);
-            let chal = OrTwoReEncZKPProofChallenge {
+            let chal = OrTwoReEncZKPInnerChallenges {
                 chal1: st1.challenge,
                 chal2: chal2,
             };
             let resp = OrTwoReEncZKPResponse {
                 zkp1_response: st1.response,
                 zkp2_response: resp2,
+                inner_challenges: chal,
             };
-            (resp, chal)
+            resp
         }
     }
 
@@ -152,16 +157,16 @@ impl<G> OrTwoReEncZKP<G> where G: Group
         <VectorContextHash as ContextHash<G>>::add_scalar(&mut buf, &chal2);
         <VectorContextHash as ContextHash<G>>::hash_to_scalar(&mut buf)
     }
-    fn verify(&self, commit: &OrTwoReEncZKPCommit<G>, sum_challenges: &OrTwoReEncZKPChallenge<G>, challenge: &OrTwoReEncZKPProofChallenge<G>, response: &OrTwoReEncZKPResponse<G>)
+    fn verify(&self, commit: &OrTwoReEncZKPCommit<G>, sum_challenges: &OrTwoReEncZKPChallenge<G>, response: &OrTwoReEncZKPResponse<G>)
               -> bool {
         let pf1 = ReEncZKPProof {
             commit: commit.zkp1_commit,
-            challenge: challenge.chal1,
+            challenge: response.inner_challenges.chal1,
             response: response.zkp1_response,
         };
         let pf2 = ReEncZKPProof {
             commit: commit.zkp2_commit,
-            challenge: challenge.chal2,
+            challenge: response.inner_challenges.chal2,
             response: response.zkp2_response,
         };
         let chal = pf1.challenge + &pf2.challenge;
@@ -174,17 +179,19 @@ impl<G> OrTwoReEncZKP<G> where G: Group
             zkp1_commit: pf1.commit,
             zkp2_commit: pf2.commit,
         };
-        let challenge = OrTwoReEncZKPProofChallenge {
+        let inner_challenges = OrTwoReEncZKPInnerChallenges {
             chal1: pf1.challenge,
             chal2: pf2.challenge,
         };
+        let chal = inner_challenges.chal1 + &inner_challenges.chal2;
         let response = OrTwoReEncZKPResponse {
             zkp1_response: pf1.response,
             zkp2_response: pf2.response,
+            inner_challenges: inner_challenges,
         };
         let pf = OrTwoReEncZKPProof {
             commit: commit,
-            challenge: challenge,
+            challenge: chal,
             response: response,
         };
         pf
@@ -199,12 +206,12 @@ impl<G> ZKP<G> for OrTwoReEncZKP<G> where G: Group{
     fn prove<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R)
                                      -> (Self::Proof) {
         let (commit, state) = Self::commit(&self, witness, rng);
-        let sum_chal = Self::get_challenge(&self, &commit);
-        let (response, chal) = Self::respond(&self, state, sum_chal);
+        let challenge = Self::get_challenge(&self, &commit);
+        let response= Self::respond(&self, state, challenge);
         (
             OrTwoReEncZKPProof {
                 commit: commit,
-                challenge: chal,
+                challenge: challenge,
                 response: response,
             }
         )
@@ -212,25 +219,25 @@ impl<G> ZKP<G> for OrTwoReEncZKP<G> where G: Group{
 
     fn verify(&self, proof: &Self::Proof) -> bool {
         let sum_chal = Self::get_challenge(&self, &proof.commit);
-        Self::verify(&self, &proof.commit, &sum_chal, &proof.challenge, &proof.response)
+        Self::verify(&self, &proof.commit, &sum_chal, &proof.response)
     }
 }
 
 impl<G> SigmaZKP<G> for OrTwoReEncZKP<G> where G: Group + Clone + Copy {
     type Commit = OrTwoReEncZKPCommit<G>;
-    type Challenge = OrTwoReEncZKPChallenge<G>;
+//    type Challenge = OrTwoReEncZKPChallenge<G>;
     type Response = OrTwoReEncZKPResponse<G>;
     type State = OrTwoReEncZKPState<G>;
     fn commit<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R) -> (Self::Commit, Self::State) {
         Self::commit(&self, witness, rng)
     }
-    fn get_challenge(&self, commit: &Self::Commit) -> (Self::Challenge) {
+    fn get_challenge(&self, commit: &Self::Commit) -> zkp2::Challenge<G> {
         Self::get_challenge(&self, commit)
     }
-    fn respond(&self, state: &Self::State, challenge: &Self::Challenge) -> (Self::Response) {
+    fn respond(&self, state: &Self::State, challenge: &zkp2::Challenge<G>) -> (Self::Response) {
         let st = state.clone();
         let chal = challenge.clone();
-        let (resp, _) = Self::respond(&self, st, chal);
+        let resp= Self::respond(&self, st, chal);
         resp
     }
 }
