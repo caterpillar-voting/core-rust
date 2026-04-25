@@ -1,6 +1,7 @@
 use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, VectorContextHash};
+use crate::primitives::zkp2;
 use crate::primitives::zkp2::{ZKP, SigmaZKP, SimulableZKP};
 
 #[derive(Clone)]
@@ -13,7 +14,7 @@ pub type ReEncZKPWitness<G> = <G as Group>::Scalar;
 pub type ReEncZKPContext = Vec<u8>;
 pub type ReEncZKPCommit<G> = (<G as Group>::Point, <G as Group>::Point);
 pub type ReEncZKPResponse<G> = <G as Group>::Scalar;
-pub type ReEncZKPChallenge<G> = <G as Group>::Scalar;
+pub type ReEncZKPChallenge<G> = zkp2::Challenge<G>;
 pub type ReEncZKPState<G> = (<G as Group>::Scalar, <G as Group>::Scalar);
 
 #[derive(Copy, Clone)]
@@ -130,16 +131,16 @@ impl<G> ZKP<G> for ReEncZKP<G> where G: Group{
 
 impl<G> SigmaZKP<G> for ReEncZKP<G> where G: Group {
     type Commit = ReEncZKPCommit<G>;
-    type Challenge = ReEncZKPChallenge<G>;
+//    type Challenge = ReEncZKPChallenge<G>;
     type Response = ReEncZKPResponse<G>;
     type State = ReEncZKPState<G>;
     fn commit<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R) -> (Self::Commit, Self::State) {
         Self::commit(&self, witness, rng)
     }
-    fn get_challenge(&self, commit: &Self::Commit) -> (Self::Challenge) {
+    fn get_challenge(&self, commit: &Self::Commit) -> zkp2::Challenge<G> {
         Self::get_challenge(&self, commit)
     }
-    fn respond(&self, state: &Self::State, challenge: &Self::Challenge) -> (Self::Response) {
+    fn respond(&self, state: &Self::State, challenge: &zkp2::Challenge<G>) -> (Self::Response) {
         Self::respond(&self, state, challenge)
     }
 }

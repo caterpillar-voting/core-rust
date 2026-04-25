@@ -13,14 +13,17 @@ pub trait ZKP<G: Group> {
     fn verify(&self, proof: &Self::Proof) -> bool;
 }
 
+// We force the type of Challenge to be the same as the Scalar type of the group G
+pub type Challenge<G> = <G as Group>::Scalar;
+
 pub trait SigmaZKP<G: Group> : ZKP<G> {
     type Commit;    // The data sent by Prover in first step
-    type Challenge; // The data sent by Verifier in second step
+    // type Challenge; // The data sent by Verifier in second step
     type Response;  // The data sent by Prover in third step
     type State : Clone + Copy;     // The data kept by Prover between steps
     fn commit<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R) -> (Self::Commit, Self::State);
-    fn get_challenge(&self, commit: &Self::Commit) -> (Self::Challenge);
-    fn respond(&self, state: &Self::State, challenge: &Self::Challenge) -> (Self::Response);
+    fn get_challenge(&self, commit: &Self::Commit) -> Challenge<G>;
+    fn respond(&self, state: &Self::State, challenge: &Challenge<G>) -> (Self::Response);
 }
 
 pub trait SimulableZKP<G: Group> : SigmaZKP<G> {
