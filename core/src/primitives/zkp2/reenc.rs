@@ -84,7 +84,7 @@ impl<G> ReEncZKP<G> where G: Group {
         phir.0 == p0 && phir.1 == p1
     }
 
-    fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (ReEncZKPProof<G>) {
+    fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> ReEncZKPProof<G> {
         let challenge = G::scalar_random(rng);
         let response = G::scalar_random(rng);
         let z0 = self.public_data.ciphertext_rnd.0 - &self.public_data.ciphertext.0;
@@ -93,13 +93,13 @@ impl<G> ReEncZKP<G> where G: Group {
         let com0 = phir.0 - &(z0 * &challenge);
         let com1 = phir.1 - &(z1 * &challenge);
         let commit = (com0, com1);
-        (
-            ReEncZKPProof {
-                commit,
-                challenge,
-                response,
-            }
-        )
+
+        ReEncZKPProof {
+            commit,
+            challenge,
+            response,
+        }
+
     }
 }
 
@@ -109,17 +109,15 @@ impl<G> ZKP<G> for ReEncZKP<G> where G: Group{
     type Context = ReEncZKPContext;
     type Proof = ReEncZKPProof<G>;
     fn prove<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R)
-            -> (Self::Proof) {
+            -> Self::Proof {
         let (commit, state) = Self::commit(&self, witness, rng);
         let chal = Self::get_challenge(&self, &commit);
         let response = Self::respond(&self, &state, &chal);
-        (
-            ReEncZKPProof {
-                commit: commit,
-                challenge: chal,
-                response: response,
-            }
-        )
+        ReEncZKPProof {
+            commit: commit,
+            challenge: chal,
+            response: response,
+        }
     }
 
     fn verify(&self, proof: &Self::Proof) -> bool {
@@ -140,13 +138,13 @@ impl<G> SigmaZKP<G> for ReEncZKP<G> where G: Group {
     fn get_challenge(&self, commit: &Self::Commit) -> zkp2::Challenge<G> {
         Self::get_challenge(&self, commit)
     }
-    fn respond(&self, state: &Self::State, challenge: &zkp2::Challenge<G>) -> (Self::Response) {
+    fn respond(&self, state: &Self::State, challenge: &zkp2::Challenge<G>) -> Self::Response {
         Self::respond(&self, state, challenge)
     }
 }
 
 impl<G> SimulableZKP<G> for ReEncZKP<G> where G: Group {
-    fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (Self::Proof) {
+    fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> Self::Proof {
         Self::simulate(&self, rng)
     }
 }

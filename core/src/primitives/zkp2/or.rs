@@ -1,9 +1,9 @@
-use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, VectorContextHash};
 use crate::primitives::zkp2;
-use crate::primitives::zkp2::reenc::{ReEncZKP, ReEncZKPChallenge, ReEncZKPCommit, ReEncZKPContext, ReEncZKPProof, ReEncZKPPublicData, ReEncZKPResponse, ReEncZKPState, ReEncZKPWitness};
-use crate::primitives::zkp2::{ZKP, SigmaZKP, SimulableZKP};
+use crate::primitives::zkp2::reenc::{ReEncZKP, ReEncZKPProof};
+use crate::primitives::zkp2::{SigmaZKP, SimulableZKP, ZKP};
+use rand_core::{CryptoRng, RngCore};
 
 // The two ZKPs that we want to combine with an OR
 // The goal is to write everything in terms of these two aliases,
@@ -22,8 +22,8 @@ pub struct OrTwoReEncZKP<G> where G: Group {
 // Only one of the two witnesses is needed, the other one is None
 #[derive(Copy, Clone)]
 pub struct OrTwoReEncZKPWitness<G> where G: Group {
-    zkp1_witness: Option<<ZKP1<G> as ZKP<G>>::Witness>,
-    zkp2_witness: Option<<ZKP2<G> as ZKP<G>>::Witness>,
+    pub zkp1_witness: Option<<ZKP1<G> as ZKP<G>>::Witness>,
+    pub zkp2_witness: Option<<ZKP2<G> as ZKP<G>>::Witness>,
 }
 pub type OrTwoReEncZKPContext = Vec<u8>;
 #[derive(Copy, Clone)]
@@ -172,7 +172,7 @@ impl<G> OrTwoReEncZKP<G> where G: Group
         let chal = pf1.challenge + &pf2.challenge;
         chal == *sum_challenges && self.zkp1.verify(&pf1) && self.zkp2.verify(&pf2)
     }
-    fn simulate<R : RngCore + CryptoRng>(&self, rng: &mut R) -> (OrTwoReEncZKPProof<G>) {
+    fn simulate<R : RngCore + CryptoRng>(&self, rng: &mut R) -> OrTwoReEncZKPProof<G> {
         let pf1 = self.zkp1.simulate(rng);
         let pf2 = self.zkp2.simulate(rng);
         let commit = OrTwoReEncZKPCommit {
@@ -204,17 +204,15 @@ impl<G> ZKP<G> for OrTwoReEncZKP<G> where G: Group{
     type Context = OrTwoReEncZKPContext;
     type Proof = OrTwoReEncZKPProof<G>;
     fn prove<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R)
-                                     -> (Self::Proof) {
+                                     -> Self::Proof {
         let (commit, state) = Self::commit(&self, witness, rng);
         let challenge = Self::get_challenge(&self, &commit);
         let response= Self::respond(&self, state, challenge);
-        (
-            OrTwoReEncZKPProof {
-                commit: commit,
-                challenge: challenge,
-                response: response,
-            }
-        )
+        OrTwoReEncZKPProof {
+            commit: commit,
+            challenge: challenge,
+            response: response,
+        }
     }
 
     fn verify(&self, proof: &Self::Proof) -> bool {
@@ -234,7 +232,7 @@ impl<G> SigmaZKP<G> for OrTwoReEncZKP<G> where G: Group + Clone + Copy {
     fn get_challenge(&self, commit: &Self::Commit) -> zkp2::Challenge<G> {
         Self::get_challenge(&self, commit)
     }
-    fn respond(&self, state: &Self::State, challenge: &zkp2::Challenge<G>) -> (Self::Response) {
+    fn respond(&self, state: &Self::State, challenge: &zkp2::Challenge<G>) -> Self::Response {
         let st = state.clone();
         let chal = challenge.clone();
         let resp= Self::respond(&self, st, chal);
@@ -243,7 +241,7 @@ impl<G> SigmaZKP<G> for OrTwoReEncZKP<G> where G: Group + Clone + Copy {
 }
 
 impl<G> SimulableZKP<G> for OrTwoReEncZKP<G> where G: Group + Clone + Copy {
-    fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (Self::Proof) {
+    fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> Self::Proof {
         Self::simulate(&self, rng)
     }
 }
