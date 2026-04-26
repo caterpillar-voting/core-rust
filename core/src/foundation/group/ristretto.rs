@@ -13,7 +13,7 @@ use curve25519_dalek::{
 use rand_core::{CryptoRng, RngCore};
 use sha2::Sha512;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RistrettoGroup(());
 
 impl ByteSerialize for RistrettoPointRaw {

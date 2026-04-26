@@ -17,6 +17,7 @@ type ZKP2<G> = ReEncZKP<G>;
 pub struct OrTwoReEncZKP<G> where G: Group {
     zkp1: ZKP1<G>,
     zkp2: ZKP2<G>,
+    public_data: OrTwoReEncZKPPublicData<G>,
     context: Vec<u8>,
 }
 // Only one of the two witnesses is needed, the other one is None
@@ -68,10 +69,14 @@ pub struct OrTwoReEncZKPProof<G: Group> {
 }
 
 
-impl<G> OrTwoReEncZKP<G> where G: Group
+impl<G> OrTwoReEncZKP<G> where G: Group + Clone + Copy
 {
     pub fn new(zkp1: ZKP1<G>, zkp2: ZKP2<G>, context: Vec<u8>) -> Self {
-        Self { zkp1, zkp2, context }
+        let public_data = OrTwoReEncZKPPublicData {
+            zkp1_pubdata: zkp1.public_data.clone(),
+            zkp2_pubdata: zkp2.public_data.clone(),
+        };
+        Self { zkp1, zkp2, public_data, context: context }
     }
 
     fn commit<R: RngCore + CryptoRng>(&self, witness: &OrTwoReEncZKPWitness<G>, rng: &mut R)
@@ -198,7 +203,7 @@ impl<G> OrTwoReEncZKP<G> where G: Group
     }
 }
 
-impl<G> ZKP<G> for OrTwoReEncZKP<G> where G: Group{
+impl<G> ZKP<G> for OrTwoReEncZKP<G> where G: Group + Clone + Copy {
     type PublicData = OrTwoReEncZKPPublicData<G>;
     type Witness = OrTwoReEncZKPWitness<G>;
     type Context = OrTwoReEncZKPContext;
