@@ -201,7 +201,7 @@ impl Group for ElectionGuardGroup {
     type Scalar = ZqElement; // 256 bits
 
     fn identity() -> Self::Point {
-        FFPoint(FPMgy4096::new(&U4096::ZERO))
+        FFPoint(FPMgy4096::new(&U4096::ONE))
     }
 
     fn basepoint() -> Self::Point {
@@ -253,5 +253,68 @@ impl Group for ElectionGuardGroup {
         let mut uniform_bytes = [0u8; 64];
         rng.try_fill_bytes(&mut uniform_bytes).unwrap();
         Self::hash_to_scalar(&uniform_bytes)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type Scalar = <ElectionGuardGroup as Group>::Scalar;
+
+    #[test]
+    fn scalar_add_and_mul_sanity_checks() {
+        let zero = Scalar::from(0u64);
+        let one = Scalar::from(1u64);
+        let two = Scalar::from(2u64);
+        let three = Scalar::from(3u64);
+        let four = Scalar::from(4u64);
+        let six = Scalar::from(6u64);
+
+        assert_eq!(two + &three, Scalar::from(5u64));
+        assert_eq!(two * &three, six);
+        assert_eq!(four - &three, one);
+        assert_eq!(three + &zero, three);
+        assert_eq!(three * &one, three);
+        assert_eq!(three * &zero, zero);
+
+        let mut assigned = two;
+        assigned += three;
+        assert_eq!(assigned, Scalar::from(5u64));
+
+        assigned *= four;
+        assert_eq!(assigned, Scalar::from(20u64));
+
+        assigned -= Scalar::from(20u64);
+        assert_eq!(assigned, zero);
+    }
+
+    #[test]
+    fn point_add_and_mul_sanity_checks() {
+        let zero = Scalar::from(0u64);
+        let one = Scalar::from(1u64);
+        let two = Scalar::from(2u64);
+        let three = Scalar::from(3u64);
+        let five = Scalar::from(5u64);
+
+        let basepoint = ElectionGuardGroup::basepoint();
+        let identity = ElectionGuardGroup::identity();
+
+        assert_eq!(basepoint * &zero, identity);
+        assert_eq!(basepoint * &one, basepoint);
+        assert_eq!((basepoint * &two) + &(basepoint * &three), basepoint * &five);
+        assert_eq!((basepoint * &five) - &(basepoint * &three), basepoint * &two);
+        assert_eq!(basepoint + &identity, basepoint);
+        assert_eq!(identity + &basepoint, basepoint);
+
+        let mut assigned = basepoint * &two;
+        assigned += basepoint * &three;
+        assert_eq!(assigned, basepoint * &five);
+
+        assigned -= basepoint * &three;
+        assert_eq!(assigned, basepoint * &two);
+
+        assigned *= &three;
+        assert_eq!(assigned, basepoint * &Scalar::from(6u64));
     }
 }
