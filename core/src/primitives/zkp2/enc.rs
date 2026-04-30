@@ -41,18 +41,9 @@ impl<G> EncZKP<G>
 where
     G: Group,
 {
-    pub fn new(
-        public_key: G::Point,
-        ciphertext: (G::Point, G::Point),
-        message: G::Point,
-        context: Vec<u8>,
-    ) -> Self {
+    pub fn new(public_key: G::Point, ciphertext: (G::Point, G::Point), message: G::Point, context: Vec<u8>) -> Self {
         Self {
-            public_data: EncZKPPublicData {
-                public_key,
-                ciphertext,
-                message,
-            },
+            public_data: EncZKPPublicData { public_key, ciphertext, message },
             context,
         }
     }
@@ -62,11 +53,7 @@ where
         let phi2 = self.public_data.public_key * x;
         (phi1, phi2)
     }
-    fn commit<R: RngCore + CryptoRng>(
-        &self,
-        witness: &G::Scalar,
-        rng: &mut R,
-    ) -> (EncZKPCommit<G>, EncZKPState<G>) {
+    fn commit<R: RngCore + CryptoRng>(&self, witness: &G::Scalar, rng: &mut R) -> (EncZKPCommit<G>, EncZKPState<G>) {
         let k = G::scalar_random(rng);
         let phik = self.phi(&k);
         let state = (k, *witness); // TODO, with lifetime, we can remove clone
@@ -87,12 +74,7 @@ where
         <VectorContextHash as ContextHash<G>>::hash_to_scalar(&buf)
     }
 
-    fn verify(
-        &self,
-        commit: &EncZKPCommit<G>,
-        challenge: &EncZKPChallenge<G>,
-        response: &EncZKPResponse<G>,
-    ) -> bool {
+    fn verify(&self, commit: &EncZKPCommit<G>, challenge: &EncZKPChallenge<G>, response: &EncZKPResponse<G>) -> bool {
         let phir = self.phi(response);
         let z0 = self.public_data.ciphertext.0;
         let z1 = self.public_data.ciphertext.1 - &self.public_data.message;
@@ -113,11 +95,7 @@ where
         let com1 = phir.1 - &(z1 * &challenge);
         let commit = (com0, com1);
 
-        EncZKPProof {
-            commit,
-            challenge,
-            response,
-        }
+        EncZKPProof { commit, challenge, response }
     }
 }
 
@@ -133,17 +111,12 @@ where
         let (commit, state) = Self::commit(self, witness, rng);
         let chal = Self::get_challenge(self, &commit);
         let response = Self::respond(self, &state, &chal);
-        EncZKPProof {
-            commit,
-            challenge: chal,
-            response,
-        }
+        EncZKPProof { commit, challenge: chal, response }
     }
 
     fn verify(&self, proof: &Self::Proof) -> bool {
         let chal = Self::get_challenge(self, &proof.commit);
-        proof.challenge == chal
-            && Self::verify(self, &proof.commit, &proof.challenge, &proof.response)
+        proof.challenge == chal && Self::verify(self, &proof.commit, &proof.challenge, &proof.response)
     }
 }
 
@@ -155,11 +128,7 @@ where
     //    type Challenge = EncZKPChallenge<G>;
     type Response = EncZKPResponse<G>;
     type State = EncZKPState<G>;
-    fn commit<R: RngCore + CryptoRng>(
-        &self,
-        witness: &Self::Witness,
-        rng: &mut R,
-    ) -> (Self::Commit, Self::State) {
+    fn commit<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R) -> (Self::Commit, Self::State) {
         Self::commit(self, witness, rng)
     }
     fn get_challenge(&self, commit: &Self::Commit) -> zkp2::Challenge<G> {
@@ -169,12 +138,7 @@ where
         Self::respond(self, state, challenge)
     }
 
-    fn interactive_verify(
-        &self,
-        commit: &Self::Commit,
-        challenge: &Challenge<G>,
-        response: &Self::Response,
-    ) -> bool {
+    fn interactive_verify(&self, commit: &Self::Commit, challenge: &Challenge<G>, response: &Self::Response) -> bool {
         Self::verify(self, commit, challenge, response)
     }
 }

@@ -25,21 +25,11 @@ impl<G: Group> ZKProof<G> {
         (Self { claim }, SecretKnowledge(knowledge))
     }
 
-    pub fn commit<R: RngCore + CryptoRng>(
-        &self,
-        rng: &mut R,
-        knowledge: &SecretKnowledge<G>,
-    ) -> ProofCommit<G> {
+    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofCommit<G> {
         Proof::commit(rng, &self.claim, &knowledge.0)
     }
 
-    pub fn proof<R: RngCore + CryptoRng>(
-        &self,
-        rng: &mut R,
-        prepared_proof: &ProofCommit<G>,
-        knowledge: &SecretKnowledge<G>,
-        c: &G::Scalar,
-    ) -> ProofResponse<G> {
+    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, prepared_proof: &ProofCommit<G>, knowledge: &SecretKnowledge<G>, c: &G::Scalar) -> ProofResponse<G> {
         Proof::response(rng, prepared_proof, &self.claim, &knowledge.0, c)
     }
 
@@ -61,11 +51,7 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NIZKProof<G,
         Self { zk_proof, claim_context_hash }
     }
 
-    pub fn proof<R: RngCore + CryptoRng>(
-        &self,
-        rng: &mut R,
-        knowledge: &SecretKnowledge<G>,
-    ) -> ProofResponse<G> {
+    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofResponse<G> {
         let prepared_proof = self.zk_proof.commit(rng, knowledge);
 
         let mut context_hash = self.claim_context_hash.clone();
