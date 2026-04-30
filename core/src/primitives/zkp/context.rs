@@ -1,6 +1,6 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, VectorContextHash};
-use crate::primitives::zkp::proof::{Claim, ProofCommit, ProofResponse, ProofState};
+use crate::primitives::zkp::proof::{Claim, ProofCommit};
 
 pub trait ProofTreeContextHash<G: Group> {
     fn add_claim(&mut self, claim: &Claim<G>);

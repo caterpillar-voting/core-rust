@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::ContextHash;
 use crate::primitives::zkp::context::ProofTreeContextHash;
-use crate::primitives::zkp::proof::{Claim, Proof, ProofState, ProofResponse, GetProofCommit};
+use crate::primitives::zkp::proof::{Claim, GetProofCommit, Proof, ProofResponse, ProofState};
 use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::representation::SecretKnowledge;
 use rand_core::{CryptoRng, RngCore};
@@ -64,7 +64,7 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NIZKProof<G,
 
     pub fn verify(&self, proof_response: &ProofResponse<G>) -> bool {
         let mut context_hash = self.claim_context_hash.clone();
-        let proof_commit = <ProofResponse<G> as GetProofCommit<G>>::get_proof_commit(&proof_response);
+        let proof_commit = <ProofResponse<G> as GetProofCommit<G>>::get_proof_commit(proof_response);
         context_hash.add_proof_commit(&proof_commit);
         let c = context_hash.hash_to_scalar();
 

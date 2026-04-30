@@ -1,6 +1,6 @@
 use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::BooleanTree::{And, Leaf, Or};
-use crate::primitives::zkp::statement::{Statement};
+use crate::primitives::zkp::statement::Statement;
 use crate::utils::tree::BooleanTree;
 use rand_core::{CryptoRng, RngCore};
 
@@ -234,18 +234,10 @@ pub trait GetProofCommit<G: Group> {
 impl<G: Group> GetProofCommit<G> for ProofState<G> {
     fn get_proof_commit(&self) -> ProofCommit<G> {
         match self {
-            Leaf((Some(committed), None)) => {
-                Leaf(committed.iter().map(|(_, t)| *t).collect())
-            }
-            Leaf((None, Some((_, simulated)))) => {
-                Leaf(simulated.iter().map(|(_, t)| *t).collect())
-            }
-            And(nodes) => {
-                And(nodes.iter().map(<ProofState<G> as GetProofCommit<G>>::get_proof_commit).collect())
-            }
-            Or(nodes) => {
-                Or(nodes.iter().map(<ProofState<G> as GetProofCommit<G>>::get_proof_commit).collect())
-            }
+            Leaf((Some(committed), None)) => Leaf(committed.iter().map(|(_, t)| *t).collect()),
+            Leaf((None, Some((_, simulated)))) => Leaf(simulated.iter().map(|(_, t)| *t).collect()),
+            And(nodes) => And(nodes.iter().map(<ProofState<G> as GetProofCommit<G>>::get_proof_commit).collect()),
+            Or(nodes) => Or(nodes.iter().map(<ProofState<G> as GetProofCommit<G>>::get_proof_commit).collect()),
             Leaf(_) => unreachable!("invalid proof state leaf"),
         }
     }
@@ -254,15 +246,9 @@ impl<G: Group> GetProofCommit<G> for ProofState<G> {
 impl<G: Group> GetProofCommit<G> for ProofResponse<G> {
     fn get_proof_commit(&self) -> ProofCommit<G> {
         match self {
-            Leaf((_, transcripts)) => {
-                Leaf(transcripts.iter().map(|(_, t)| *t).collect())
-            }
-            And(nodes) => {
-                And(nodes.iter().map(<ProofResponse<G> as GetProofCommit<G>>::get_proof_commit).collect())
-            }
-            Or(nodes) => {
-                Or(nodes.iter().map(<ProofResponse<G> as GetProofCommit<G>>::get_proof_commit).collect())
-            }
+            Leaf((_, transcripts)) => Leaf(transcripts.iter().map(|(_, t)| *t).collect()),
+            And(nodes) => And(nodes.iter().map(<ProofResponse<G> as GetProofCommit<G>>::get_proof_commit).collect()),
+            Or(nodes) => Or(nodes.iter().map(<ProofResponse<G> as GetProofCommit<G>>::get_proof_commit).collect()),
         }
     }
 }
