@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::ContextHash;
 use crate::primitives::zkp::context::ProofTreeContextHash;
-use crate::primitives::zkp::proof::{Claim, ProofCommit, Proof, ProofResponse};
+use crate::primitives::zkp::proof::{Claim, Proof, ProofCommit, ProofResponse};
 use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::representation::SecretKnowledge;
 use rand_core::{CryptoRng, RngCore};

@@ -9,7 +9,7 @@ pub type Claim<G> = BooleanTree<Box<[Statement<G>]>>;
 pub type Knowledge<G: Group> = BooleanTree<Option<G::Scalar>>;
 #[allow(type_alias_bounds)]
 type CommitsOrSimulations<G: Group> = (
-    Option<Box<[Commit<G>]>>, // committed proofs
+    Option<Box<[Commit<G>]>>,                  // committed proofs
     Option<(G::Scalar, Box<[Transcript<G>]>)>, // simulated proofs
 );
 #[allow(type_alias_bounds)]
@@ -256,7 +256,10 @@ impl Proof {
         recovered == Some(*c)
     }
 
-    fn recover_proven_challenge<G: Group>(claim: &Claim<G>, proof: &ProofResponse<G>) -> Option<G::Scalar> {
+    fn recover_proven_challenge<G: Group>(
+        claim: &Claim<G>,
+        proof: &ProofResponse<G>,
+    ) -> Option<G::Scalar> {
         match (claim, proof) {
             (Leaf(statements), Leaf((c, transcripts))) => {
                 if statements
