@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::ContextHash;
 use crate::primitives::zkp::context::ProofTreeContextHash;
-use crate::primitives::zkp::proof::{Claim, Proof, ProofState, ProofResponse};
+use crate::primitives::zkp::proof::{Claim, Proof, ProofState, ProofResponse, GetProofCommit};
 use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::representation::SecretKnowledge;
 use rand_core::{CryptoRng, RngCore};
@@ -29,7 +29,7 @@ impl<G: Group> ZKProof<G> {
         Proof::commit(rng, &self.claim, &knowledge.0)
     }
 
-    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, proof_state: &ProofState<G>, knowledge: &SecretKnowledge<G>, c: &G::Scalar) -> ProofResponse<G> {
+    pub fn response<R: RngCore + CryptoRng>(&self, rng: &mut R, proof_state: &ProofState<G>, knowledge: &SecretKnowledge<G>, c: &G::Scalar) -> ProofResponse<G> {
         Proof::response(rng, proof_state, &self.claim, &knowledge.0, c)
     }
 
@@ -51,22 +51,24 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NIZKProof<G,
         Self { zk_proof, claim_context_hash }
     }
 
-    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofResponse<G> {
+    pub fn prove<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofResponse<G> {
         let proof_state = self.zk_proof.commit(rng, knowledge);
 
         let mut context_hash = self.claim_context_hash.clone();
-        context_hash.add_prepared_proof(&proof_state);
+        let proof_commit = <ProofState<G> as GetProofCommit<G>>::get_proof_commit(&proof_state);
+        context_hash.add_proof_commit(&proof_commit);
         let c = context_hash.hash_to_scalar();
 
-        self.zk_proof.proof(rng, &proof_state, knowledge, &c)
+        self.zk_proof.response(rng, &proof_state, knowledge, &c)
     }
 
-    pub fn verify(&self, proof: &ProofResponse<G>) -> bool {
+    pub fn verify(&self, proof_response: &ProofResponse<G>) -> bool {
         let mut context_hash = self.claim_context_hash.clone();
-        context_hash.add_proof(proof);
+        let proof_commit = <ProofResponse<G> as GetProofCommit<G>>::get_proof_commit(&proof_response);
+        context_hash.add_proof_commit(&proof_commit);
         let c = context_hash.hash_to_scalar();
 
-        self.zk_proof.verify(proof, &c)
+        self.zk_proof.verify(proof_response, &c)
     }
 }
 
@@ -97,7 +99,7 @@ mod tests {
         let (zk_proof, knowledge) = ZKProof::from_builder(&tree);
 
         let nizkp = NIZKProof::new(zk_proof, VectorContextHash::default());
-        let proof = nizkp.proof(&mut rng, &knowledge);
+        let proof = nizkp.prove(&mut rng, &knowledge);
 
         assert!(nizkp.verify(&proof))
     }
