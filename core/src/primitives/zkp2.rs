@@ -1,6 +1,6 @@
-pub mod reenc;
-pub mod or;
 pub mod enc;
+pub mod or;
+pub mod reenc;
 
 use crate::foundation::group::Group;
 use rand_core::{CryptoRng, RngCore};
@@ -17,32 +17,40 @@ pub trait ZKP<G: Group> {
 // We force the type of Challenge to be the same as the Scalar type of the group G
 pub type Challenge<G> = <G as Group>::Scalar;
 
-pub trait SigmaZKP<G: Group> : ZKP<G> {
-    type Commit;    // The data sent by Prover in first step
+pub trait SigmaZKP<G: Group>: ZKP<G> {
+    type Commit; // The data sent by Prover in first step
     // type Challenge; // The data sent by Verifier in second step
-    type Response;  // The data sent by Prover in third step
-    type State : Clone + Copy;     // The data kept by Prover between steps
-    fn commit<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R) -> (Self::Commit, Self::State);
+    type Response; // The data sent by Prover in third step
+    type State: Clone + Copy; // The data kept by Prover between steps
+    fn commit<R: RngCore + CryptoRng>(
+        &self,
+        witness: &Self::Witness,
+        rng: &mut R,
+    ) -> (Self::Commit, Self::State);
     fn get_challenge(&self, commit: &Self::Commit) -> Challenge<G>;
     fn respond(&self, state: &Self::State, challenge: &Challenge<G>) -> Self::Response;
     // The following function is used to verify a transcript of an interactive session,
     // where the challenge is sent by the verifier, and not computed as a hash.
-    fn interactive_verify(&self, commit: &Self::Commit, challenge: &Challenge<G>, response: &Self::Response) -> bool;
+    fn interactive_verify(
+        &self,
+        commit: &Self::Commit,
+        challenge: &Challenge<G>,
+        response: &Self::Response,
+    ) -> bool;
 }
 
-pub trait SimulableZKP<G: Group> : SigmaZKP<G> {
+pub trait SimulableZKP<G: Group>: SigmaZKP<G> {
     fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> Self::Proof;
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::group::Group;
+    use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::el_gamal::ElGamal;
+    use crate::primitives::zkp2::ZKP;
     use crate::primitives::zkp2::or::{OrTwoReEncZKP, OrTwoReEncZKPWitness};
     use crate::primitives::zkp2::reenc::ReEncZKP;
-    use crate::primitives::zkp2::ZKP;
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;
@@ -83,8 +91,8 @@ mod tests {
         let zkp_or = OrTwoReEncZKP::new(zkp1, zkp2, ctx);
 
         let witness = OrTwoReEncZKPWitness {
-            zkp1_witness : None,
-            zkp2_witness : Some(s2),
+            zkp1_witness: None,
+            zkp2_witness: Some(s2),
         };
         let proof = zkp_or.prove(&witness, &mut rng);
         assert!(zkp_or.verify(&proof));
