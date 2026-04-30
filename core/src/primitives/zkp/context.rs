@@ -25,8 +25,8 @@ impl<G: Group> ProofTreeContextHash<G> for VectorContextHash {
                     for (_, t) in commits.iter() {
                         <VectorContextHash as ContextHash<G>>::add_point(self, t);
                     }
-                } else if let Some((_, simulated)) = simulated_proof {
-                    for (_, t) in simulated.iter() {
+                } else if let Some((_, transcripts)) = simulated_proof {
+                    for (_, t) in transcripts.iter() {
                         <VectorContextHash as ContextHash<G>>::add_point(self, t);
                     }
                 }
