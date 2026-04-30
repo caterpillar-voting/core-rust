@@ -1,6 +1,6 @@
 use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::BooleanTree::{And, Leaf, Or};
-use crate::primitives::zkp::statement::{Commit, Statement, Transcript};
+use crate::primitives::zkp::statement::Statement;
 use crate::utils::tree::BooleanTree;
 use rand_core::{CryptoRng, RngCore};
 
@@ -9,20 +9,20 @@ pub type Claim<G> = BooleanTree<Box<[Statement<G>]>>;
 pub type Knowledge<G: Group> = BooleanTree<Option<G::Scalar>>;
 #[allow(type_alias_bounds)]
 type CommitsOrSimulations<G: Group> = (
-    Option<Box<[Commit<G>]>>,                  // committed proofs
-    Option<(G::Scalar, Box<[Transcript<G>]>)>, // simulated proofs
+    Option<Box<[(G::Scalar, G::Point)]>>,              // committed proofs
+    Option<(G::Scalar, Box<[(G::Scalar, G::Point)]>)>, // simulated proofs
 );
 #[allow(type_alias_bounds)]
-pub type ProofCommit<G: Group> = BooleanTree<CommitsOrSimulations<G>>;
+pub type ProofState<G: Group> = BooleanTree<CommitsOrSimulations<G>>;
 #[allow(type_alias_bounds)]
-pub type ProofResponse<G: Group> = BooleanTree<(G::Scalar, Box<[Transcript<G>]>)>;
+pub type ProofResponse<G: Group> = BooleanTree<(G::Scalar, Box<[(G::Scalar, G::Point)]>)>;
 
 pub struct Proof {}
 
 // we enforce that claim has the same tree structure than prepared_proof: the claim is also necessary to verify, so no use-case of "optimizing" here
 // we do not care whether knowledge has the same tree structure, i.e., for simulated branches, the knowledge tree may stop at the highest simulated branch
 impl Proof {
-    pub fn commit<G: Group, R: RngCore + CryptoRng>(rng: &mut R, claim: &Claim<G>, knowledge: &Knowledge<G>) -> ProofCommit<G> {
+    pub fn commit<G: Group, R: RngCore + CryptoRng>(rng: &mut R, claim: &Claim<G>, knowledge: &Knowledge<G>) -> ProofState<G> {
         match (claim, knowledge) {
             // commit to statements with knowledge
             (Leaf(statements), Leaf(Some(_))) => {
@@ -61,8 +61,8 @@ impl Proof {
         }
     }
 
-    pub fn response<G: Group, R: RngCore + CryptoRng>(rng: &mut R, prepared_proof: &ProofCommit<G>, claim: &Claim<G>, knowledge: &Knowledge<G>, c: &G::Scalar) -> ProofResponse<G> {
-        match (prepared_proof, claim, knowledge) {
+    pub fn response<G: Group, R: RngCore + CryptoRng>(rng: &mut R, proof_state: &ProofState<G>, claim: &Claim<G>, knowledge: &Knowledge<G>, c: &G::Scalar) -> ProofResponse<G> {
+        match (proof_state, claim, knowledge) {
             // create transcripts of statements with knowledge
             (Leaf((Some(commits), None)), Leaf(statements), Leaf(Some(x))) => {
                 let transcripts = statements
@@ -83,46 +83,46 @@ impl Proof {
 
                 Leaf((*c, simulated.clone()))
             }
-            (And(prepared_nodes), And(claim_nodes), And(knowledge_nodes)) => {
-                let proofs = prepared_nodes
+            (And(proof_states), And(claim_nodes), And(knowledge_nodes)) => {
+                let proofs = proof_states
                     .iter()
                     .zip(claim_nodes.iter())
                     .zip(knowledge_nodes.iter())
-                    .map(|((prepared_node, claim_node), knowledge_node)| Self::response(rng, prepared_node, claim_node, knowledge_node, c))
+                    .map(|((proof_state, claim_node), knowledge_node)| Self::response(rng, proof_state, claim_node, knowledge_node, c))
                     .collect();
 
                 And(proofs)
             }
-            (And(prepared_nodes), And(claim_nodes), Leaf(None)) => {
-                let simulated_proofs = prepared_nodes
+            (And(proof_states), And(claim_nodes), Leaf(None)) => {
+                let simulated_proofs = proof_states
                     .iter()
                     .zip(claim_nodes.iter())
-                    .map(|(prepared_node, claim_node)| Self::response(rng, prepared_node, claim_node, &Leaf(None), c))
+                    .map(|(proof_state, claim_node)| Self::response(rng, proof_state, claim_node, &Leaf(None), c))
                     .collect();
 
                 And(simulated_proofs)
             }
-            (Or(prepared_nodes), Or(claim_nodes), Or(knowledge_nodes)) => {
-                let challenges = Self::define_challenges_given_sum::<G, R>(rng, prepared_nodes, c);
+            (Or(proof_states), Or(claim_nodes), Or(knowledge_nodes)) => {
+                let challenges = Self::define_challenges_given_sum::<G, R>(rng, proof_states, c);
 
-                let proofs = prepared_nodes
+                let proofs = proof_states
                     .iter()
                     .zip(claim_nodes.iter())
                     .zip(knowledge_nodes.iter())
                     .zip(challenges.iter())
-                    .map(|(((prepared_node, claim_node), knowledge_node), challenge)| Self::response(rng, prepared_node, claim_node, knowledge_node, challenge))
+                    .map(|(((proof_state, claim_node), knowledge_node), challenge)| Self::response(rng, proof_state, claim_node, knowledge_node, challenge))
                     .collect();
 
                 Or(proofs)
             }
-            (Or(prepared_nodes), Or(claim_nodes), Leaf(None)) => {
-                let challenges = Self::define_challenges_given_sum::<G, R>(rng, prepared_nodes, c);
+            (Or(proof_states), Or(claim_nodes), Leaf(None)) => {
+                let challenges = Self::define_challenges_given_sum::<G, R>(rng, proof_states, c);
 
-                let proofs = prepared_nodes
+                let proofs = proof_states
                     .iter()
                     .zip(claim_nodes.iter())
                     .zip(challenges.iter())
-                    .map(|((prepared_node, claim_node), challenge)| Self::response(rng, prepared_node, claim_node, &Leaf(None), challenge))
+                    .map(|((proof_state, claim_node), challenge)| Self::response(rng, proof_state, claim_node, &Leaf(None), challenge))
                     .collect();
 
                 Or(proofs)
@@ -131,11 +131,11 @@ impl Proof {
         }
     }
 
-    fn define_challenges_given_sum<G: Group, R: RngCore + CryptoRng>(rng: &mut R, prepared_nodes: &[BooleanTree<CommitsOrSimulations<G>>], expected_sum: &G::Scalar) -> Vec<G::Scalar> {
-        let challenges: Vec<Option<G::Scalar>> = prepared_nodes.iter().map(|prepared_node| Self::try_get_simulated_challenge::<G>(prepared_node)).collect();
+    fn define_challenges_given_sum<G: Group, R: RngCore + CryptoRng>(rng: &mut R, proof_states: &[BooleanTree<CommitsOrSimulations<G>>], expected_sum: &G::Scalar) -> Vec<G::Scalar> {
+        let challenges: Vec<Option<G::Scalar>> = proof_states.iter().map(|proof_state| Self::try_get_simulated_challenge::<G>(proof_state)).collect();
 
         let simulated: Vec<G::Scalar> = challenges.iter().filter_map(|challenge| *challenge).collect();
-        let mut missing_count = prepared_nodes.len() - simulated.len();
+        let mut missing_count = proof_states.len() - simulated.len();
         let mut actual_sum = simulated.iter().fold(G::Scalar::from(0), |current, next| current + next);
         assert!(missing_count > 0 || actual_sum == *expected_sum, "challenges do not sum up to c");
 
@@ -159,14 +159,14 @@ impl Proof {
             .collect()
     }
 
-    fn try_get_simulated_challenge<G: Group>(prepared_proof: &ProofCommit<G>) -> Option<G::Scalar> {
-        match prepared_proof {
+    fn try_get_simulated_challenge<G: Group>(proof_state: &ProofState<G>) -> Option<G::Scalar> {
+        match proof_state {
             Leaf((None, Some((challenge, _)))) => Some(*challenge),
-            And(prepared_nodes) => prepared_nodes.iter().filter_map(|node| Self::try_get_simulated_challenge::<G>(node)).next(),
-            Or(prepared_nodes) => {
-                let challenges: Vec<G::Scalar> = prepared_nodes.iter().filter_map(|node| Self::try_get_simulated_challenge::<G>(node)).collect();
+            And(proof_states) => proof_states.iter().filter_map(|node| Self::try_get_simulated_challenge::<G>(node)).next(),
+            Or(proof_states) => {
+                let challenges: Vec<G::Scalar> = proof_states.iter().filter_map(|node| Self::try_get_simulated_challenge::<G>(node)).collect();
 
-                if challenges.len() == prepared_nodes.len() {
+                if challenges.len() == proof_states.len() {
                     Some(challenges.iter().fold(G::Scalar::from(0), |acc, challenge| acc + challenge))
                 } else {
                     None
@@ -221,6 +221,34 @@ impl Proof {
                 sum
             }
             _ => unreachable!("claim and proof trees not synchronized"),
+        }
+    }
+}
+
+#[allow(type_alias_bounds)]
+pub type ProofCommit<G: Group> = BooleanTree<Box<[G::Point]>>;
+pub trait GetProofCommit<G: Group> {
+    fn get_proof_commit(&self) -> ProofCommit<G>;
+}
+
+impl<G: Group> GetProofCommit<G> for ProofState<G> {
+    fn get_proof_commit(&self) -> ProofCommit<G> {
+        match self {
+            Leaf((Some(committed), None)) => Leaf(committed.iter().map(|(_, t)| *t).collect()),
+            Leaf((None, Some((_, simulated)))) => Leaf(simulated.iter().map(|(_, t)| *t).collect()),
+            And(nodes) => And(nodes.iter().map(<ProofState<G> as GetProofCommit<G>>::get_proof_commit).collect()),
+            Or(nodes) => Or(nodes.iter().map(<ProofState<G> as GetProofCommit<G>>::get_proof_commit).collect()),
+            Leaf(_) => unreachable!("invalid proof state leaf"),
+        }
+    }
+}
+
+impl<G: Group> GetProofCommit<G> for ProofResponse<G> {
+    fn get_proof_commit(&self) -> ProofCommit<G> {
+        match self {
+            Leaf((_, transcripts)) => Leaf(transcripts.iter().map(|(_, t)| *t).collect()),
+            And(nodes) => And(nodes.iter().map(<ProofResponse<G> as GetProofCommit<G>>::get_proof_commit).collect()),
+            Or(nodes) => Or(nodes.iter().map(<ProofResponse<G> as GetProofCommit<G>>::get_proof_commit).collect()),
         }
     }
 }

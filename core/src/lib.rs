@@ -79,7 +79,7 @@ mod tests {
 
         let proof_preparation = zk_proof.commit(&mut rng, &knowledge);
         let c = Curve::scalar_random(&mut rng);
-        let proof = zk_proof.proof(&mut rng, &proof_preparation, &knowledge, &c);
+        let proof = zk_proof.response(&mut rng, &proof_preparation, &knowledge, &c);
 
         assert!(zk_proof.verify(&proof, &c))
     }
@@ -103,7 +103,7 @@ mod tests {
 
         let context_hash = VectorContextHash::new(b"Example".into());
         let nizkp = NIZKProof::new(zk_proof, context_hash);
-        let proof = nizkp.proof(&mut rng, &knowledge);
+        let proof = nizkp.prove(&mut rng, &knowledge);
 
         assert!(nizkp.verify(&proof))
     }
