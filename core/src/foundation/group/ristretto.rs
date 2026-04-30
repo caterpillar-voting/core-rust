@@ -11,7 +11,7 @@ use curve25519_dalek::{
     traits::Identity,
 };
 use rand_core::{CryptoRng, RngCore};
-use sha2::Sha512;
+use sha3::Sha3_512;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RistrettoGroup(());
@@ -61,11 +61,11 @@ impl Group for RistrettoGroup {
     }
 
     fn hash_to_point(payload: &[u8]) -> Self::Point {
-        RistrettoPointRaw::hash_from_bytes::<Sha512>(payload)
+        RistrettoPointRaw::hash_from_bytes::<Sha3_512>(payload)
     }
 
     fn hash_to_scalar(payload: &[u8]) -> Self::Scalar {
-        RistrettoScalarRaw::hash_from_bytes::<Sha512>(payload)
+        RistrettoScalarRaw::hash_from_bytes::<Sha3_512>(payload)
     }
 
     fn independent_generators<const N: usize>(prefix: &[u8]) -> Box<[Self::Point; N]> {
@@ -81,7 +81,7 @@ impl Group for RistrettoGroup {
             payload.truncate(shared_prefix_len);
             payload.extend_from_slice(&i.to_le_bytes());
 
-            result.push(RistrettoPointRaw::hash_from_bytes::<Sha512>(&payload));
+            result.push(RistrettoPointRaw::hash_from_bytes::<Sha3_512>(&payload));
         }
 
         result
