@@ -44,7 +44,7 @@ impl<G: Group> DiscreteLog<G> for GreedyDiscreteLog<G> {
 pub struct PrecomputedDiscreteLog<G: Group> {
     range: (G::Scalar, usize),
     g: G::Point,
-    table: Box<[G::Point]>,
+    table: Box<[G::Point]>, // TODO: consider hash map for O(1) access, but would require to hash over G::Scalar
 }
 
 impl<G: Group> PrecomputedDiscreteLog<G> {
