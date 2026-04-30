@@ -68,7 +68,7 @@ mod tests {
         let message = Curve::point_random(&mut rng);
 
         let encryption = Encryption::<Curve>::default();
-        let (secret_key, public_key) = encryption.key_gen(&mut rng);
+        let (_, public_key) = encryption.key_gen(&mut rng);
 
         let ciphertext = encryption.encrypt(&public_key, &mut rng, &message);
         let randomness = Curve::scalar_random(&mut rng);
@@ -98,7 +98,7 @@ mod tests {
         let message2 = Curve::point_random(&mut rng);
 
         let encryption = Encryption::<Curve>::default();
-        let (secret_key, public_key) = encryption.key_gen(&mut rng);
+        let (_, public_key) = encryption.key_gen(&mut rng);
 
         let randomness = Curve::scalar_random(&mut rng);
         let ciphertext = encryption

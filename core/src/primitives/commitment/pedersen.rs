@@ -47,7 +47,6 @@ mod tests {
     use crate::primitives::commitment::_test_utils::new_pedersen_sample;
     use rand::rngs::ThreadRng;
     use rand::thread_rng;
-    use rand_core::{CryptoRng, RngCore};
 
     type Curve = RistrettoGroup;
     type Scalar = <Curve as Group>::Scalar;
