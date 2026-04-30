@@ -19,6 +19,7 @@ where
 {
     zkp1: ZKP1<G>,
     zkp2: ZKP2<G>,
+    #[allow(unused)]
     public_data: OrTwoReEncZKPPublicData<G>,
     context: Vec<u8>,
 }
@@ -46,8 +47,8 @@ pub struct OrTwoReEncZKPInnerChallenges<G>
 where
     G: Group,
 {
-    chal1: zkp2::Challenge<G>,
-    chal2: zkp2::Challenge<G>,
+    chal1: Challenge<G>,
+    chal2: Challenge<G>,
 }
 #[derive(Copy, Clone)]
 pub struct OrTwoReEncZKPResponse<G>
@@ -59,7 +60,7 @@ where
     inner_challenges: OrTwoReEncZKPInnerChallenges<G>,
 }
 // The real challenge is the sum of the two inner challenges
-pub type OrTwoReEncZKPChallenge<G> = zkp2::Challenge<G>;
+pub type OrTwoReEncZKPChallenge<G> = Challenge<G>;
 #[derive(Copy, Clone)]
 pub struct OrTwoReEncZKPState<G>
 where
@@ -78,13 +79,15 @@ pub struct OrTwoReEncZKPPublicData<G>
 where
     G: Group,
 {
+    #[allow(unused)]
     zkp1_pubdata: <ZKP1<G> as ZKP<G>>::PublicData,
+    #[allow(unused)]
     zkp2_pubdata: <ZKP2<G> as ZKP<G>>::PublicData,
 }
 #[derive(Copy, Clone)]
 pub struct OrTwoReEncZKPProof<G: Group> {
     commit: OrTwoReEncZKPCommit<G>,
-    challenge: zkp2::Challenge<G>,
+    challenge: Challenge<G>,
     response: OrTwoReEncZKPResponse<G>,
 }
 
@@ -111,13 +114,13 @@ where
         rng: &mut R,
     ) -> (OrTwoReEncZKPCommit<G>, OrTwoReEncZKPState<G>) {
         assert!(witness.zkp1_witness.is_some() || witness.zkp2_witness.is_some());
-        if witness.zkp1_witness.is_some() {
+        if let Some(zkp1_witness) = witness.zkp1_witness {
             let pf2 = self.zkp2.simulate(rng);
             assert!(
                 self.zkp2
                     .interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response)
             );
-            let (com1, st1) = self.zkp1.commit(&witness.zkp1_witness.unwrap(), rng);
+            let (com1, st1) = self.zkp1.commit(&zkp1_witness, rng);
             let com = OrTwoReEncZKPCommit {
                 zkp1_commit: com1,
                 zkp2_commit: pf2.commit,
@@ -282,6 +285,7 @@ where
 
     fn verify(&self, proof: &Self::Proof) -> bool {
         let sum_chal = Self::get_challenge(self, &proof.commit);
+        assert!(proof.challenge == sum_chal);
         Self::verify(self, &proof.commit, &sum_chal, &proof.response)
     }
 }
