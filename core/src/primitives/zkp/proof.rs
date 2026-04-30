@@ -99,7 +99,7 @@ impl Proof {
                     .iter()
                     .zip(commits.iter())
                     .map(|(statement, (k, t))| {
-                        let r = statement.proof(k, x, c);
+                        let r = statement.response(k, x, c);
 
                         (r, *t)
                     })

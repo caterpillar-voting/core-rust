@@ -26,7 +26,7 @@ impl<G: Group> Statement<G> {
         (k, t)
     }
 
-    pub fn proof(&self, k: &G::Scalar, x: &G::Scalar, c: &G::Scalar) -> G::Scalar {
+    pub fn response(&self, k: &G::Scalar, x: &G::Scalar, c: &G::Scalar) -> G::Scalar {
         let r = *k + &(*c * x);
 
         black_box(r) // prevent clippy from removing intermediate value
@@ -75,7 +75,7 @@ mod tests {
 
         let (k, t) = zkp.commit(&mut rng);
         let c = Scalar::random(&mut rng);
-        let r = zkp.proof(&k, &x, &c);
+        let r = zkp.response(&k, &x, &c);
 
         assert!(zkp.verify(&r, &t, &c));
     }
