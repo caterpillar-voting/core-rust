@@ -2,7 +2,7 @@ use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, VectorContextHash};
 use crate::primitives::zkp2;
-use crate::primitives::zkp2::{ZKP, SigmaZKP, SimulableZKP};
+use crate::primitives::zkp2::{ZKP, SigmaZKP, SimulableZKP, Challenge};
 
 #[derive(Clone)]
 pub struct ReEncZKP<G> where G: Group {
@@ -140,6 +140,10 @@ impl<G> SigmaZKP<G> for ReEncZKP<G> where G: Group {
     }
     fn respond(&self, state: &Self::State, challenge: &zkp2::Challenge<G>) -> Self::Response {
         Self::respond(&self, state, challenge)
+    }
+
+    fn interactive_verify(&self, commit: &Self::Commit, challenge: &Challenge<G>, response: &Self::Response) -> bool {
+        Self::verify(&self, commit, challenge, response)
     }
 }
 

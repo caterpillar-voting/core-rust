@@ -24,6 +24,9 @@ pub trait SigmaZKP<G: Group> : ZKP<G> {
     fn commit<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R) -> (Self::Commit, Self::State);
     fn get_challenge(&self, commit: &Self::Commit) -> Challenge<G>;
     fn respond(&self, state: &Self::State, challenge: &Challenge<G>) -> Self::Response;
+    // The following function is used to verify a transcript of an interactive session,
+    // where the challenge is sent by the verifier, and not computed as a hash.
+    fn interactive_verify(&self, commit: &Self::Commit, challenge: &Challenge<G>, response: &Self::Response) -> bool;
 }
 
 pub trait SimulableZKP<G: Group> : SigmaZKP<G> {
