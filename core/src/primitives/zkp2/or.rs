@@ -2,7 +2,7 @@ use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, VectorContextHash};
 use crate::primitives::zkp2;
 use crate::primitives::zkp2::reenc::{ReEncZKP, ReEncZKPProof};
-use crate::primitives::zkp2::{SigmaZKP, SimulableZKP, ZKP};
+use crate::primitives::zkp2::{Challenge, SigmaZKP, SimulableZKP, ZKP};
 use rand_core::{CryptoRng, RngCore};
 
 // The two ZKPs that we want to combine with an OR
@@ -84,6 +84,7 @@ impl<G> OrTwoReEncZKP<G> where G: Group + Clone + Copy
         assert!(witness.zkp1_witness != None || witness.zkp2_witness != None);
         if witness.zkp1_witness.is_some() {
             let pf2 = self.zkp2.simulate(rng);
+            assert!(self.zkp2.interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response));
             let (com1, st1) = self.zkp1.commit(&witness.zkp1_witness.unwrap(), rng);
             let com = OrTwoReEncZKPCommit {
                 zkp1_commit: com1,
@@ -99,6 +100,7 @@ impl<G> OrTwoReEncZKP<G> where G: Group + Clone + Copy
             (com, state)
         } else {
             let pf1 = self.zkp1.simulate(rng);
+            assert!(self.zkp1.interactive_verify(&pf1.commit, &pf1.challenge, &pf1.response));
             let (com2, st2) = self.zkp2.commit(&witness.zkp2_witness.unwrap(), rng);
             let com = OrTwoReEncZKPCommit {
                 zkp1_commit: pf1.commit,
@@ -122,7 +124,7 @@ impl<G> OrTwoReEncZKP<G> where G: Group + Clone + Copy
             assert!(state.zkp1_state.is_some());
             assert!(state.zkp2_simulated.is_some());
             let st2 = state.zkp2_simulated.unwrap();
-            let chal1 = st2.challenge - &challenge;
+            let chal1 = challenge - &st2.challenge;
             let resp1 = self.zkp1.respond(&state.zkp1_state.unwrap(), &chal1);
             let chal = OrTwoReEncZKPInnerChallenges {
                 chal1: chal1,
@@ -138,7 +140,7 @@ impl<G> OrTwoReEncZKP<G> where G: Group + Clone + Copy
             assert!(state.zkp2_state.is_some());
             assert!(state.zkp1_simulated.is_some());
             let st1 = state.zkp1_simulated.unwrap();
-            let chal2 = st1.challenge - &challenge;
+            let chal2 = challenge - &st1.challenge;
             let resp2 = self.zkp2.respond(&state.zkp2_state.unwrap(), &chal2);
             let chal = OrTwoReEncZKPInnerChallenges {
                 chal1: st1.challenge,
@@ -164,18 +166,23 @@ impl<G> OrTwoReEncZKP<G> where G: Group + Clone + Copy
     }
     fn verify(&self, commit: &OrTwoReEncZKPCommit<G>, sum_challenges: &OrTwoReEncZKPChallenge<G>, response: &OrTwoReEncZKPResponse<G>)
               -> bool {
-        let pf1 = ReEncZKPProof {
+        let pf1: ReEncZKPProof<G> = ReEncZKPProof {
             commit: commit.zkp1_commit,
             challenge: response.inner_challenges.chal1,
             response: response.zkp1_response,
         };
-        let pf2 = ReEncZKPProof {
+        let pf2: ReEncZKPProof<G> = ReEncZKPProof {
             commit: commit.zkp2_commit,
             challenge: response.inner_challenges.chal2,
             response: response.zkp2_response,
         };
+        assert!(self.zkp1.interactive_verify(&pf1.commit, &pf1.challenge, &pf1.response));
+        assert!(self.zkp2.interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response));
         let chal = pf1.challenge + &pf2.challenge;
-        chal == *sum_challenges && self.zkp1.verify(&pf1) && self.zkp2.verify(&pf2)
+        assert!(chal == *sum_challenges);
+        chal == *sum_challenges &&
+            self.zkp1.interactive_verify(&pf1.commit, &pf1.challenge, &pf1.response) &&
+            self.zkp2.interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response)
     }
     fn simulate<R : RngCore + CryptoRng>(&self, rng: &mut R) -> OrTwoReEncZKPProof<G> {
         let pf1 = self.zkp1.simulate(rng);
@@ -242,6 +249,10 @@ impl<G> SigmaZKP<G> for OrTwoReEncZKP<G> where G: Group + Clone + Copy {
         let chal = challenge.clone();
         let resp= Self::respond(&self, st, chal);
         resp
+    }
+
+    fn interactive_verify(&self, commit: &Self::Commit, challenge: &Challenge<G>, response: &Self::Response) -> bool {
+        Self::verify(&self, commit, challenge, response)
     }
 }
 
