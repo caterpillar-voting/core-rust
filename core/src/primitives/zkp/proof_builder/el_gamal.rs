@@ -12,18 +12,8 @@ pub struct ReEncProofBuilder<G: Group> {
 }
 
 impl<G: Group> ReEncProofBuilder<G> {
-    pub fn new(
-        pk: G::Point,
-        uv: (G::Point, G::Point),
-        uv_dash: (G::Point, G::Point),
-        randomness: Option<G::Scalar>,
-    ) -> Self {
-        Self {
-            pk,
-            uv,
-            uv_dash,
-            randomness,
-        }
+    pub fn new(pk: G::Point, uv: (G::Point, G::Point), uv_dash: (G::Point, G::Point), randomness: Option<G::Scalar>) -> Self {
+        Self { pk, uv, uv_dash, randomness }
     }
 }
 
@@ -47,18 +37,8 @@ pub struct EncProofBuilder<G: Group> {
 }
 
 impl<G: Group> EncProofBuilder<G> {
-    pub fn new(
-        pk: G::Point,
-        uv: (G::Point, G::Point),
-        message: G::Point,
-        randomness: Option<G::Scalar>,
-    ) -> Self {
-        Self {
-            pk,
-            uv,
-            message,
-            randomness,
-        }
+    pub fn new(pk: G::Point, uv: (G::Point, G::Point), message: G::Point, randomness: Option<G::Scalar>) -> Self {
+        Self { pk, uv, message, randomness }
     }
 }
 

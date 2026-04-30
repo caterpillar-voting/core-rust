@@ -39,12 +39,7 @@ impl<G: Group> ElGamal<G> {
         *beta - &(*alpha * sk)
     }
 
-    pub fn decrypt_randomness(
-        &self,
-        pk: &G::Point,
-        r: &G::Scalar,
-        ciphertext: &(G::Point, G::Point),
-    ) -> G::Point {
+    pub fn decrypt_randomness(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point)) -> G::Point {
         // we explicitly do not check here whether g^r = alpha, as this is expensive
 
         let (_, beta) = ciphertext;
@@ -53,12 +48,7 @@ impl<G: Group> ElGamal<G> {
         *beta - &hiding_factor
     }
 
-    pub fn reencrypt(
-        &self,
-        pk: &G::Point,
-        r: &G::Scalar,
-        ciphertext: &(G::Point, G::Point),
-    ) -> (G::Point, G::Point) {
+    pub fn reencrypt(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point)) -> (G::Point, G::Point) {
         let (alpha, beta) = ciphertext;
 
         let alpha = self.g * r + alpha;
@@ -87,24 +77,13 @@ impl<G: Group> ExponentialElGamal<G> {
         self.0.encrypt(pk, r, &m_point)
     }
 
-    pub fn decrypt(
-        &self,
-        sk: &G::Scalar,
-        ciphertext: &(G::Point, G::Point),
-        decoder: &dyn DiscreteLog<G>,
-    ) -> Option<G::Scalar> {
+    pub fn decrypt(&self, sk: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
         let m_point = self.0.decrypt(sk, ciphertext);
 
         decoder.log(&self.0.g, &m_point)
     }
 
-    pub fn decrypt_randomness(
-        &self,
-        pk: &G::Point,
-        r: &G::Scalar,
-        ciphertext: &(G::Point, G::Point),
-        decoder: &dyn DiscreteLog<G>,
-    ) -> Option<G::Scalar> {
+    pub fn decrypt_randomness(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
         let m_point = self.0.decrypt_randomness(pk, r, ciphertext);
 
         decoder.log(&self.0.g, &m_point)
@@ -120,9 +99,7 @@ mod tests {
     use crate::foundation::discrete_log::GreedyDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::primitives::encryption::_test_utils::{
-        new_el_gamal_sample, new_exponential_el_gamal_sample,
-    };
+    use crate::primitives::encryption::_test_utils::{new_el_gamal_sample, new_exponential_el_gamal_sample};
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;
@@ -166,8 +143,7 @@ mod tests {
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
         let m_decoder = GreedyDiscreteLog::new(m, None);
         let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_decoder);
-        let m_decrypted_randomness =
-            exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_decoder);
+        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_decoder);
 
         assert_eq!(m_decrypted, Some(m));
         assert_eq!(m_decrypted_randomness, Some(m));
@@ -186,8 +162,7 @@ mod tests {
         let m_decoder = GreedyDiscreteLog::new(m, None);
         let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_decoder);
         let r_combined = r + &r_2;
-        let m_decrypted_randomness =
-            exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_decoder);
+        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_decoder);
 
         assert_eq!(m_decrypted, Some(m));
         assert_eq!(m_decrypted_randomness, Some(m));

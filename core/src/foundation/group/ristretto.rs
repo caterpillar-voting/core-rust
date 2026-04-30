@@ -84,9 +84,7 @@ impl Group for RistrettoGroup {
             result.push(RistrettoPointRaw::hash_from_bytes::<Sha3_512>(&payload));
         }
 
-        result
-            .try_into()
-            .expect("incorrect number of generators generated")
+        result.try_into().expect("incorrect number of generators generated")
     }
 
     fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point {
@@ -154,11 +152,7 @@ mod tests {
             assert_eq!(point, recovered_point);
         }
 
-        let scalars = [
-            Scalar::from(0u64),
-            Scalar::from(1u64),
-            RistrettoGroup::scalar_random(&mut rng),
-        ];
+        let scalars = [Scalar::from(0u64), Scalar::from(1u64), RistrettoGroup::scalar_random(&mut rng)];
 
         for scalar in scalars {
             let mut bytes = [0u8; <Scalar as ByteSerialize>::BUFFER_SIZE];

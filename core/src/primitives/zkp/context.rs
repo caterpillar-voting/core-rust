@@ -30,7 +30,12 @@ impl<G: Group> ProofTreeContextHash<G> for VectorContextHash {
                         <VectorContextHash as ContextHash<G>>::add_point(self, t);
                     }
                 }
-            });
+            } else if let Some((_, simulated)) = simulated_proof {
+                for (_, t) in simulated.iter() {
+                    <VectorContextHash as ContextHash<G>>::add_point(self, t);
+                }
+            }
+        });
     }
 
     fn add_proof(&mut self, transcript: &ProofResponse<G>) {

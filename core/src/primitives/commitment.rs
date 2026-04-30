@@ -6,9 +6,7 @@ mod representation;
 use crate::foundation::group::Group;
 use crate::foundation::representation::Message;
 use crate::primitives::commitment::pedersen::Pedersen;
-pub use crate::primitives::commitment::representation::{
-    HomomorphicCommitment, HomomorphicOpening,
-};
+pub use crate::primitives::commitment::representation::{HomomorphicCommitment, HomomorphicOpening};
 use rand_core::{CryptoRng, RngCore};
 
 /// A hiding commitment (Pedersen) with N messages.
@@ -19,10 +17,7 @@ pub struct HHomomorphicCommitment<G: Group, const N: usize = 1> {
 
 impl<G: Group, const N: usize> Default for HHomomorphicCommitment<G, N> {
     fn default() -> Self {
-        let pedersen = Pedersen::new(
-            G::basepoint(),
-            G::independent_generators::<N>(b"PedersenParameters"),
-        );
+        let pedersen = Pedersen::new(G::basepoint(), G::independent_generators::<N>(b"PedersenParameters"));
 
         Self::new(pedersen)
     }
@@ -33,27 +28,15 @@ impl<G: Group, const N: usize> HHomomorphicCommitment<G, N> {
         Self { pedersen }
     }
 
-    pub fn commit<R: RngCore + CryptoRng>(
-        &self,
-        rng: &mut R,
-        messages: &[Message<G>; N],
-    ) -> (HomomorphicCommitment<G>, HomomorphicOpening<G>) {
+    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R, messages: &[Message<G>; N]) -> (HomomorphicCommitment<G>, HomomorphicOpening<G>) {
         let randomness = G::scalar_random(rng);
         let scalar_messages: Vec<G::Scalar> = messages.iter().copied().collect();
         let commitment = self.pedersen.commit(&randomness, &scalar_messages);
 
-        (
-            HomomorphicCommitment(commitment),
-            HomomorphicOpening(randomness),
-        )
+        (HomomorphicCommitment(commitment), HomomorphicOpening(randomness))
     }
 
-    pub fn open(
-        &self,
-        messages: &[Message<G>; N],
-        commitment: &HomomorphicCommitment<G>,
-        opening: &HomomorphicOpening<G>,
-    ) -> bool {
+    pub fn open(&self, messages: &[Message<G>; N], commitment: &HomomorphicCommitment<G>, opening: &HomomorphicOpening<G>) -> bool {
         let scalar_messages: Vec<G::Scalar> = messages.iter().copied().collect();
 
         self.pedersen.commit(&opening.0, &scalar_messages) == commitment.0

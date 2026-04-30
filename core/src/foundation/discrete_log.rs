@@ -11,10 +11,7 @@ pub struct GreedyDiscreteLog<G: Group> {
 
 impl<G: Group> Default for GreedyDiscreteLog<G> {
     fn default() -> Self {
-        Self {
-            start: G::Scalar::from(0),
-            end: None,
-        }
+        Self { start: G::Scalar::from(0), end: None }
     }
 }
 
@@ -74,10 +71,7 @@ impl<G: Group> DiscreteLog<G> for PrecomputedDiscreteLog<G> {
     fn log(&self, g: &G::Point, point: &G::Point) -> Option<G::Scalar> {
         assert_eq!(*g, self.g);
 
-        self.table
-            .iter()
-            .position(|candidate| candidate == point)
-            .map(|index| self.range.0 + &G::Scalar::from(index as u64))
+        self.table.iter().position(|candidate| candidate == point).map(|index| self.range.0 + &G::Scalar::from(index as u64))
     }
 }
 
