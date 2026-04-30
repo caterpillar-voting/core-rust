@@ -2,9 +2,7 @@ use crate::foundation::discrete_log::DiscreteLog;
 use crate::foundation::group::Group;
 use crate::foundation::representation::{EncodedMessage, Message};
 use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
-pub use crate::primitives::encryption::representation::{
-    Ciphertext, HomomorphicCiphertext, PublicKey, SecretKey,
-};
+pub use crate::primitives::encryption::representation::{Ciphertext, HomomorphicCiphertext, PublicKey, SecretKey};
 use rand_core::{CryptoRng, RngCore};
 
 pub mod el_gamal;
@@ -20,9 +18,7 @@ pub struct Encryption<G: Group> {
 
 impl<G: Group> Default for Encryption<G> {
     fn default() -> Self {
-        Self {
-            el_gamal: ElGamal::default(),
-        }
+        Self { el_gamal: ElGamal::default() }
     }
 }
 impl<G: Group> Encryption<G> {
@@ -38,12 +34,7 @@ impl<G: Group> Encryption<G> {
         (secret_key, public_key)
     }
 
-    pub fn encrypt<R: RngCore + CryptoRng>(
-        &self,
-        public_key: &PublicKey<G>,
-        rng: &mut R,
-        message: &EncodedMessage<G>,
-    ) -> Ciphertext<G> {
+    pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, rng: &mut R, message: &EncodedMessage<G>) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
         let (alpha, beta) = self.el_gamal.encrypt(public_key, &randomness, message);
 
@@ -54,28 +45,16 @@ impl<G: Group> Encryption<G> {
         (alpha, beta)
     }
 
-    pub fn reencrypt<R: RngCore + CryptoRng>(
-        &self,
-        public_key: &PublicKey<G>,
-        rng: &mut R,
-        ciphertext: &Ciphertext<G>,
-    ) -> Ciphertext<G> {
+    pub fn reencrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, rng: &mut R, ciphertext: &Ciphertext<G>) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
 
-        let (alpha, beta) =
-            self.el_gamal
-                .reencrypt(public_key, &randomness, &(ciphertext.0, ciphertext.1));
+        let (alpha, beta) = self.el_gamal.reencrypt(public_key, &randomness, &(ciphertext.0, ciphertext.1));
 
         (alpha, beta)
     }
 
-    pub fn decrypt(
-        &self,
-        secret_key: &SecretKey<G>,
-        ciphertext: &Ciphertext<G>,
-    ) -> EncodedMessage<G> {
-        self.el_gamal
-            .decrypt(&secret_key.0, &(ciphertext.0, ciphertext.1))
+    pub fn decrypt(&self, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> EncodedMessage<G> {
+        self.el_gamal.decrypt(&secret_key.0, &(ciphertext.0, ciphertext.1))
     }
 }
 
@@ -94,9 +73,7 @@ impl<G: Group> Default for EncryptionHomomorph<G> {
 
 impl<G: Group> EncryptionHomomorph<G> {
     pub fn new(exponential_el_gamal: ExponentialElGamal<G>) -> Self {
-        Self {
-            exponential_el_gamal,
-        }
+        Self { exponential_el_gamal }
     }
 
     pub fn key_gen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (SecretKey<G>, PublicKey<G>) {
@@ -107,16 +84,9 @@ impl<G: Group> EncryptionHomomorph<G> {
         (secret_key, public_key)
     }
 
-    pub fn encrypt<R: RngCore + CryptoRng>(
-        &self,
-        public_key: &PublicKey<G>,
-        rng: &mut R,
-        message: &Message<G>,
-    ) -> HomomorphicCiphertext<G> {
+    pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, rng: &mut R, message: &Message<G>) -> HomomorphicCiphertext<G> {
         let randomness = G::scalar_random(rng);
-        let (alpha, beta) = self
-            .exponential_el_gamal
-            .encrypt(public_key, &randomness, message);
+        let (alpha, beta) = self.exponential_el_gamal.encrypt(public_key, &randomness, message);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -125,34 +95,16 @@ impl<G: Group> EncryptionHomomorph<G> {
         HomomorphicCiphertext(alpha, beta)
     }
 
-    pub fn reencrypt<R: RngCore + CryptoRng>(
-        &self,
-        public_key: &PublicKey<G>,
-        rng: &mut R,
-        ciphertext: &HomomorphicCiphertext<G>,
-    ) -> HomomorphicCiphertext<G> {
+    pub fn reencrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, rng: &mut R, ciphertext: &HomomorphicCiphertext<G>) -> HomomorphicCiphertext<G> {
         let randomness = G::scalar_random(rng);
 
-        let (alpha, beta) = self.exponential_el_gamal.0.reencrypt(
-            public_key,
-            &randomness,
-            &(ciphertext.0, ciphertext.1),
-        );
+        let (alpha, beta) = self.exponential_el_gamal.0.reencrypt(public_key, &randomness, &(ciphertext.0, ciphertext.1));
 
         HomomorphicCiphertext(alpha, beta)
     }
 
-    pub fn decrypt(
-        &self,
-        secret_key: &SecretKey<G>,
-        ciphertext: &HomomorphicCiphertext<G>,
-        decoder: &dyn DiscreteLog<G>,
-    ) -> Option<Message<G>> {
-        let decrypted = self.exponential_el_gamal.decrypt(
-            &secret_key.0,
-            &(ciphertext.0, ciphertext.1),
-            decoder,
-        )?;
+    pub fn decrypt(&self, secret_key: &SecretKey<G>, ciphertext: &HomomorphicCiphertext<G>, decoder: &dyn DiscreteLog<G>) -> Option<Message<G>> {
+        let decrypted = self.exponential_el_gamal.decrypt(&secret_key.0, &(ciphertext.0, ciphertext.1), decoder)?;
 
         Some(decrypted)
     }

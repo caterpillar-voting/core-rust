@@ -31,18 +31,13 @@ fn compose<G: Group>(proof_builder_tree: &TreeProofBuilder<G>) -> (Claim<G>, Kno
     }
 }
 
-fn collect<G: Group>(
-    proof_builders: &Vec<TreeProofBuilder<G>>,
-) -> (Vec<Claim<G>>, Vec<Knowledge<G>>) {
-    proof_builders.iter().fold(
-        (Vec::new(), Vec::new()),
-        |(mut claims, mut knowledges), pb| {
-            let (claim, knowledge) = compose(pb);
-            claims.push(claim);
-            knowledges.push(knowledge);
-            (claims, knowledges)
-        },
-    )
+fn collect<G: Group>(proof_builders: &Vec<TreeProofBuilder<G>>) -> (Vec<Claim<G>>, Vec<Knowledge<G>>) {
+    proof_builders.iter().fold((Vec::new(), Vec::new()), |(mut claims, mut knowledges), pb| {
+        let (claim, knowledge) = compose(pb);
+        claims.push(claim);
+        knowledges.push(knowledge);
+        (claims, knowledges)
+    })
 }
 
 #[cfg(test)]
@@ -65,8 +60,7 @@ mod tests {
 
         let enc1 = EncProofBuilder::<Curve>::new(pk, uv_enc1, Curve::basepoint(), Some(r_enc1));
         let renenc = ReEncProofBuilder::<Curve>::new(pk, uv, uv_enc1, None);
-        let tree: TreeProofBuilder<Curve> =
-            And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]);
+        let tree: TreeProofBuilder<Curve> = And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]);
 
         let (claim, knowledge) = tree.build();
 

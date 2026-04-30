@@ -109,10 +109,7 @@ impl Proof {
             }
             // output simulated transcripts of statements without knowledge
             (Leaf((None, Some((actual_c, simulated)))), Leaf(_), Leaf(_)) => {
-                assert_eq!(
-                    actual_c, c,
-                    "simulated challenge does not match actual challenge. this hints at an inconsistency in the proof tree."
-                );
+                assert_eq!(actual_c, c, "simulated challenge does not match actual challenge. this hints at an inconsistency in the proof tree.");
 
                 Leaf((*c, simulated.clone()))
             }
@@ -237,11 +234,7 @@ impl Proof {
                     .collect();
 
                 if challenges.len() == prepared_nodes.len() {
-                    Some(
-                        challenges
-                            .iter()
-                            .fold(G::Scalar::from(0), |acc, challenge| acc + challenge),
-                    )
+                    Some(challenges.iter().fold(G::Scalar::from(0), |acc, challenge| acc + challenge))
                 } else {
                     None
                 }
@@ -262,11 +255,7 @@ impl Proof {
     ) -> Option<G::Scalar> {
         match (claim, proof) {
             (Leaf(statements), Leaf((c, transcripts))) => {
-                if statements
-                    .iter()
-                    .zip(transcripts.iter())
-                    .all(|(statement, (r, t))| statement.verify(r, t, c))
-                {
+                if statements.iter().zip(transcripts.iter()).all(|(statement, (r, t))| statement.verify(r, t, c)) {
                     Some(*c)
                 } else {
                     None
@@ -312,9 +301,7 @@ impl Proof {
 mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::primitives::zkp::_test_utils::{
-        create_elgamal_enc0_and_enc1, create_elgamal_enc1_reenc_statements, proof_claims,
-    };
+    use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1, create_elgamal_enc1_reenc_statements, proof_claims};
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;
@@ -324,8 +311,7 @@ mod tests {
         let mut rng = thread_rng();
 
         let (pk, (uv, _), (uv_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
-        let ((zkp_enc1_u, zkp_enc1_v), (zkp_rerand_u, zkp_rerand_v)) =
-            create_elgamal_enc1_reenc_statements(pk, uv, uv_enc1);
+        let ((zkp_enc1_u, zkp_enc1_v), (zkp_rerand_u, zkp_rerand_v)) = create_elgamal_enc1_reenc_statements(pk, uv, uv_enc1);
 
         /*
         compositions checked:
@@ -337,20 +323,14 @@ mod tests {
         */
         let claim: Claim<Curve> = And(vec![
             Leaf(Box::new([zkp_enc1_u.clone(), zkp_enc1_v.clone()])),
-            And(vec![Leaf(Box::new([
-                zkp_enc1_u.clone(),
-                zkp_enc1_v.clone(),
-            ]))]),
+            And(vec![Leaf(Box::new([zkp_enc1_u.clone(), zkp_enc1_v.clone()]))]),
             Or(vec![
-                Leaf(Box::new([zkp_enc1_u.clone()])),             // true
-                Leaf(Box::new([zkp_rerand_u.clone()])),           // false
-                Or(vec![Leaf(Box::new([zkp_enc1_u.clone()]))]),   // true
-                Or(vec![Leaf(Box::new([zkp_rerand_u.clone()]))]), // false
-                And(vec![Leaf(Box::new([zkp_enc1_u.clone()]))]),  // true
-                And(vec![Leaf(Box::new([
-                    zkp_rerand_u.clone(),
-                    zkp_rerand_v.clone(),
-                ]))]), // false
+                Leaf(Box::new([zkp_enc1_u.clone()])),                                    // true
+                Leaf(Box::new([zkp_rerand_u.clone()])),                                  // false
+                Or(vec![Leaf(Box::new([zkp_enc1_u.clone()]))]),                          // true
+                Or(vec![Leaf(Box::new([zkp_rerand_u.clone()]))]),                        // false
+                And(vec![Leaf(Box::new([zkp_enc1_u.clone()]))]),                         // true
+                And(vec![Leaf(Box::new([zkp_rerand_u.clone(), zkp_rerand_v.clone()]))]), // false
             ]),
         ]);
         let knowledge: Knowledge<Curve> = And(vec![

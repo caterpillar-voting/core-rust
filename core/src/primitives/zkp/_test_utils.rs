@@ -10,9 +10,7 @@ type Curve = RistrettoGroup;
 type Scalar = <RistrettoGroup as Group>::Scalar;
 type Point = <RistrettoGroup as Group>::Point;
 
-pub fn create_elgamal_enc0_and_enc1<R: RngCore + CryptoRng>(
-    rng: &mut R,
-) -> (Point, ((Point, Point), Scalar), ((Point, Point), Scalar)) {
+pub fn create_elgamal_enc0_and_enc1<R: RngCore + CryptoRng>(rng: &mut R) -> (Point, ((Point, Point), Scalar), ((Point, Point), Scalar)) {
     let el_gamal = ElGamal::<Curve>::default();
     let exponential_el_gamal = ExponentialElGamal(el_gamal);
     let sk = exponential_el_gamal.0.generate_secret_key(rng);
@@ -29,14 +27,7 @@ pub fn create_elgamal_enc0_and_enc1<R: RngCore + CryptoRng>(
     (pk, ((u, v), r), ((u_enc1, v_enc1), r_enc1))
 }
 
-pub fn create_elgamal_enc1_reenc_statements(
-    pk: Point,
-    (u, v): (Point, Point),
-    (u_dash, v_dash): (Point, Point),
-) -> (
-    (Statement<Curve>, Statement<Curve>),
-    (Statement<Curve>, Statement<Curve>),
-) {
+pub fn create_elgamal_enc1_reenc_statements(pk: Point, (u, v): (Point, Point), (u_dash, v_dash): (Point, Point)) -> ((Statement<Curve>, Statement<Curve>), (Statement<Curve>, Statement<Curve>)) {
     let zkp_enc1_u = Statement::<Curve>::new(Curve::basepoint(), u_dash);
     let zkp_enc1_v = Statement::<Curve>::new(pk, v_dash - Curve::basepoint());
     let zkp_rerand_u = Statement::<Curve>::new(Curve::basepoint(), u_dash - u);

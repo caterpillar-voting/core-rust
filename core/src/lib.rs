@@ -72,16 +72,9 @@ mod tests {
 
         let ciphertext = encryption.encrypt(&public_key, &mut rng, &message);
         let randomness = Curve::scalar_random(&mut rng);
-        let ciphertext_dash = encryption
-            .el_gamal
-            .reencrypt(&public_key, &randomness, &ciphertext);
+        let ciphertext_dash = encryption.el_gamal.reencrypt(&public_key, &randomness, &ciphertext);
 
-        let re_enc = ReEncProofBuilder::<Curve>::new(
-            public_key,
-            ciphertext,
-            ciphertext_dash,
-            Some(randomness),
-        );
+        let re_enc = ReEncProofBuilder::<Curve>::new(public_key, ciphertext, ciphertext_dash, Some(randomness));
         let (zk_proof, knowledge) = ZKProof::from_builder(&re_enc);
 
         let proof_preparation = zk_proof.commit(&mut rng, &knowledge);
@@ -101,12 +94,9 @@ mod tests {
         let (_, public_key) = encryption.key_gen(&mut rng);
 
         let randomness = Curve::scalar_random(&mut rng);
-        let ciphertext = encryption
-            .el_gamal
-            .encrypt(&public_key, &randomness, &message1);
+        let ciphertext = encryption.el_gamal.encrypt(&public_key, &randomness, &message1);
 
-        let enc1 =
-            EncProofBuilder::<Curve>::new(public_key, ciphertext, message1, Some(randomness));
+        let enc1 = EncProofBuilder::<Curve>::new(public_key, ciphertext, message1, Some(randomness));
         let enc2 = EncProofBuilder::<Curve>::new(public_key, ciphertext, message2, None);
         let tree: TreeProofBuilder<Curve> = Or(vec![Leaf(&enc1), Leaf(&enc2)]);
         let (zk_proof, knowledge) = ZKProof::from_builder(&tree);

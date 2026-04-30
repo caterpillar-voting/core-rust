@@ -58,10 +58,7 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NIZKProof<G,
         let mut claim_context_hash = context_hash;
         claim_context_hash.add_claim(&zk_proof.claim);
 
-        Self {
-            zk_proof,
-            claim_context_hash,
-        }
+        Self { zk_proof, claim_context_hash }
     }
 
     pub fn proof<R: RngCore + CryptoRng>(
