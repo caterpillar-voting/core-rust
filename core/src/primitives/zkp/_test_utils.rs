@@ -50,9 +50,9 @@ pub fn proof_claims<R: RngCore + CryptoRng>(
     claim: Claim<Curve>,
     knowledge: Knowledge<Curve>,
 ) {
-    let prepared_proof = Proof::prepare(rng, &claim, &knowledge);
+    let commit = Proof::commit(rng, &claim, &knowledge);
     let challenge = Scalar::random(rng);
-    let finalized_proof = Proof::finalize(rng, &prepared_proof, &claim, &knowledge, &challenge);
+    let response = Proof::response(rng, &commit, &claim, &knowledge, &challenge);
 
-    assert!(Proof::check(&claim, &finalized_proof, &challenge))
+    assert!(Proof::verify(&claim, &response, &challenge))
 }
