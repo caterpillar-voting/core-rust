@@ -100,26 +100,14 @@ where
             zkp1_pubdata: zkp1.public_data,
             zkp2_pubdata: zkp2.public_data,
         };
-        Self {
-            zkp1,
-            zkp2,
-            public_data,
-            context,
-        }
+        Self { zkp1, zkp2, public_data, context }
     }
 
-    fn commit<R: RngCore + CryptoRng>(
-        &self,
-        witness: &OrTwoReEncZKPWitness<G>,
-        rng: &mut R,
-    ) -> (OrTwoReEncZKPCommit<G>, OrTwoReEncZKPState<G>) {
+    fn commit<R: RngCore + CryptoRng>(&self, witness: &OrTwoReEncZKPWitness<G>, rng: &mut R) -> (OrTwoReEncZKPCommit<G>, OrTwoReEncZKPState<G>) {
         assert!(witness.zkp1_witness.is_some() || witness.zkp2_witness.is_some());
         if let Some(zkp1_witness) = witness.zkp1_witness {
             let pf2 = self.zkp2.simulate(rng);
-            assert!(
-                self.zkp2
-                    .interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response)
-            );
+            assert!(self.zkp2.interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response));
             let (com1, st1) = self.zkp1.commit(&zkp1_witness, rng);
             let com = OrTwoReEncZKPCommit {
                 zkp1_commit: com1,
@@ -135,10 +123,7 @@ where
             (com, state)
         } else {
             let pf1 = self.zkp1.simulate(rng);
-            assert!(
-                self.zkp1
-                    .interactive_verify(&pf1.commit, &pf1.challenge, &pf1.response)
-            );
+            assert!(self.zkp1.interactive_verify(&pf1.commit, &pf1.challenge, &pf1.response));
             let (com2, st2) = self.zkp2.commit(&witness.zkp2_witness.unwrap(), rng);
             let com = OrTwoReEncZKPCommit {
                 zkp1_commit: pf1.commit,
@@ -155,11 +140,7 @@ where
         }
     }
 
-    fn respond(
-        &self,
-        state: OrTwoReEncZKPState<G>,
-        challenge: OrTwoReEncZKPChallenge<G>,
-    ) -> OrTwoReEncZKPResponse<G> {
+    fn respond(&self, state: OrTwoReEncZKPState<G>, challenge: OrTwoReEncZKPChallenge<G>) -> OrTwoReEncZKPResponse<G> {
         assert!(state.side == 1 || state.side == 2);
         if state.side == 1 {
             assert!(state.zkp1_state.is_some());
@@ -167,10 +148,7 @@ where
             let st2 = state.zkp2_simulated.unwrap();
             let chal1 = challenge - &st2.challenge;
             let resp1 = self.zkp1.respond(&state.zkp1_state.unwrap(), &chal1);
-            let chal = OrTwoReEncZKPInnerChallenges {
-                chal1,
-                chal2: st2.challenge,
-            };
+            let chal = OrTwoReEncZKPInnerChallenges { chal1, chal2: st2.challenge };
 
             OrTwoReEncZKPResponse {
                 zkp1_response: resp1,
@@ -183,10 +161,7 @@ where
             let st1 = state.zkp1_simulated.unwrap();
             let chal2 = challenge - &st1.challenge;
             let resp2 = self.zkp2.respond(&state.zkp2_state.unwrap(), &chal2);
-            let chal = OrTwoReEncZKPInnerChallenges {
-                chal1: st1.challenge,
-                chal2,
-            };
+            let chal = OrTwoReEncZKPInnerChallenges { chal1: st1.challenge, chal2 };
 
             OrTwoReEncZKPResponse {
                 zkp1_response: st1.response,
@@ -204,12 +179,7 @@ where
         <VectorContextHash as ContextHash<G>>::add_scalar(&mut buf, &chal2);
         <VectorContextHash as ContextHash<G>>::hash_to_scalar(&buf)
     }
-    fn verify(
-        &self,
-        commit: &OrTwoReEncZKPCommit<G>,
-        sum_challenges: &OrTwoReEncZKPChallenge<G>,
-        response: &OrTwoReEncZKPResponse<G>,
-    ) -> bool {
+    fn verify(&self, commit: &OrTwoReEncZKPCommit<G>, sum_challenges: &OrTwoReEncZKPChallenge<G>, response: &OrTwoReEncZKPResponse<G>) -> bool {
         let pf1: ReEncZKPProof<G> = ReEncZKPProof {
             commit: commit.zkp1_commit,
             challenge: response.inner_challenges.chal1,
@@ -220,23 +190,11 @@ where
             challenge: response.inner_challenges.chal2,
             response: response.zkp2_response,
         };
-        assert!(
-            self.zkp1
-                .interactive_verify(&pf1.commit, &pf1.challenge, &pf1.response)
-        );
-        assert!(
-            self.zkp2
-                .interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response)
-        );
+        assert!(self.zkp1.interactive_verify(&pf1.commit, &pf1.challenge, &pf1.response));
+        assert!(self.zkp2.interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response));
         let chal = pf1.challenge + &pf2.challenge;
         assert!(chal == *sum_challenges);
-        chal == *sum_challenges
-            && self
-                .zkp1
-                .interactive_verify(&pf1.commit, &pf1.challenge, &pf1.response)
-            && self
-                .zkp2
-                .interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response)
+        chal == *sum_challenges && self.zkp1.interactive_verify(&pf1.commit, &pf1.challenge, &pf1.response) && self.zkp2.interactive_verify(&pf2.commit, &pf2.challenge, &pf2.response)
     }
     fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> OrTwoReEncZKPProof<G> {
         let pf1 = self.zkp1.simulate(rng);
@@ -256,11 +214,7 @@ where
             inner_challenges,
         };
 
-        OrTwoReEncZKPProof {
-            commit,
-            challenge: chal,
-            response,
-        }
+        OrTwoReEncZKPProof { commit, challenge: chal, response }
     }
 }
 
@@ -276,11 +230,7 @@ where
         let (commit, state) = Self::commit(self, witness, rng);
         let challenge = Self::get_challenge(self, &commit);
         let response = Self::respond(self, state, challenge);
-        OrTwoReEncZKPProof {
-            commit,
-            challenge,
-            response,
-        }
+        OrTwoReEncZKPProof { commit, challenge, response }
     }
 
     fn verify(&self, proof: &Self::Proof) -> bool {
@@ -298,11 +248,7 @@ where
     //    type Challenge = OrTwoReEncZKPChallenge<G>;
     type Response = OrTwoReEncZKPResponse<G>;
     type State = OrTwoReEncZKPState<G>;
-    fn commit<R: RngCore + CryptoRng>(
-        &self,
-        witness: &Self::Witness,
-        rng: &mut R,
-    ) -> (Self::Commit, Self::State) {
+    fn commit<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R) -> (Self::Commit, Self::State) {
         Self::commit(self, witness, rng)
     }
     fn get_challenge(&self, commit: &Self::Commit) -> zkp2::Challenge<G> {
@@ -315,12 +261,7 @@ where
         Self::respond(self, st, chal)
     }
 
-    fn interactive_verify(
-        &self,
-        commit: &Self::Commit,
-        challenge: &Challenge<G>,
-        response: &Self::Response,
-    ) -> bool {
+    fn interactive_verify(&self, commit: &Self::Commit, challenge: &Challenge<G>, response: &Self::Response) -> bool {
         Self::verify(self, commit, challenge, response)
     }
 }

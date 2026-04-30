@@ -36,11 +36,7 @@ pub fn create_elgamal_enc1_reenc_statements(pk: Point, (u, v): (Point, Point), (
     ((zkp_enc1_u, zkp_enc1_v), (zkp_rerand_u, zkp_rerand_v))
 }
 
-pub fn proof_claims<R: RngCore + CryptoRng>(
-    rng: &mut R,
-    claim: Claim<Curve>,
-    knowledge: Knowledge<Curve>,
-) {
+pub fn proof_claims<R: RngCore + CryptoRng>(rng: &mut R, claim: Claim<Curve>, knowledge: Knowledge<Curve>) {
     let commit = Proof::commit(rng, &claim, &knowledge);
     let challenge = Scalar::random(rng);
     let response = Proof::response(rng, &commit, &claim, &knowledge, &challenge);
