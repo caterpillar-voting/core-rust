@@ -5,78 +5,77 @@ use crate::primitives::zkp2;
 use crate::primitives::zkp2::{ZKP, SigmaZKP, SimulableZKP, Challenge};
 
 #[derive(Clone)]
-pub struct ReEncZKP<G> where G: Group {
-    pub public_data: ReEncZKPPublicData<G>,
+pub struct EncZKP<G> where G: Group {
+    pub public_data: EncZKPPublicData<G>,
     pub context: Vec<u8>,
 }
 
-pub type ReEncZKPWitness<G> = <G as Group>::Scalar;
-pub type ReEncZKPContext = Vec<u8>;
-pub type ReEncZKPCommit<G> = (<G as Group>::Point, <G as Group>::Point);
-pub type ReEncZKPResponse<G> = <G as Group>::Scalar;
-pub type ReEncZKPChallenge<G> = zkp2::Challenge<G>;
-pub type ReEncZKPState<G> = (<G as Group>::Scalar, <G as Group>::Scalar);
+pub type EncZKPWitness<G> = <G as Group>::Scalar;
+pub type EncZKPContext = Vec<u8>;
+pub type EncZKPCommit<G> = (<G as Group>::Point, <G as Group>::Point);
+pub type EncZKPResponse<G> = <G as Group>::Scalar;
+pub type EncZKPChallenge<G> = zkp2::Challenge<G>;
+pub type EncZKPState<G> = (<G as Group>::Scalar, <G as Group>::Scalar);
 
 #[derive(Copy, Clone)]
-pub struct ReEncZKPProof<G: Group> {
-    pub commit: ReEncZKPCommit<G>,
-    pub challenge: ReEncZKPChallenge<G>,
-    pub response: ReEncZKPResponse<G>
+pub struct EncZKPProof<G: Group> {
+    pub commit: EncZKPCommit<G>,
+    pub challenge: EncZKPChallenge<G>,
+    pub response: EncZKPResponse<G>
 }
 
 #[derive(Copy, Clone)]
-pub struct ReEncZKPPublicData<G> where G: Group {
+pub struct EncZKPPublicData<G> where G: Group {
     public_key : G::Point,
     ciphertext: (G::Point, G::Point),
-    ciphertext_rnd: (G::Point, G::Point),
+    message: G::Point
 }
 
-impl<G> ReEncZKP<G> where G: Group {
-    pub fn new(public_key: G::Point, ciphertext: (G::Point, G::Point), ciphertext_rnd: (G::Point, G::Point), context: Vec<u8>) -> Self {
+impl<G> EncZKP<G> where G: Group {
+    pub fn new(public_key: G::Point, ciphertext: (G::Point, G::Point), message: G::Point, context: Vec<u8>) -> Self {
         Self {
-            public_data: ReEncZKPPublicData {
+            public_data: EncZKPPublicData {
                 public_key,
                 ciphertext,
-                ciphertext_rnd,
+                message,
             },
             context: context
         }
     }
 
-    fn phi(&self, x: &ReEncZKPWitness<G>) -> ReEncZKPCommit<G> {
+    fn phi(&self, x: &EncZKPWitness<G>) -> EncZKPCommit<G> {
         let phi1 = G::basepoint() * &x;
         let phi2 = self.public_data.public_key * &x;
         (phi1, phi2)
     }
     fn commit<R : RngCore + CryptoRng>(&self, witness: &G::Scalar, rng : &mut R)
-            -> (ReEncZKPCommit<G>, ReEncZKPState<G>) {
+            -> (EncZKPCommit<G>, EncZKPState<G>) {
         let k = G::scalar_random(rng);
         let phik = self.phi(&k);
         let state = (k, witness.clone());  // TODO, with lifetime, we can remove clone
         (phik, state)
     }
-    fn respond(&self, state: &ReEncZKPState<G>, challenge: &ReEncZKPChallenge<G>) -> ReEncZKPResponse<G> {
+    fn respond(&self, state: &EncZKPState<G>, challenge: &EncZKPChallenge<G>) -> EncZKPResponse<G> {
         state.0 + &(state.1 * challenge)
     }
 
-    fn get_challenge(&self, commit: &ReEncZKPCommit<G>)
-            -> ReEncZKPChallenge<G> {
+    fn get_challenge(&self, commit: &EncZKPCommit<G>)
+            -> EncZKPChallenge<G> {
         let mut buf = VectorContextHash::new(self.context.clone());
         <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &self.public_data.public_key);
         <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &self.public_data.ciphertext.0);
         <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &self.public_data.ciphertext.1);
-        <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &self.public_data.ciphertext_rnd.0);
-        <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &self.public_data.ciphertext_rnd.1);
+        <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &self.public_data.message);
         <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &commit.0);
         <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &commit.1);
         <VectorContextHash as ContextHash<G>>::hash_to_scalar(&mut buf)
     }
 
-    fn verify(&self, commit: &ReEncZKPCommit<G>, challenge: &ReEncZKPChallenge<G>, response: &ReEncZKPResponse<G>)
+    fn verify(&self, commit: &EncZKPCommit<G>, challenge: &EncZKPChallenge<G>, response: &EncZKPResponse<G>)
             -> bool {
         let phir = self.phi(&response);
-        let z0 = self.public_data.ciphertext_rnd.0 - &self.public_data.ciphertext.0;
-        let z1 = self.public_data.ciphertext_rnd.1 - &self.public_data.ciphertext.1;
+        let z0 = self.public_data.ciphertext.0;
+        let z1 = self.public_data.ciphertext.1 - &self.public_data.message;
         let cz0 = z0 * &challenge;
         let cz1 = z1 * &challenge;
         let p0 = cz0 + &commit.0;
@@ -84,17 +83,17 @@ impl<G> ReEncZKP<G> where G: Group {
         phir.0 == p0 && phir.1 == p1
     }
 
-    fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> ReEncZKPProof<G> {
+    fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> EncZKPProof<G> {
         let challenge = G::scalar_random(rng);
         let response = G::scalar_random(rng);
-        let z0 = self.public_data.ciphertext_rnd.0 - &self.public_data.ciphertext.0;
-        let z1 = self.public_data.ciphertext_rnd.1 - &self.public_data.ciphertext.1;
+        let z0 = self.public_data.ciphertext.0;
+        let z1 = self.public_data.ciphertext.1 - &self.public_data.message;
         let phir = self.phi(&response);
         let com0 = phir.0 - &(z0 * &challenge);
         let com1 = phir.1 - &(z1 * &challenge);
         let commit = (com0, com1);
 
-        ReEncZKPProof {
+        EncZKPProof {
             commit,
             challenge,
             response,
@@ -103,17 +102,17 @@ impl<G> ReEncZKP<G> where G: Group {
     }
 }
 
-impl<G> ZKP<G> for ReEncZKP<G> where G: Group{
-    type PublicData = ReEncZKPPublicData<G>;
-    type Witness = ReEncZKPWitness<G>;
-    type Context = ReEncZKPContext;
-    type Proof = ReEncZKPProof<G>;
+impl<G> ZKP<G> for EncZKP<G> where G: Group{
+    type PublicData = EncZKPPublicData<G>;
+    type Witness = EncZKPWitness<G>;
+    type Context = EncZKPContext;
+    type Proof = EncZKPProof<G>;
     fn prove<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R)
             -> Self::Proof {
         let (commit, state) = Self::commit(&self, witness, rng);
         let chal = Self::get_challenge(&self, &commit);
         let response = Self::respond(&self, &state, &chal);
-        ReEncZKPProof {
+        EncZKPProof {
             commit: commit,
             challenge: chal,
             response: response,
@@ -127,11 +126,11 @@ impl<G> ZKP<G> for ReEncZKP<G> where G: Group{
     }
 }
 
-impl<G> SigmaZKP<G> for ReEncZKP<G> where G: Group {
-    type Commit = ReEncZKPCommit<G>;
-//    type Challenge = ReEncZKPChallenge<G>;
-    type Response = ReEncZKPResponse<G>;
-    type State = ReEncZKPState<G>;
+impl<G> SigmaZKP<G> for EncZKP<G> where G: Group {
+    type Commit = EncZKPCommit<G>;
+//    type Challenge = EncZKPChallenge<G>;
+    type Response = EncZKPResponse<G>;
+    type State = EncZKPState<G>;
     fn commit<R: RngCore + CryptoRng>(&self, witness: &Self::Witness, rng: &mut R) -> (Self::Commit, Self::State) {
         Self::commit(&self, witness, rng)
     }
@@ -147,7 +146,7 @@ impl<G> SigmaZKP<G> for ReEncZKP<G> where G: Group {
     }
 }
 
-impl<G> SimulableZKP<G> for ReEncZKP<G> where G: Group {
+impl<G> SimulableZKP<G> for EncZKP<G> where G: Group {
     fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R) -> Self::Proof {
         Self::simulate(&self, rng)
     }
@@ -158,9 +157,9 @@ mod tests {
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::group::Group;
     use crate::primitives::encryption::el_gamal::ElGamal;
-    use crate::primitives::zkp2::reenc::ReEncZKP;
     use crate::primitives::zkp2::ZKP;
     use rand::thread_rng;
+    use crate::primitives::zkp2::enc::EncZKP;
 
     type Curve = RistrettoGroup;
 
@@ -178,17 +177,13 @@ mod tests {
         let r = Curve::scalar_random(&mut rng);
         let enc_m = el_gamal.encrypt(&pk, &r, &m);
 
-        // From here, we know only pk, enc_m
+        // From here, we know pk, m, r, enc_m
 
-        // Generate re_encryption
-        let s = Curve::scalar_random(&mut rng);
-        let reenc_m = el_gamal.reencrypt(&pk, &s, &enc_m);
+        // A ZKP that I encrypted m
+        let ctx = b"enc_m".to_vec();
+        let zkp: EncZKP<Curve> = EncZKP::new(pk, enc_m, m, ctx);
 
-        // A ZKP that I re-encrypted
-        let ctx = b"renc".to_vec();
-        let zkp: ReEncZKP<Curve> = ReEncZKP::new(pk, enc_m, reenc_m, ctx);
-
-        let proof1 = zkp.prove(&s, &mut rng);
-        assert!(<ReEncZKP<Curve> as ZKP<Curve>>::verify(&zkp, &proof1));
+        let proof1 = zkp.prove(&r, &mut rng);
+        assert!(<EncZKP<Curve> as ZKP<Curve>>::verify(&zkp, &proof1));
     }
 }

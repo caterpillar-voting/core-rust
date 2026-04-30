@@ -1,5 +1,6 @@
 pub mod reenc;
 pub mod or;
+pub mod enc;
 
 use crate::foundation::group::Group;
 use rand_core::{CryptoRng, RngCore};
@@ -73,14 +74,9 @@ mod tests {
         let s2 = Curve::scalar_random(&mut rng);
         let reenc_m2 = el_gamal.reencrypt(&pk2, &s2, &enc_m2);
 
-        // A ZKP that I know s1
+        // A ZKP that I know either s1 or s2 (s2 in that case)
         let ctx1 = b"first_renc".to_vec();
         let zkp1: ReEncZKP<Curve> = ReEncZKP::new(pk1, enc_m1, reenc_m1, ctx1);
-
-        let proof1 = zkp1.prove(&s1, &mut rng);
-        assert!(zkp1.verify(&proof1));
-
-        // A ZKP that I know either s1 or s2 (s2 in that case)
         let ctx2 = b"second_renc".to_vec();
         let zkp2: ReEncZKP<Curve> = ReEncZKP::new(pk2, enc_m2, reenc_m2, ctx2);
         let ctx = b"or_proof".to_vec();
