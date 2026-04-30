@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::ContextHash;
 use crate::primitives::zkp::context::ProofTreeContextHash;
-use crate::primitives::zkp::proof::{Claim, Proof, ProofCommit, ProofResponse};
+use crate::primitives::zkp::proof::{Claim, Proof, ProofState, ProofResponse};
 use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::representation::SecretKnowledge;
 use rand_core::{CryptoRng, RngCore};
@@ -25,12 +25,12 @@ impl<G: Group> ZKProof<G> {
         (Self { claim }, SecretKnowledge(knowledge))
     }
 
-    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofCommit<G> {
+    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofState<G> {
         Proof::commit(rng, &self.claim, &knowledge.0)
     }
 
-    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, prepared_proof: &ProofCommit<G>, knowledge: &SecretKnowledge<G>, c: &G::Scalar) -> ProofResponse<G> {
-        Proof::response(rng, prepared_proof, &self.claim, &knowledge.0, c)
+    pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, proof_state: &ProofState<G>, knowledge: &SecretKnowledge<G>, c: &G::Scalar) -> ProofResponse<G> {
+        Proof::response(rng, proof_state, &self.claim, &knowledge.0, c)
     }
 
     pub fn verify(&self, proof: &ProofResponse<G>, c: &G::Scalar) -> bool {
@@ -52,13 +52,13 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NIZKProof<G,
     }
 
     pub fn proof<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofResponse<G> {
-        let prepared_proof = self.zk_proof.commit(rng, knowledge);
+        let proof_state = self.zk_proof.commit(rng, knowledge);
 
         let mut context_hash = self.claim_context_hash.clone();
-        context_hash.add_prepared_proof(&prepared_proof);
+        context_hash.add_prepared_proof(&proof_state);
         let c = context_hash.hash_to_scalar();
 
-        self.zk_proof.proof(rng, &prepared_proof, knowledge, &c)
+        self.zk_proof.proof(rng, &proof_state, knowledge, &c)
     }
 
     pub fn verify(&self, proof: &ProofResponse<G>) -> bool {

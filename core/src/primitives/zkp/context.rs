@@ -1,10 +1,10 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, VectorContextHash};
-use crate::primitives::zkp::proof::{Claim, ProofCommit, ProofResponse};
+use crate::primitives::zkp::proof::{Claim, ProofState, ProofResponse};
 
 pub trait ProofTreeContextHash<G: Group> {
     fn add_claim(&mut self, claim: &Claim<G>);
-    fn add_prepared_proof(&mut self, prepared_proof: &ProofCommit<G>);
+    fn add_prepared_proof(&mut self, prepared_proof: &ProofState<G>);
     fn add_proof(&mut self, proof: &ProofResponse<G>);
 }
 
@@ -17,7 +17,7 @@ impl<G: Group> ProofTreeContextHash<G> for VectorContextHash {
         })
     }
 
-    fn add_prepared_proof(&mut self, prepared_proof: &ProofCommit<G>) {
+    fn add_prepared_proof(&mut self, prepared_proof: &ProofState<G>) {
         prepared_proof.into_iter().for_each(|(committed_proof, simulated_proof)| {
             if let Some(commits) = committed_proof {
                 for (_, t) in commits.iter() {

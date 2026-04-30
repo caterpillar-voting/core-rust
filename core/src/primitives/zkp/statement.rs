@@ -8,18 +8,13 @@ pub struct Statement<G: Group> {
     pub z: G::Point,
 }
 
-#[allow(type_alias_bounds)]
-pub type Transcript<G: Group> = (G::Scalar, G::Point);
-#[allow(type_alias_bounds)]
-pub type Commit<G: Group> = (G::Scalar, G::Point);
-
 /// naming according to https://crypto.ethz.ch/publications/files/Maurer09.pdf
 impl<G: Group> Statement<G> {
     pub fn new(g: G::Point, z: G::Point) -> Self {
         Self { g, z }
     }
 
-    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R) -> Commit<G> {
+    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (G::Scalar, G::Point) {
         let k = G::scalar_random(rng);
         let t = self.g * &k;
 
@@ -39,7 +34,7 @@ impl<G: Group> Statement<G> {
         left == right
     }
 
-    pub fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R, c: &G::Scalar) -> Transcript<G> {
+    pub fn simulate<R: RngCore + CryptoRng>(&self, rng: &mut R, c: &G::Scalar) -> (G::Scalar, G::Point) {
         let r = G::scalar_random(rng);
 
         let t = self.g * &r - &(self.z * c);
