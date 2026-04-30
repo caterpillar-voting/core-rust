@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::ContextHash;
 use crate::primitives::zkp::context::ProofTreeContextHash;
-use crate::primitives::zkp::proof::{Claim, PreparedProof, Proof, ProofTranscript};
+use crate::primitives::zkp::proof::{Claim, ProofCommit, Proof, ProofResponse};
 use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::representation::SecretKnowledge;
 use rand_core::{CryptoRng, RngCore};
@@ -25,26 +25,26 @@ impl<G: Group> ZKProof<G> {
         (Self { claim }, SecretKnowledge(knowledge))
     }
 
-    pub fn prepare<R: RngCore + CryptoRng>(
+    pub fn commit<R: RngCore + CryptoRng>(
         &self,
         rng: &mut R,
         knowledge: &SecretKnowledge<G>,
-    ) -> PreparedProof<G> {
-        Proof::prepare(rng, &self.claim, &knowledge.0)
+    ) -> ProofCommit<G> {
+        Proof::commit(rng, &self.claim, &knowledge.0)
     }
 
-    pub fn finalize<R: RngCore + CryptoRng>(
+    pub fn proof<R: RngCore + CryptoRng>(
         &self,
         rng: &mut R,
-        prepared_proof: &PreparedProof<G>,
+        prepared_proof: &ProofCommit<G>,
         knowledge: &SecretKnowledge<G>,
         c: &G::Scalar,
-    ) -> ProofTranscript<G> {
-        Proof::finalize(rng, prepared_proof, &self.claim, &knowledge.0, c)
+    ) -> ProofResponse<G> {
+        Proof::response(rng, prepared_proof, &self.claim, &knowledge.0, c)
     }
 
-    pub fn check(&self, proof: &ProofTranscript<G>, c: &G::Scalar) -> bool {
-        Proof::check(&self.claim, proof, c)
+    pub fn verify(&self, proof: &ProofResponse<G>, c: &G::Scalar) -> bool {
+        Proof::verify(&self.claim, proof, c)
     }
 }
 
@@ -68,22 +68,22 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NIZKProof<G,
         &self,
         rng: &mut R,
         knowledge: &SecretKnowledge<G>,
-    ) -> ProofTranscript<G> {
-        let prepared_proof = self.zk_proof.prepare(rng, knowledge);
+    ) -> ProofResponse<G> {
+        let prepared_proof = self.zk_proof.commit(rng, knowledge);
 
         let mut context_hash = self.claim_context_hash.clone();
         context_hash.add_prepared_proof(&prepared_proof);
         let c = context_hash.hash_to_scalar();
 
-        self.zk_proof.finalize(rng, &prepared_proof, knowledge, &c)
+        self.zk_proof.proof(rng, &prepared_proof, knowledge, &c)
     }
 
-    pub fn verify(&self, proof: &ProofTranscript<G>) -> bool {
+    pub fn verify(&self, proof: &ProofResponse<G>) -> bool {
         let mut context_hash = self.claim_context_hash.clone();
         context_hash.add_proof(proof);
         let c = context_hash.hash_to_scalar();
 
-        self.zk_proof.check(proof, &c)
+        self.zk_proof.verify(proof, &c)
     }
 }
 

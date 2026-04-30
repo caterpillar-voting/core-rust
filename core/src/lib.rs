@@ -84,11 +84,11 @@ mod tests {
         );
         let (zk_proof, knowledge) = ZKProof::from_builder(&re_enc);
 
-        let proof_preparation = zk_proof.prepare(&mut rng, &knowledge);
+        let proof_preparation = zk_proof.commit(&mut rng, &knowledge);
         let c = Curve::scalar_random(&mut rng);
-        let proof = zk_proof.finalize(&mut rng, &proof_preparation, &knowledge, &c);
+        let proof = zk_proof.proof(&mut rng, &proof_preparation, &knowledge, &c);
 
-        assert!(zk_proof.check(&proof, &c))
+        assert!(zk_proof.verify(&proof, &c))
     }
 
     #[test]
