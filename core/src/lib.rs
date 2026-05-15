@@ -25,12 +25,12 @@ mod tests {
     fn commitment() {
         let mut rng = thread_rng();
 
-        let homomorphic_commitment = Commitment::<Curve>::default();
+        let commitment = Commitment::<Curve>::default();
 
         let messages = [Scalar::from(2u8)];
-        let (commitment, opening) = homomorphic_commitment.commit(&mut rng, &messages);
+        let (commit, opening) = commitment.commit(&mut rng, &messages);
 
-        assert!(homomorphic_commitment.open(&messages, &commitment, &opening));
+        assert!(commitment.open(&messages, &commit, &opening));
     }
 
     #[test]
@@ -51,8 +51,6 @@ mod tests {
     fn homomorphic_encrypt_and_decrypt() {
         let mut rng = thread_rng();
         let message = Scalar::from(1u8);
-        let message_2 = Scalar::from(2u8);
-        let message_decoder = BruteForceDiscreteLog::<Curve>::new(Scalar::from(2u8), None);
 
         let el_gamal = ExponentialElGamal::<Curve>::default();
         let secret_key = el_gamal.0.generate_secret_key(&mut rng);
@@ -61,9 +59,11 @@ mod tests {
         let ciphertext = el_gamal.encrypt(&public_key, &Curve::scalar_random(&mut rng), &message);
         let ciphertext_reencrypted = el_gamal.0.reencrypt(&public_key, &Curve::scalar_random(&mut rng), &ciphertext);
         let ciphertext_aggregated = (ciphertext_reencrypted.0 + ciphertext.0, ciphertext_reencrypted.1 + ciphertext.1);
+
+        let message_decoder = BruteForceDiscreteLog::<Curve>::new(Scalar::from(2u8), None);
         let decoded = el_gamal.decrypt(&secret_key, &ciphertext_aggregated, &message_decoder);
 
-        assert_eq!(decoded, Some(message_2));
+        assert_eq!(decoded, Some(Scalar::from(2u8)));
     }
 
     #[test]
@@ -80,11 +80,11 @@ mod tests {
         let ciphertext_dash = el_gamal.reencrypt(&public_key, &randomness, &ciphertext);
 
         let claim = ReEncProofBuilder::build_claim::<Curve>(public_key, ciphertext, ciphertext_dash);
-        let knowledge = ReEncProofBuilder::build_knowledge::<Curve>(Some(randomness));
-
         let zk_proof = ZKProof { claim };
 
+        let knowledge = ReEncProofBuilder::build_knowledge::<Curve>(Some(randomness));
         let secret_knowledge = SecretKnowledge(knowledge);
+
         let proof_preparation = zk_proof.commit(&mut rng, &secret_knowledge);
         let c = Curve::scalar_random(&mut rng);
         let proof = zk_proof.response(&mut rng, &proof_preparation, &secret_knowledge, &c);
