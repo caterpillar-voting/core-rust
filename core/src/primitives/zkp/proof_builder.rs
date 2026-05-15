@@ -46,7 +46,7 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1, proof_claims};
-    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
+    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, HTDH2ProofBuilder, ReEncProofBuilder};
     use crate::utils::tree::BooleanTree::Leaf;
     use rand::thread_rng;
 
@@ -56,11 +56,12 @@ mod tests {
     fn el_gamal_or_proof() {
         let mut rng = thread_rng();
 
-        let (pk, (uv, _), (uv_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
+        let (pk, (uv, r), (uv_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
 
         let enc1 = EncProofBuilder::<Curve>::new(pk, uv_enc1, Curve::basepoint(), Some(r_enc1));
         let renenc = ReEncProofBuilder::<Curve>::new(pk, uv, uv_enc1, None);
-        let tree: TreeProofBuilder<Curve> = And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1)]);
+        let htdh2 = HTDH2ProofBuilder::<Curve>::new_with_r(uv, r);
+        let tree: TreeProofBuilder<Curve> = And(vec![Or(vec![Leaf(&enc1), Leaf(&renenc)]), Leaf(&enc1), Leaf(&htdh2)]);
 
         let (claim, knowledge) = tree.build();
 
