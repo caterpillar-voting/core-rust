@@ -2,10 +2,19 @@ use crate::foundation::group::Group;
 use rand_core::{CryptoRng, RngCore};
 use std::hint::black_box;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Statement<G: Group> {
     pub g: G::Point,
     pub z: G::Point,
+}
+
+impl<G: Group> Clone for Statement<G> {
+    fn clone(&self) -> Self {
+        Self {
+            g: self.g,
+            z: self.z,
+        }
+    }
 }
 
 /// naming according to https://crypto.ethz.ch/publications/files/Maurer09.pdf
