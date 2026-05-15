@@ -4,13 +4,13 @@ mod utils;
 
 #[cfg(test)]
 mod tests {
-    use crate::foundation::discrete_log::{DiscreteLog, GreedyDiscreteLog};
+    use crate::foundation::discrete_log::{BruteForceDiscreteLog};
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::hash::VectorContextHash;
     use crate::primitives::commitment::Commitment;
     use crate::primitives::encryption::Encryption;
-    use crate::primitives::encryption::el_gamal::ElGamal;
+    use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
     use crate::primitives::zkp::proof::{Claim, Knowledge};
     use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
     use crate::primitives::zkp::representation::SecretKnowledge;
@@ -50,19 +50,18 @@ mod tests {
     #[test]
     fn homomorphic_encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let encoded_message = Curve::basepoint() * Scalar::from(1u8);
+        let message = Scalar::from(1u8);
         let message_2 = Scalar::from(2u8);
-        let message_decoder = GreedyDiscreteLog::<Curve>::new(Scalar::from(2u8), None);
+        let message_decoder = BruteForceDiscreteLog::<Curve>::new(Scalar::from(2u8), None);
 
-        let el_gamal = ElGamal::<Curve>::default();
-        let secret_key = el_gamal.generate_secret_key(&mut rng);
-        let public_key = el_gamal.derive_public_key(&secret_key);
+        let el_gamal = ExponentialElGamal::<Curve>::default();
+        let secret_key = el_gamal.0.generate_secret_key(&mut rng);
+        let public_key = el_gamal.0.derive_public_key(&secret_key);
 
-        let ciphertext = el_gamal.encrypt(&public_key, &Curve::scalar_random(&mut rng), &encoded_message);
-        let ciphertext_reencrypted = el_gamal.reencrypt(&public_key, &Curve::scalar_random(&mut rng), &ciphertext);
-        let ciphertext_2 = (ciphertext_reencrypted.0 + ciphertext.0, ciphertext_reencrypted.1 + ciphertext.1);
-        let decrypted = el_gamal.decrypt(&secret_key, &ciphertext_2);
-        let decoded = message_decoder.log(&Curve::basepoint(), &decrypted);
+        let ciphertext = el_gamal.encrypt(&public_key, &Curve::scalar_random(&mut rng), &message);
+        let ciphertext_reencrypted = el_gamal.0.reencrypt(&public_key, &Curve::scalar_random(&mut rng), &ciphertext);
+        let ciphertext_aggregated = (ciphertext_reencrypted.0 + ciphertext.0, ciphertext_reencrypted.1 + ciphertext.1);
+        let decoded = el_gamal.decrypt(&secret_key, &ciphertext_aggregated, &message_decoder);
 
         assert_eq!(decoded, Some(message_2));
     }

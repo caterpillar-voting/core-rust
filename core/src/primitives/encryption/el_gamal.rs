@@ -96,7 +96,7 @@ impl<G: Group> ExponentialElGamal<G> {
 
 #[cfg(test)]
 mod tests {
-    use crate::foundation::discrete_log::GreedyDiscreteLog;
+    use crate::foundation::discrete_log::BruteForceDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::_test_utils::{new_el_gamal_sample, new_exponential_el_gamal_sample};
@@ -141,7 +141,7 @@ mod tests {
         let (exponential_el_gamal, sk, pk, r, m) = new_exponential_el_gamal_sample(&mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
-        let m_decoder = GreedyDiscreteLog::new(m, None);
+        let m_decoder = BruteForceDiscreteLog::new(m, None);
         let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_decoder);
         let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_decoder);
 
@@ -159,7 +159,7 @@ mod tests {
         let r_2 = Curve::scalar_random(&mut rng);
         let ciphertext_2 = exponential_el_gamal.0.reencrypt(&pk, &r_2, &ciphertext);
 
-        let m_decoder = GreedyDiscreteLog::new(m, None);
+        let m_decoder = BruteForceDiscreteLog::new(m, None);
         let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_decoder);
         let r_combined = r + &r_2;
         let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_decoder);
