@@ -22,6 +22,10 @@ impl VectorContextHash {
     pub fn new(context: Vec<u8>) -> Self {
         Self { context }
     }
+
+    pub fn add(&mut self, context: &Vec<u8>) {
+        self.context.extend_from_slice(&context[..]);
+    }
 }
 
 impl<G: Group> ContextHash<G> for VectorContextHash {
