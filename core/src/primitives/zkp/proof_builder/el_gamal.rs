@@ -94,6 +94,7 @@ mod tests {
     use crate::foundation::hash::VectorContextHash;
     use crate::primitives::zkp::_test_utils::create_elgamal_enc0_and_enc1;
     use rand::thread_rng;
+    use crate::primitives::zkp::{NIZKProof, ZKProof};
 
     type Curve = RistrettoGroup;
 
