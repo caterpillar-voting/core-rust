@@ -91,12 +91,34 @@ mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::foundation::hash::VectorContextHash;
-    use crate::primitives::zkp::_test_utils::create_elgamal_enc0_and_enc1;
+    use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1, create_elgamal_enc0_and_reenc, prove_from_builder};
     use rand::thread_rng;
-    use crate::primitives::zkp::{NIZKProof, ZKProof};
 
     type Curve = RistrettoGroup;
+
+    #[test]
+    fn reenc_proof() {
+        let mut rng = thread_rng();
+
+        let (pk, (uv, _), (uv_dash, r_reenc)) = create_elgamal_enc0_and_reenc(&mut rng);
+
+        let reenc = ReEncProofBuilder::<Curve>::new(pk, uv, uv_dash, Some(r_reenc));
+
+        prove_from_builder(&mut rng, &reenc);
+    }
+
+    #[test]
+    fn enc_proof() {
+        let mut rng = thread_rng();
+
+        let (pk, (uv, r), (uv1, r1)) = create_elgamal_enc0_and_enc1(&mut rng);
+
+        let enc = EncProofBuilder::<Curve>::new(pk, uv, Curve::identity(), Some(r));
+        prove_from_builder(&mut rng, &enc);
+
+        let enc = EncProofBuilder::<Curve>::new(pk, uv1, Curve::basepoint(), Some(r1));
+        prove_from_builder(&mut rng, &enc);
+    }
 
     #[test]
     fn htdh2_proof() {
@@ -107,12 +129,9 @@ mod tests {
         let g_0 = Curve::independent_generators::<1>(b"HTDH2ZKP")[0];
         let g_0_r = g_0 * r;
         let htdh2 = HTDH2ProofBuilder::<Curve>::new(g_0, uv, g_0_r, Some(r));
+        prove_from_builder(&mut rng, &htdh2);
 
-        let (zk_proof, knowledge) = ZKProof::from_builder(&htdh2);
-
-        let nizkp = NIZKProof::new(zk_proof, VectorContextHash::default());
-        let proof = nizkp.prove(&mut rng, &knowledge);
-
-        assert!(nizkp.verify(&proof))
+        let htdh2 = HTDH2ProofBuilder::<Curve>::new_with_r(uv, r);
+        prove_from_builder(&mut rng, &htdh2);
     }
 }

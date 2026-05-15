@@ -1,8 +1,11 @@
 use crate::foundation::group::Group;
 use crate::foundation::group::ristretto::RistrettoGroup;
+use crate::foundation::hash::VectorContextHash;
 use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
 use crate::primitives::zkp::proof::{Claim, Knowledge, Proof};
+use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::statement::Statement;
+use crate::primitives::zkp::{NIZKProof, ZKProof};
 use rand_core::{CryptoRng, RngCore};
 
 type Curve = RistrettoGroup;
@@ -18,13 +21,30 @@ pub fn create_elgamal_enc0_and_enc1<R: RngCore + CryptoRng>(rng: &mut R) -> (Poi
 
     // encrypt 0
     let r = Scalar::random(rng);
-    let (u, v) = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
+    let uv = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
 
     // encrypt 1
     let r_enc1 = Scalar::random(rng);
-    let (u_enc1, v_enc1) = exponential_el_gamal.encrypt(&pk, &r_enc1, &Scalar::ONE);
+    let uv_enc1 = exponential_el_gamal.encrypt(&pk, &r_enc1, &Scalar::ONE);
 
-    (pk, ((u, v), r), ((u_enc1, v_enc1), r_enc1))
+    (pk, (uv, r), (uv_enc1, r_enc1))
+}
+
+pub fn create_elgamal_enc0_and_reenc<R: RngCore + CryptoRng>(rng: &mut R) -> (Point, ((Point, Point), Scalar), ((Point, Point), Scalar)) {
+    let el_gamal = ElGamal::<Curve>::default();
+    let exponential_el_gamal = ExponentialElGamal(el_gamal);
+    let sk = exponential_el_gamal.0.generate_secret_key(rng);
+    let pk = exponential_el_gamal.0.derive_public_key(&sk);
+
+    // encrypt 0
+    let r = Scalar::random(rng);
+    let uv = exponential_el_gamal.encrypt(&pk, &r, &Scalar::ZERO);
+
+    // encrypt 1
+    let r_reenc = Scalar::random(rng);
+    let uv_reenc = exponential_el_gamal.0.reencrypt(&pk, &r_reenc, &uv);
+
+    (pk, (uv, r), (uv_reenc, r_reenc))
 }
 
 pub fn create_elgamal_enc1_reenc_statements(pk: Point, (u, v): (Point, Point), (u_dash, v_dash): (Point, Point)) -> ((Statement<Curve>, Statement<Curve>), (Statement<Curve>, Statement<Curve>)) {
@@ -42,4 +62,13 @@ pub fn proof_claims<R: RngCore + CryptoRng>(rng: &mut R, claim: Claim<Curve>, kn
     let response = Proof::response(rng, &commit, &claim, &knowledge, &challenge);
 
     assert!(Proof::verify(&claim, &response, &challenge))
+}
+
+pub fn prove_from_builder<R: RngCore + CryptoRng, G: Group>(rng: &mut R, builder: &dyn ProofBuilder<G>) {
+    let (zk_proof, knowledge) = ZKProof::from_builder(builder);
+
+    let nizkp = NIZKProof::new(zk_proof, VectorContextHash::default());
+    let proof = nizkp.prove(rng, &knowledge);
+
+    assert!(nizkp.verify(&proof))
 }
