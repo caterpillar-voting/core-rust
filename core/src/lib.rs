@@ -4,7 +4,7 @@ mod utils;
 
 #[cfg(test)]
 mod tests {
-    use crate::foundation::discrete_log::{BruteForceDiscreteLog};
+    use crate::foundation::discrete_log::BruteForceDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::hash::VectorContextHash;
