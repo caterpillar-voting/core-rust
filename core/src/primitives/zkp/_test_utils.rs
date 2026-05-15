@@ -1,11 +1,8 @@
 use crate::foundation::group::Group;
 use crate::foundation::group::ristretto::RistrettoGroup;
-use crate::foundation::hash::VectorContextHash;
 use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
 use crate::primitives::zkp::proof::{Claim, Knowledge, Proof};
-use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::statement::Statement;
-use crate::primitives::zkp::{NIZKProof, ZKProof};
 use rand_core::{CryptoRng, RngCore};
 
 type Curve = RistrettoGroup;
@@ -62,13 +59,4 @@ pub fn proof_claims<R: RngCore + CryptoRng>(rng: &mut R, claim: Claim<Curve>, kn
     let response = Proof::response(rng, &commit, &claim, &knowledge, &challenge);
 
     assert!(Proof::verify(&claim, &response, &challenge))
-}
-
-pub fn prove_from_builder<R: RngCore + CryptoRng, G: Group>(rng: &mut R, builder: &dyn ProofBuilder<G>) {
-    let (zk_proof, knowledge) = ZKProof::from_builder(builder);
-
-    let nizkp = NIZKProof::new(zk_proof, VectorContextHash::default());
-    let proof = nizkp.prove(rng, &knowledge);
-
-    assert!(nizkp.verify(&proof))
 }

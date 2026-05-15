@@ -2,7 +2,6 @@ use crate::foundation::group::Group;
 use crate::foundation::hash::ContextHash;
 use crate::primitives::zkp::context::ProofTreeContextHash;
 use crate::primitives::zkp::proof::{Claim, GetProofCommit, Proof, ProofResponse, ProofState};
-use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::representation::SecretKnowledge;
 use rand_core::{CryptoRng, RngCore};
 
@@ -20,11 +19,6 @@ pub struct ZKProof<G: Group> {
 }
 
 impl<G: Group> ZKProof<G> {
-    pub fn from_builder(proof_builder: &dyn ProofBuilder<G>) -> (Self, SecretKnowledge<G>) {
-        let (claim, knowledge) = proof_builder.build();
-        (Self { claim }, SecretKnowledge(knowledge))
-    }
-
     pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofState<G> {
         Proof::commit(rng, &self.claim, &knowledge.0)
     }
@@ -44,11 +38,11 @@ pub struct NIZKProof<G: Group, H: ProofTreeContextHash<G> + ContextHash<G>> {
 }
 
 impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NIZKProof<G, H> {
-    pub fn new(zk_proof: ZKProof<G>, context_hash: H) -> Self {
+    pub fn new(claim: Claim<G>, context_hash: H) -> Self {
         let mut claim_context_hash = context_hash;
-        claim_context_hash.add_claim(&zk_proof.claim);
+        claim_context_hash.add_claim(&claim);
 
-        Self { zk_proof, claim_context_hash }
+        Self { zk_proof: ZKProof { claim }, claim_context_hash }
     }
 
     pub fn prove<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofResponse<G> {
@@ -79,10 +73,7 @@ mod tests {
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::hash::VectorContextHash;
     use crate::primitives::zkp::_test_utils::create_elgamal_enc0_and_enc1;
-    use crate::primitives::zkp::context::htdh2::HTDH2Hash;
-    use crate::primitives::zkp::proof_builder::TreeProofBuilder;
-    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, HTDH2ProofBuilder, ReEncProofBuilder};
-    use crate::utils::tree::BooleanTree::{Leaf, Or};
+    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder};
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;
@@ -91,31 +82,13 @@ mod tests {
     fn nizk_proof() {
         let mut rng = thread_rng();
 
-        let (pk, (uv, _), (uv_enc1, r_enc1)) = create_elgamal_enc0_and_enc1(&mut rng);
+        let (pk, (uv, r), _) = create_elgamal_enc0_and_enc1(&mut rng);
 
-        let enc1 = EncProofBuilder::<Curve>::new(pk, uv_enc1, Curve::basepoint(), Some(r_enc1));
-        let renenc = ReEncProofBuilder::<Curve>::new(pk, uv, uv_enc1, None);
+        let claim_uv1 = EncProofBuilder::build_claim::<Curve>(pk, uv, Curve::identity());
+        let knowledge_r1 = EncProofBuilder::build_knowledge::<Curve>(Some(r));
 
-        let tree: TreeProofBuilder<Curve> = Or(vec![Leaf(&enc1), Leaf(&renenc)]);
-        let (zk_proof, knowledge) = ZKProof::from_builder(&tree);
-
-        let nizkp = NIZKProof::new(zk_proof, VectorContextHash::default());
-        let proof = nizkp.prove(&mut rng, &knowledge);
-
-        assert!(nizkp.verify(&proof))
-    }
-
-    #[test]
-    fn htdh2_nizk_proof() {
-        let mut rng = thread_rng();
-
-        let (_, (uv, r), _) = create_elgamal_enc0_and_enc1(&mut rng);
-
-        let htdh2 = HTDH2ProofBuilder::<Curve>::new_with_r(uv, r);
-        let (zk_proof, knowledge) = ZKProof::from_builder(&htdh2);
-
-        let nizkp = NIZKProof::new(zk_proof, HTDH2Hash::new(b"HTDH2ZKP".to_vec(), uv));
-        let proof = nizkp.prove(&mut rng, &knowledge);
+        let nizkp = NIZKProof::new(claim_uv1, VectorContextHash::default());
+        let proof = nizkp.prove(&mut rng, &SecretKnowledge(knowledge_r1));
 
         assert!(nizkp.verify(&proof))
     }
