@@ -67,6 +67,13 @@ impl<G: Group> HTDH2ProofBuilder<G> {
     pub fn new(g0: G::Point, uv: (G::Point, G::Point), g0r: G::Point, randomness: Option<G::Scalar>) -> Self {
         Self { g0, uv, g0r, randomness }
     }
+
+    pub fn new_with_r(uv: (G::Point, G::Point), randomness: G::Scalar) -> Self {
+        let g0 = G::independent_generators::<1>(b"HTDH2ZKP")[0];
+        let g0r = g0 * &randomness;
+        
+        Self::new(g0, uv, g0r, Some(randomness))
+    }
 }
 
 impl<G: Group> ProofBuilder<G> for HTDH2ProofBuilder<G> {
@@ -88,9 +95,6 @@ mod tests {
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::hash::VectorContextHash;
     use crate::primitives::zkp::_test_utils::create_elgamal_enc0_and_enc1;
-    use crate::primitives::zkp::proof_builder::TreeProofBuilder;
-    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
-    use crate::utils::tree::BooleanTree::{Leaf, Or};
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;
