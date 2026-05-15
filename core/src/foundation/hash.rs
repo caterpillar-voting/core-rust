@@ -1,10 +1,12 @@
 use crate::foundation::group::{ByteSerialize, Group};
 
 pub trait ContextHash<G: Group> {
+    fn get_context(&self) -> Vec<u8>;
+}
+
+pub trait GroupContextHash<G: Group> {
     fn add_point(&mut self, p: &G::Point);
     fn add_scalar(&mut self, s: &G::Scalar);
-    fn hash_to_scalar(&self) -> G::Scalar;
-    fn hash_to_point(&self) -> G::Point;
 }
 
 #[derive(Clone)]
@@ -29,6 +31,12 @@ impl VectorContextHash {
 }
 
 impl<G: Group> ContextHash<G> for VectorContextHash {
+    fn get_context(&self) -> Vec<u8> {
+        self.context.clone()
+    }
+}
+
+impl<G: Group> GroupContextHash<G> for VectorContextHash {
     fn add_point(&mut self, p: &G::Point) {
         let mut bytes = vec![0u8; G::Point::BUFFER_SIZE];
         p.to_bytes(&mut bytes[..]);
@@ -38,13 +46,5 @@ impl<G: Group> ContextHash<G> for VectorContextHash {
         let mut bytes = vec![0u8; G::Scalar::BUFFER_SIZE];
         s.to_bytes(&mut bytes[..]);
         self.context.extend_from_slice(&bytes[..]);
-    }
-
-    fn hash_to_scalar(&self) -> G::Scalar {
-        G::hash_to_scalar(&self.context[..])
-    }
-
-    fn hash_to_point(&self) -> G::Point {
-        G::hash_to_point(&self.context[..])
     }
 }
