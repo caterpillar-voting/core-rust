@@ -1,7 +1,7 @@
 pub mod enc;
+pub mod htdh2;
 pub mod or;
 pub mod reenc;
-pub mod htdh2;
 
 use crate::foundation::group::Group;
 use rand_core::{CryptoRng, RngCore};

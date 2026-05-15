@@ -158,8 +158,8 @@ mod tests {
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::el_gamal::ElGamal;
     use crate::primitives::zkp2::ZKP;
-    use rand::thread_rng;
     use crate::primitives::zkp2::htdh2::HTDH2ZKP;
+    use rand::thread_rng;
 
     type Curve = RistrettoGroup;
 

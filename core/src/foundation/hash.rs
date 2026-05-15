@@ -23,8 +23,8 @@ impl VectorContextHash {
         Self { context }
     }
 
-    pub fn add(&mut self, context: &Vec<u8>) {
-        self.context.extend_from_slice(&context[..]);
+    pub fn add(&mut self, context: &[u8]) {
+        self.context.extend_from_slice(context);
     }
 }
 

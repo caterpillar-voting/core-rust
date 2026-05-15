@@ -2,7 +2,6 @@ use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::{Claim, Knowledge};
 use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::statement::Statement;
-use crate::primitives::zkp::{NIZKProof, ZKProof};
 use crate::utils::tree::BooleanTree::Leaf;
 
 pub struct ReEncProofBuilder<G: Group> {
@@ -55,7 +54,6 @@ impl<G: Group> ProofBuilder<G> for EncProofBuilder<G> {
     }
 }
 
-
 pub struct HTDH2ProofBuilder<G: Group> {
     g0: G::Point,
     uv: (G::Point, G::Point),
@@ -71,7 +69,7 @@ impl<G: Group> HTDH2ProofBuilder<G> {
     pub fn new_with_r(uv: (G::Point, G::Point), randomness: G::Scalar) -> Self {
         let g0 = G::independent_generators::<1>(b"HTDH2ZKP")[0];
         let g0r = g0 * &randomness;
-        
+
         Self::new(g0, uv, g0r, Some(randomness))
     }
 }
