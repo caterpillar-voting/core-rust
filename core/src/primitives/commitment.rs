@@ -6,7 +6,7 @@ mod representation;
 use crate::foundation::group::Group;
 use crate::foundation::representation::Message;
 use crate::primitives::commitment::pedersen::Pedersen;
-pub use crate::primitives::commitment::representation::{HomomorphicCommitment, HomomorphicOpening};
+pub use crate::primitives::commitment::representation::{Commit, SecretOpening};
 use rand_core::{CryptoRng, RngCore};
 
 /// A hiding commitment (Pedersen) with N messages.
@@ -28,18 +28,18 @@ impl<G: Group, const N: usize> Commitment<G, N> {
         Self { pedersen }
     }
 
-    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R, messages: &[Message<G>; N]) -> (HomomorphicCommitment<G>, HomomorphicOpening<G>) {
+    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R, messages: &[Message<G>; N]) -> (Commit<G>, SecretOpening<G>) {
         let randomness = G::scalar_random(rng);
         let scalar_messages: Vec<G::Scalar> = messages.iter().copied().collect();
         let commitment = self.pedersen.commit(&randomness, &scalar_messages);
 
-        (HomomorphicCommitment(commitment), HomomorphicOpening(randomness))
+        (commitment, SecretOpening(randomness))
     }
 
-    pub fn open(&self, messages: &[Message<G>; N], commitment: &HomomorphicCommitment<G>, opening: &HomomorphicOpening<G>) -> bool {
+    pub fn open(&self, messages: &[Message<G>; N], commit: &Commit<G>, opening: &SecretOpening<G>) -> bool {
         let scalar_messages: Vec<G::Scalar> = messages.iter().copied().collect();
 
-        self.pedersen.commit(&opening.0, &scalar_messages) == commitment.0
+        self.pedersen.commit(&opening.0, &scalar_messages) == *commit
     }
 }
 
@@ -82,7 +82,7 @@ mod tests {
 
         let messages = std::array::from_fn(|i| &messages1[i] + &messages2[i]);
         let commitment = &commitment1 + &commitment2;
-        let randomness = &randomness1 + &randomness2;
+        let randomness = &SecretOpening(randomness1.0 + &randomness2.0);
 
         assert!(hiding_commitment.open(&messages, &commitment, &randomness));
     }
