@@ -6,9 +6,9 @@ There are two major target public for this library:
 - cryptographers that want to review the code, or implement new primitives based on it.
 - end-users that want to use the library, but do not implement new functionality
 
-We address both target public by providing two different APIs:
-- a low-level API that gives direct access to the implemented primitives. This is a loaded shotgun, and it is pointed at your foot. 
-- a high-level API that prevents access low-level primitives, but by design helps to make using the library safe.
+We address both target public by providing APIs on different levels:
+- a high-level API that by design helps to make using the library safe. In turn, the functionality is heavily constrained.
+- a low-level API that gives direct access to the implemented primitives. In turn, the functionality is very versatile, and usability comes second.
 
 In this spirit, this API has been drafted. Here, we document the detailed intentional design decisions. 
 
@@ -23,10 +23,9 @@ foundation/group:
 - we introduce the group abstraction to support multiple possible groups.
 - the group does not wrap its implementation (i.e., it is just an implemented trait), as this is a low-level API
 - we implement the serialization directly on the point/scalar with `to_bytes` and `from_bytes` to have no doubt about the serialization format used. we accept the name collision notably in ristretto with existing to_bytes and from_bytes functions.
-- assumption that underlying group are elliptic curves, hence use naming of Points/Scalars. finite fields are not a target at the moment.
+- use naming of Points/Scalars (even if finite fields are also supported)
 
 primitives/encryption/*:
-- ElGamal / ExponentialElGamal in the same file to reuse code without exposing implementation details (i.e., without making g public on ElGamal or introducing a new field for it in ExponentialElGamal)
 - No multi-message API because this would simply be a list of ElGamal ciphertext.
 - Homomorphism has no direct implementation at this API level (trivial to do self).
 
@@ -41,12 +40,10 @@ general:
 - secret values: secret keys or randomness (pedersen) are wrapped and annotated with ZeroOnDrop
 - wrapper types: only introduce wrapper types to add functionality (e.g., for secret values). else, use a type alias.
 - validation: done at compile time, unless type system not expressive enough
-- naming: add core functionality in name (e.g., `HomomorphicEncryption`)
-- naming: add property prefix if needed to disambiguate with representation names (e.g., prefix `H` for hiding to `HHomomorphicCommittment` because needs to return `HomomorphicCommitment`)
 
 primitives/encryption/*:
-- Do not expose decryption using randomness; this is an advanced scenario not need for the normal user
-- Explicitly allow homomorphically adding ciphertext by overriding + and - operators
+- directly include ZKP to ensure ciphertext is non-malleable. Consequentially, reencryption or homomorphism is not provided in the API, but this is an advanced scenario that normal users should not touch.
+- in the same spirit, decryption using randomness not supported (as encryption randomness used never exposed to user)
 
 primitives/commitment/*:
 - include the number of generators in the type to avoid misuse
