@@ -161,10 +161,8 @@ Points of interest:
 ## Future steps
 
 features:
-- add ZKP for CCA2
 - add encoding of plaintext to EncodedMessage (i.e., numbers to group points)
 - serialization and deserialization of ciphertexts, public keys, private keys and messages
 
 technical:
-- fully test modules (e.g., homomorphism of messages / ciphertexts, invalid ZKP trees)
 - when to implement which default traits? is there any harm in doing so?
