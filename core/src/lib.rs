@@ -8,7 +8,7 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::hash::VectorContextHash;
-    use crate::primitives::commitment::HHomomorphicCommitment;
+    use crate::primitives::commitment::Commitment;
     use crate::primitives::encryption::Encryption;
     use crate::primitives::encryption::el_gamal::ElGamal;
     use crate::primitives::zkp::proof::{Claim, Knowledge};
@@ -25,7 +25,7 @@ mod tests {
     fn commitment() {
         let mut rng = thread_rng();
 
-        let homomorphic_commitment = HHomomorphicCommitment::<Curve>::default();
+        let homomorphic_commitment = Commitment::<Curve>::default();
 
         let messages = [Scalar::from(2u8)];
         let (commitment, opening) = homomorphic_commitment.commit(&mut rng, &messages);
