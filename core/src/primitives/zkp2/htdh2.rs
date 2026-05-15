@@ -1,5 +1,5 @@
 use crate::foundation::group::Group;
-use crate::foundation::hash::{ContextHash, VectorContextHash};
+use crate::foundation::hash::{ContextHash, GroupContextHash, VectorContextHash};
 use crate::primitives::zkp2;
 use crate::primitives::zkp2::{Challenge, SigmaZKP, SimulableZKP, ZKP};
 use rand_core::{CryptoRng, RngCore};
@@ -65,13 +65,13 @@ where
 
     fn get_challenge(&self, commit: &HTDH2ZKPCommit<G>) -> HTDH2ZKPChallenge<G> {
         let mut buf = VectorContextHash::new(self.context.clone());
-        <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &self.public_data.ciphertext.0); // u
-        <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &self.public_data.ciphertext.1); // e
-        <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &commit.0); // w
-        <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &self.public_data.g_0_r); // u_0
-        <VectorContextHash as ContextHash<G>>::add_point(&mut buf, &commit.1); // w_0
+        <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &self.public_data.ciphertext.0); // u
+        <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &self.public_data.ciphertext.1); // e
+        <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &commit.0); // w
+        <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &self.public_data.g_0_r); // u_0
+        <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &commit.1); // w_0
         buf.add(&self.context); // L
-        <VectorContextHash as ContextHash<G>>::hash_to_scalar(&buf)
+        G::hash_to_scalar(<VectorContextHash as ContextHash<G>>::get_context(&buf).as_slice())
     }
 
     fn verify(&self, commit: &HTDH2ZKPCommit<G>, challenge: &HTDH2ZKPChallenge<G>, response: &HTDH2ZKPResponse<G>) -> bool {

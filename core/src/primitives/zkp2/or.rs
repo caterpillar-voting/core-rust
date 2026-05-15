@@ -1,5 +1,5 @@
 use crate::foundation::group::Group;
-use crate::foundation::hash::{ContextHash, VectorContextHash};
+use crate::foundation::hash::{ContextHash, GroupContextHash, VectorContextHash};
 use crate::primitives::zkp2;
 use crate::primitives::zkp2::reenc::{ReEncZKP, ReEncZKPProof};
 use crate::primitives::zkp2::{Challenge, SigmaZKP, SimulableZKP, ZKP};
@@ -175,9 +175,9 @@ where
         let mut buf = VectorContextHash::new(self.context.clone());
         let chal1 = self.zkp1.get_challenge(&commit.zkp1_commit);
         let chal2 = self.zkp2.get_challenge(&commit.zkp2_commit);
-        <VectorContextHash as ContextHash<G>>::add_scalar(&mut buf, &chal1);
-        <VectorContextHash as ContextHash<G>>::add_scalar(&mut buf, &chal2);
-        <VectorContextHash as ContextHash<G>>::hash_to_scalar(&buf)
+        <VectorContextHash as GroupContextHash<G>>::add_scalar(&mut buf, &chal1);
+        <VectorContextHash as GroupContextHash<G>>::add_scalar(&mut buf, &chal2);
+        G::hash_to_scalar(<VectorContextHash as ContextHash<G>>::get_context(&buf).as_slice())
     }
     fn verify(&self, commit: &OrTwoReEncZKPCommit<G>, sum_challenges: &OrTwoReEncZKPChallenge<G>, response: &OrTwoReEncZKPResponse<G>) -> bool {
         let pf1: ReEncZKPProof<G> = ReEncZKPProof {
