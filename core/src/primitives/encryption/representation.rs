@@ -1,6 +1,5 @@
 use crate::foundation::group::Group;
 use crate::primitives::zkp::proof::ProofResponse;
-use std::ops;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
