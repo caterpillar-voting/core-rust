@@ -38,7 +38,7 @@ impl<G: Group> ZKProof<G> {
     }
 }
 
-pub struct NIZKProof<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> {
+pub struct NIZKProof<G: Group, H: ProofTreeContextHash<G> + ContextHash<G>> {
     pub zk_proof: ZKProof<G>,
     claim_context_hash: H,
 }
@@ -109,7 +109,7 @@ mod tests {
     fn htdh2_nizk_proof() {
         let mut rng = thread_rng();
 
-        let (pk, (uv, r), _) = create_elgamal_enc0_and_enc1(&mut rng);
+        let (_, (uv, r), _) = create_elgamal_enc0_and_enc1(&mut rng);
 
         let htdh2 = HTDH2ProofBuilder::<Curve>::new_with_r(uv, r);
         let (zk_proof, knowledge) = ZKProof::from_builder(&htdh2);

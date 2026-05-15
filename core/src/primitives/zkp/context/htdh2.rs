@@ -4,12 +4,22 @@ use crate::primitives::zkp::context::ProofTreeContextHash;
 use crate::primitives::zkp::proof::{Claim, ProofCommit};
 use crate::utils::tree::BooleanTree::Leaf;
 
-#[derive(Clone)]
 pub struct HTDH2Hash<G: Group> {
     label: Vec<u8>,
     uv: (G::Point, G::Point),
     claim: Option<Claim<G>>,
     proof_commit: Option<ProofCommit<G>>,
+}
+
+impl<G: Group> Clone for HTDH2Hash<G> {
+    fn clone(&self) -> Self {
+        Self {
+            label: self.label.clone(),
+            uv: self.uv,
+            claim: self.claim.clone(),
+            proof_commit: self.proof_commit.clone(),
+        }
+    }
 }
 
 impl<G: Group> HTDH2Hash<G> {
