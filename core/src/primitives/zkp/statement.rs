@@ -10,10 +10,7 @@ pub struct Statement<G: Group> {
 
 impl<G: Group> Clone for Statement<G> {
     fn clone(&self) -> Self {
-        Self {
-            g: self.g,
-            z: self.z,
-        }
+        Self { g: self.g, z: self.z }
     }
 }
 

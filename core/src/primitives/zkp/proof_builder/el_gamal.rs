@@ -1,7 +1,5 @@
 use crate::foundation::group::Group;
-use crate::foundation::hash::{ContextHash, VectorContextHash};
-use crate::primitives::zkp::context::ProofTreeContextHash;
-use crate::primitives::zkp::proof::{Claim, Knowledge, ProofCommit};
+use crate::primitives::zkp::proof::{Claim, Knowledge};
 use crate::primitives::zkp::proof_builder::ProofBuilder;
 use crate::primitives::zkp::statement::Statement;
 use crate::utils::tree::BooleanTree::Leaf;

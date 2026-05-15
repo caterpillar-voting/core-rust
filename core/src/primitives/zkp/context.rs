@@ -1,7 +1,7 @@
 pub mod htdh2;
 
 use crate::foundation::group::Group;
-use crate::foundation::hash::{ContextHash, GroupContextHash, VectorContextHash};
+use crate::foundation::hash::{GroupContextHash, VectorContextHash};
 use crate::primitives::zkp::proof::{Claim, ProofCommit};
 
 pub trait ProofTreeContextHash<G: Group> {
@@ -9,7 +9,7 @@ pub trait ProofTreeContextHash<G: Group> {
     fn add_proof_commit(&mut self, proof_commit: &ProofCommit<G>);
 }
 
-impl<'a, G: Group> ProofTreeContextHash<G> for VectorContextHash {
+impl<G: Group> ProofTreeContextHash<G> for VectorContextHash {
     fn add_claim(&mut self, claim: &Claim<G>) {
         claim.into_iter().for_each(|statements| {
             statements.iter().for_each(|statement| {
