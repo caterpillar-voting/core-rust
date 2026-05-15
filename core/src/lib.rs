@@ -4,19 +4,19 @@ mod utils;
 
 #[cfg(test)]
 mod tests {
+    use crate::foundation::discrete_log::{DiscreteLog, GreedyDiscreteLog};
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::hash::VectorContextHash;
     use crate::primitives::commitment::HHomomorphicCommitment;
-    use crate::primitives::encryption::{Encryption};
-    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
-    use crate::primitives::zkp::{NIZKProof, ZKProof};
-    use crate::utils::tree::BooleanTree::{Or};
-    use rand::thread_rng;
-    use crate::foundation::discrete_log::{DiscreteLog, GreedyDiscreteLog};
+    use crate::primitives::encryption::Encryption;
     use crate::primitives::encryption::el_gamal::ElGamal;
     use crate::primitives::zkp::proof::{Claim, Knowledge};
+    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
     use crate::primitives::zkp::representation::SecretKnowledge;
+    use crate::primitives::zkp::{NIZKProof, ZKProof};
+    use crate::utils::tree::BooleanTree::Or;
+    use rand::thread_rng;
 
     type Curve = RistrettoGroup;
     type Scalar = <RistrettoGroup as Group>::Scalar;
@@ -46,7 +46,6 @@ mod tests {
 
         assert_eq!(message_recovered, Some(message));
     }
-
 
     #[test]
     fn homomorphic_encrypt_and_decrypt() {

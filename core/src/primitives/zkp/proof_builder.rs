@@ -6,10 +6,10 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1, proof_claims};
-    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, HTDH2ProofBuilder, ReEncProofBuilder};
-    use rand::thread_rng;
     use crate::primitives::zkp::proof::{Claim, Knowledge};
+    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, HTDH2ProofBuilder, ReEncProofBuilder};
     use crate::utils::tree::BooleanTree::{And, Or};
+    use rand::thread_rng;
 
     type Curve = RistrettoGroup;
 
