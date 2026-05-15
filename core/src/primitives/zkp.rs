@@ -42,7 +42,10 @@ impl<G: Group, H: ProofTreeContextHash<G> + ContextHash<G> + Clone> NIZKProof<G,
         let mut claim_context_hash = context_hash;
         claim_context_hash.add_claim(&claim);
 
-        Self { zk_proof: ZKProof { claim }, claim_context_hash }
+        Self {
+            zk_proof: ZKProof { claim },
+            claim_context_hash,
+        }
     }
 
     pub fn prove<R: RngCore + CryptoRng>(&self, rng: &mut R, knowledge: &SecretKnowledge<G>) -> ProofResponse<G> {
@@ -73,7 +76,7 @@ mod tests {
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::hash::VectorContextHash;
     use crate::primitives::zkp::_test_utils::create_elgamal_enc0_and_enc1;
-    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder};
+    use crate::primitives::zkp::proof_builder::el_gamal::EncProofBuilder;
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;

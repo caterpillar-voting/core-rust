@@ -1,12 +1,12 @@
 use crate::foundation::group::Group;
-use crate::foundation::representation::{EncodedMessage};
-use crate::primitives::encryption::el_gamal::{ElGamal};
+use crate::foundation::representation::EncodedMessage;
+use crate::primitives::encryption::el_gamal::ElGamal;
 pub use crate::primitives::encryption::representation::{Ciphertext, HomomorphicCiphertext, PublicKey, SecretKey};
-use rand_core::{CryptoRng, RngCore};
-use crate::primitives::zkp::proof_builder::el_gamal::HTDH2ProofBuilder;
-use crate::primitives::zkp::{NIZKProof};
+use crate::primitives::zkp::NIZKProof;
 use crate::primitives::zkp::context::htdh2::HTDH2Hash;
+use crate::primitives::zkp::proof_builder::el_gamal::HTDH2ProofBuilder;
 use crate::primitives::zkp::representation::SecretKnowledge;
+use rand_core::{CryptoRng, RngCore};
 
 pub mod el_gamal;
 mod representation;
@@ -26,7 +26,7 @@ impl<G: Group> Default for Encryption<G> {
         Self {
             el_gamal: ElGamal::default(),
             label: b"ElGamal".to_vec(),
-            g0: G::independent_generators::<1>(b"HTDH2ZKP")[0]
+            g0: G::independent_generators::<1>(b"HTDH2ZKP")[0],
         }
     }
 }
@@ -63,12 +63,11 @@ impl<G: Group> Encryption<G> {
 
         let claim = HTDH2ProofBuilder::build_claim::<G>(self.g0, *uv, *g0r);
         let nizkp = NIZKProof::new(claim, HTDH2Hash::new(self.label.clone(), *uv));
-        let verify = nizkp.verify(proof);
-        if (!verify).into() {
-            return None
+        if !nizkp.verify(proof) {
+            return None;
         }
 
-        Some(self.el_gamal.decrypt(&secret_key.0, &uv))
+        Some(self.el_gamal.decrypt(&secret_key.0, uv))
     }
 }
 

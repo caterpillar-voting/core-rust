@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
+use crate::primitives::zkp::proof::ProofResponse;
 use std::ops;
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use crate::primitives::zkp::proof::ProofResponse;
 
 #[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey<G: Group>(pub G::Scalar);
