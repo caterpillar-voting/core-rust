@@ -2,7 +2,6 @@ pub mod el_gamal;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::zkp::_test_utils::{create_elgamal_enc0_and_enc1, proof_claims};
@@ -27,8 +26,8 @@ mod tests {
 
         let g_0 = Curve::independent_generators::<1>(b"HTDH2ZKP")[0];
         let g_0_r = g_0 * r;
-        let claim_htdh2 = HTDH2ProofBuilder::build_claim::<Curve>(pk, uv, g_0_r);
-        let knowledge_htdh2 = HTDH2ProofBuilder::build_knowledge::<Curve>(None);
+        let claim_htdh2 = HTDH2ProofBuilder::build_claim::<Curve>(g_0, uv, g_0_r);
+        let knowledge_htdh2 = HTDH2ProofBuilder::build_knowledge::<Curve>(Some(r));
 
         let claim: Claim<Curve> = And(vec![Or(vec![claim_uv1, claim_reenc]), claim_htdh2]);
         let knowledge: Knowledge<Curve> = And(vec![Or(vec![knowledge_r1, knowledge_reenc]), knowledge_htdh2]);
