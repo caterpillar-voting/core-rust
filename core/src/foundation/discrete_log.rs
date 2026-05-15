@@ -4,24 +4,24 @@ pub trait DiscreteLog<G: Group> {
     fn log(&self, g: &G::Point, point: &G::Point) -> Option<G::Scalar>;
 }
 
-pub struct GreedyDiscreteLog<G: Group> {
+pub struct BruteForceDiscreteLog<G: Group> {
     start: G::Scalar,
     end: Option<G::Scalar>,
 }
 
-impl<G: Group> Default for GreedyDiscreteLog<G> {
+impl<G: Group> Default for BruteForceDiscreteLog<G> {
     fn default() -> Self {
         Self { start: G::Scalar::from(0), end: None }
     }
 }
 
-impl<G: Group> GreedyDiscreteLog<G> {
+impl<G: Group> BruteForceDiscreteLog<G> {
     pub fn new(start: G::Scalar, end: Option<G::Scalar>) -> Self {
         Self { start, end }
     }
 }
 
-impl<G: Group> DiscreteLog<G> for GreedyDiscreteLog<G> {
+impl<G: Group> DiscreteLog<G> for BruteForceDiscreteLog<G> {
     fn log(&self, g: &G::Point, point: &G::Point) -> Option<G::Scalar> {
         let mut current = self.start;
         loop {
@@ -89,7 +89,7 @@ mod tests {
 
         let start = Scalar::from(0u8);
         let end = Scalar::from(3u8);
-        let dlog = GreedyDiscreteLog::<Curve>::new(start, Some(end));
+        let dlog = BruteForceDiscreteLog::<Curve>::new(start, Some(end));
 
         let expected_start = Scalar::from(0u8);
         assert_eq!(dlog.log(&g, &(g * &expected_start)), Some(expected_start));
