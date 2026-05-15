@@ -12,7 +12,7 @@ pub struct HTDH2Hash<G: Group> {
     proof_commit: Option<ProofCommit<G>>,
 }
 
-impl<'a, G: Group> HTDH2Hash<G> {
+impl<G: Group> HTDH2Hash<G> {
     pub fn new(label: Vec<u8>, uv: (G::Point, G::Point)) -> Self {
         Self {
             label,
@@ -23,7 +23,7 @@ impl<'a, G: Group> HTDH2Hash<G> {
     }
 }
 
-impl<'a, G: Group> ProofTreeContextHash<G> for HTDH2Hash<G> {
+impl<G: Group> ProofTreeContextHash<G> for HTDH2Hash<G> {
     fn add_claim(&mut self, claim: &Claim<G>) {
         self.claim = Some(claim.clone());
     }
@@ -33,23 +33,24 @@ impl<'a, G: Group> ProofTreeContextHash<G> for HTDH2Hash<G> {
     }
 }
 
-impl<'a, G: Group> ContextHash<G> for HTDH2Hash<G> {
+impl<G: Group> ContextHash<G> for HTDH2Hash<G> {
     fn get_context(&self) -> Vec<u8> {
-        if let Some(Leaf(statements)) = &self.claim && statements.len() == 2 {
-            if let Some(Leaf(commits)) = &self.proof_commit && commits.len() == 2 {
-                let mut buf = VectorContextHash::default();
-                <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &statements[0].z); // u
-                <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &self.uv.1); // e
-                <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &commits[0]); // w
-                <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &statements[1].z); // u_0
-                <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &commits[1]); // w_0
-                buf.add(&self.label); // L
+        if let Some(Leaf(statements)) = &self.claim
+            && statements.len() == 2
+            && let Some(Leaf(commits)) = &self.proof_commit
+            && commits.len() == 2
+        {
+            let mut buf = VectorContextHash::default();
+            <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &statements[0].z); // u
+            <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &self.uv.1); // e
+            <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &commits[0]); // w
+            <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &statements[1].z); // u_0
+            <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &commits[1]); // w_0
+            buf.add(&self.label); // L
 
-                return <VectorContextHash as ContextHash<G>>::get_context(&mut buf)
-            }
+            return <VectorContextHash as ContextHash<G>>::get_context(&buf);
         }
 
-        assert!(false, "incorrect HTDH2 proof structure");
-        unreachable!()
+        unreachable!("incorrect HTDH2 proof structure")
     }
 }
