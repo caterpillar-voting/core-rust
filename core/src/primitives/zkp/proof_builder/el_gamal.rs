@@ -124,7 +124,7 @@ mod tests {
     fn htdh2_proof() {
         let mut rng = thread_rng();
 
-        let (pk, (uv, r), _) = create_elgamal_enc0_and_enc1(&mut rng);
+        let (_, (uv, r), _) = create_elgamal_enc0_and_enc1(&mut rng);
 
         let g_0 = Curve::independent_generators::<1>(b"HTDH2ZKP")[0];
         let g_0_r = g_0 * r;
