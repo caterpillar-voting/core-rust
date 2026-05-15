@@ -1,6 +1,7 @@
 use crate::foundation::group::Group;
 use std::ops;
 use zeroize::{Zeroize, ZeroizeOnDrop};
+use crate::primitives::zkp::proof::ProofResponse;
 
 #[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey<G: Group>(pub G::Scalar);
@@ -9,9 +10,7 @@ pub struct SecretKey<G: Group>(pub G::Scalar);
 pub type PublicKey<G: Group> = G::Point;
 
 #[allow(type_alias_bounds)]
-pub type Ciphertext<G: Group> = (G::Point, G::Point);
-// TODO: include ZKP for CCA2
-// TODO: what ZKP to include for reencryption?
+pub type Ciphertext<G: Group> = ((G::Point, G::Point), G::Point, ProofResponse<G>);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HomomorphicCiphertext<G: Group>(pub G::Point, pub G::Point);

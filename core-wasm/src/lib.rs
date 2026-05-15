@@ -89,12 +89,6 @@ impl WasmEncryption {
     }
 
     pub fn decrypt(&self, secret_key: &WasmSecretKey, ciphertext: &WasmCiphertext) -> WasmEncodedMessage {
-        WasmEncodedMessage(self.0.decrypt(&secret_key.0, &ciphertext.0))
-    }
-
-    pub fn reencrypt(&self, public_key: &WasmPublicKey, ciphertext: &WasmCiphertext) -> WasmCiphertext {
-        let mut rng = OsRng;
-
-        WasmCiphertext(self.0.reencrypt(&public_key.0, &mut rng, &ciphertext.0))
+        WasmEncodedMessage(self.0.decrypt(&secret_key.0, &ciphertext.0).unwrap())
     }
 }
