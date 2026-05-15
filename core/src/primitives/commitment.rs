@@ -11,11 +11,11 @@ use rand_core::{CryptoRng, RngCore};
 
 /// A hiding commitment (Pedersen) with N messages.
 #[derive(Debug, PartialEq)]
-pub struct HHomomorphicCommitment<G: Group, const N: usize = 1> {
+pub struct Commitment<G: Group, const N: usize = 1> {
     pub pedersen: Pedersen<G, N>,
 }
 
-impl<G: Group, const N: usize> Default for HHomomorphicCommitment<G, N> {
+impl<G: Group, const N: usize> Default for Commitment<G, N> {
     fn default() -> Self {
         let pedersen = Pedersen::new(G::basepoint(), G::independent_generators::<N>(b"PedersenParameters"));
 
@@ -23,7 +23,7 @@ impl<G: Group, const N: usize> Default for HHomomorphicCommitment<G, N> {
     }
 }
 
-impl<G: Group, const N: usize> HHomomorphicCommitment<G, N> {
+impl<G: Group, const N: usize> Commitment<G, N> {
     pub fn new(pedersen: Pedersen<G, N>) -> Self {
         Self { pedersen }
     }
@@ -60,7 +60,7 @@ mod tests {
     fn commit_and_open() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = HHomomorphicCommitment::<Curve, 2>::default();
+        let hiding_commitment = Commitment::<Curve, 2>::default();
 
         let messages = new_messages::<2>();
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
@@ -72,7 +72,7 @@ mod tests {
     fn commit_and_open_homomorphic() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = HHomomorphicCommitment::<Curve, 2>::default();
+        let hiding_commitment = Commitment::<Curve, 2>::default();
 
         let messages1 = new_messages::<2>();
         let (commitment1, randomness1) = hiding_commitment.commit(&mut rng, &messages1);

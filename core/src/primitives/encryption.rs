@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 use crate::foundation::representation::EncodedMessage;
 use crate::primitives::encryption::el_gamal::ElGamal;
-pub use crate::primitives::encryption::representation::{Ciphertext, HomomorphicCiphertext, PublicKey, SecretKey};
+pub use crate::primitives::encryption::representation::{Ciphertext, PublicKey, SecretKey};
 use crate::primitives::zkp::NIZKProof;
 use crate::primitives::zkp::context::htdh2::HTDH2Hash;
 use crate::primitives::zkp::proof_builder::el_gamal::HTDH2ProofBuilder;
