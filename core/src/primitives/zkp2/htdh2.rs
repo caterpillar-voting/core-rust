@@ -168,7 +168,6 @@ mod tests {
         let mut rng = thread_rng();
         let g_0 = Curve::independent_generators::<1>(b"HTDH2ZKP")[0];
 
-
         // Generate public key
         let el_gamal = ElGamal::<Curve>::default();
         let sk = el_gamal.generate_secret_key(&mut rng);
