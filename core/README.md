@@ -2,9 +2,13 @@
 
 This is the documentation of the library.
 
+> [!NOTE]
+> So far, only encryption is documented, to collect feedback to the style of the documentation.
+
+
 ## Public-key Encryption
 
-Public-key encryption allows encryption under a public key. The resulting ciphertext can then only be decrypted using the secret key. Only the secret key needs to be kept secret, the public key can be published.
+Public-key encryption allows encryption under a public key. The resulting ciphertext can then only be decrypted using the secret key. While the public key can be published, typically sent to the end-user to enable them to encrypt, the secret key needs to be kept secret.
 
 Here is an example of encryption and decryption.
 
@@ -29,7 +33,7 @@ fn encryption() {
 }
 ```
 
-You'll notice that the encryption operates on a group `G`. The plaintext therefore needs to first be encoded into an element of `G`. If your plaintext is a number, you can use the `ScalarEncoder`. Note that you need to provide the expected plaintext range, else the decoding will fail.
+You'll notice that the encryption operates on the group `G`. The plaintext therefore needs to first be encoded into an element of `G`. If your plaintext is a number, you can use the `ScalarEncoder`. Note that you need to provide the expected plaintext range, else the decoding will fail.
 
 ```rust
 type G = RistrettoGroup;
@@ -52,7 +56,7 @@ fn encoding_decoding() {
 
 When you use the encryption in your protocol, make sure to configure it properly:
 - Choose a `label` that uniquely identifies where this ciphertext is used. This ensures that the ciphertext cannot be used for other purposes, which could break the security of the protocol.
-- You can also configure the underlying `ElGamal` scheme, and set the generator `g0` of the HTDH2 ZKP. Only change this configuration if you understand the implications. The `g0` generator MUST be verifiably independent of the generator used for ElGamal. 
+- You may also configure the underlying `ElGamal` scheme, and set the generator `g0` of the HTDH2 ZKP. Only change this default configuration if you understand the implications. The `g0` generator MUST be verifiably independent of the generator used for ElGamal. 
 
 
 ```rust
@@ -69,8 +73,10 @@ fn configure_encryption() {
 ```
 
 > [!NOTE]
-> The encryption is based on ElGamal, which is (only) IND-CPA secure. ElGamal is therefore malleable (i.e., the ciphertext can be operated on without knowing the secret key), which is necessary for some of the advanced cryptography used in electronic voting, but can be dangerous when not used carefully.
-Therefore, the encryption used here is ELGamal augmented with a HTDH2 zero-knowledge proof (ZKP). The augmented scheme is IND-CCA2, and therefore non-malleable. Its security is based on that the generator used by ElGamal is independent of the generator g0 used by the ZKP.
+> The encryption is based on ElGamal, which is (only) IND-CPA secure. ElGamal is therefore malleable (i.e., the ciphertext can be operated on without knowing the secret key)
+> This is necessary for some of the advanced cryptography used in electronic voting, but can be dangerous when not used carefully.
+> Therefore, the encryption augments ELGamal with a HTDH2 zero-knowledge proof (ZKP).
+> This augmented scheme is IND-CCA2 secure, and therefore notably non-malleable. Its security is based on that the generator used by ElGamal is independent of the generator g0 used by the ZKP.
 
 
 ### Advanced Usage
@@ -82,9 +88,10 @@ You can use the lower-level API to perform advanced operations. For example, if 
 
 ```rust
 type G = RistrettoGroup;
+use crate::primitives::encryption::el_gamal::ElGamal;
 
 #[test]
-fn encrypt_and_decrypt() {
+fn elgamal_malleability() {
     let mut rng = thread_rng();
     
     let el_gamal = ElGamal::<G>::default();
@@ -106,14 +113,16 @@ fn encrypt_and_decrypt() {
 }
 ```
 
-You may also use the `ExponentialElGamal` scheme, and use the additive homomorphic properties of the scheme. Note that for decryption, you need to provide a `decoder` that performs the discrete logarithm to recover the plaintext.
+You may also use the `ExponentialElGamal` scheme, and use the additive homomorphic properties of the scheme. `ExponentialElGamal` is a wrapper around `ElGamal`, and you can access the ELGamal instance at position `0`. 
 
 ```rust
 type G = RistrettoGroup;
 type Scalar = <RistrettoGroup as Group>::Scalar;
+use crate::primitives::encryption::el_gamal::ExponentialElGamal;
+use crate::foundation::discrete_log::BruteForceDiscreteLog;
 
 #[test]
-fn homomorphic_encrypt_and_decrypt() {
+fn exponential_elgamal_homomorphism() {
     let mut rng = thread_rng();
     let exponential_el_gamal = ExponentialElGamal::<G>::default();
 
@@ -132,4 +141,21 @@ fn homomorphic_encrypt_and_decrypt() {
 }
 ```
 
-Besides `BruteForceDiscreteLog`, we also provide `PrecomputedDiscreteLog` which precomputes the values within a given range.
+Note that for decryption, you need to provide a `decoder` that performs the discrete logarithm to recover the plaintext. Besides `BruteForceDiscreteLog`, we also provide `PrecomputedDiscreteLog` which precomputes the values within a given range.
+
+```rust
+type G = RistrettoGroup;
+type Scalar = <RistrettoGroup as Group>::Scalar;
+use crate::foundation::discrete_log::PrecomputedDiscreteLog;
+
+#[test]
+fn discrete_logarithm() {
+    let range_start = Scalar::from(1u8);
+    let log = PrecomputedDiscreteLog::<Curve>::new((range_start, 10), Curve::basepoint());
+    
+    let encoded = Curve::basepoint() * Scalar::from(3u8);
+    let decoded = log.log(&Curve::basepoint(), &encoded);
+    
+    assert_eq!(decoded, Some(Scalar::from(3u8)));
+}
+```
