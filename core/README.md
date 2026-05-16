@@ -9,17 +9,19 @@ Public-key encryption allows encryption under a public key. The resulting cipher
 Here is an example of encryption and decryption.
 
 ```rust
-type Curve = RistrettoGroup;
+type G = RistrettoGroup;
 use crate::primitives::encryption::Encryption;
 
 #[test]
 fn encryption() {
     let mut rng = thread_rng();
-    let message = Curve::point_random(&mut rng);
+    let message = G::point_random(&mut rng);
 
-    let encryption = Encryption::<Curve>::default();
+    // create the encryption scheme
+    let encryption = Encryption::<G>::default();
     let (secret_key, public_key) = encryption.key_gen(&mut rng);
 
+    // encrypt and decrypt
     let ciphertext = encryption.encrypt(&public_key, &mut rng, &message);
     let message_recovered = encryption.decrypt(&secret_key, &ciphertext);
 
@@ -27,15 +29,15 @@ fn encryption() {
 }
 ```
 
-You'll notice that the encryption operates on points on the curve. The plaintext therefore needs to first be encoded to a point. If your plaintext is a number, you can use the `ScalarEncoder` to encode it to a point. Note that you need to provide the expected plaintext range.
+You'll notice that the encryption operates on a group `G`. The plaintext therefore needs to first be encoded into an element of `G`. If your plaintext is a number, you can use the `ScalarEncoder`. Note that you need to provide the expected plaintext range, else the decoding will fail.
 
 ```rust
-type Curve = RistrettoGroup;
+type G = RistrettoGroup;
 use crate::foundation::encoder::ScalarEncoder;
 
 fn encoding_decoding() {
     // define the encoder with the expected plaintext range of length 2, i.e., (0..1)
-    let encoder = ScalarEncoder::<Curve>::new((Scalar::from(0u8), 2));
+    let encoder = ScalarEncoder::<G>::new((Scalar::from(0u8), 2));
 
     // encoding
     let plaintext = Scalar::from(1u8);
@@ -43,51 +45,91 @@ fn encoding_decoding() {
 
     // decoding
     let plaintext_recovered = encoder.decode(&message);
+    
+    assert_eq!(plaintext_recovered, Some(plaintext));
 }
 ````
+
+When you use the encryption in your protocol, make sure to configure it properly:
+- Choose a `label` that uniquely identifies where this ciphertext is used. This ensures that the ciphertext cannot be used for other purposes, which could break the security of the protocol.
+- You can also configure the underlying `ElGamal` scheme, and set the generator `g0` of the HTDH2 ZKP. Only change this configuration if you understand the implications. The `g0` generator MUST be verifiably independent of the generator used for ElGamal. 
+
+
+```rust
+type G = RistrettoGroup;
+use crate::primitives::encryption::Encryption;
+
+fn configure_encryption() {
+    let encryption = Encryption::<G> {
+        label: b"ElGamal".to_vec(),
+        el_gamal: ElGamal::default(),
+        g0: G::independent_generators::<1>(b"HTDH2ZKP")[0],
+    };
+}
+```
+
+> [!NOTE]
+> The encryption is based on ElGamal, which is (only) IND-CPA secure. ElGamal is therefore malleable (i.e., the ciphertext can be operated on without knowing the secret key), which is necessary for some of the advanced cryptography used in electronic voting, but can be dangerous when not used carefully.
+Therefore, the encryption used here is ELGamal augmented with a HTDH2 zero-knowledge proof (ZKP). The augmented scheme is IND-CCA2, and therefore non-malleable. Its security is based on that the generator used by ElGamal is independent of the generator g0 used by the ZKP.
 
 
 ### Advanced Usage
 
+> [!CAUTION]
+> Use the lower-level API described here only when you understand the implications.
 
-> [!NOTE]
-> The encryption is based on ElGamal, which is (only) IND-CPA secure. ElGamal is therefore malleable (i.e., the ciphertext can be operated on without knowing the secret key), which is necessary for some of the advanced cryptography used in electronic voting, but can be dangerous when not used carefully.
-Therefore, the encryption used here is ELGamal augmented with a HTDH2 zero-knowledge proof (ZKP). The augmented scheme is IND-CCA2, and therefore non-malleable.
-
-
-
-
-Points of interest:
-- The encryption operates on points on the curve, hence the plaintext needs to first be encoded to a point.
-- The encryption includes a HTDH2 ZKP to prevent malleability (transparent to the user). You can override the label and generator of HTDH2 with `Encryption::new()`. 
-- The `secret_key` is marked as `ZeroizeOnDrop`.
-- You can also use the homomorphic and reencryption properties of ElGamal by using the lower-level API (see below)
+You can use the lower-level API to perform advanced operations. For example, if you use directly the underlying `ElGamal` scheme, you can perform re-encryption or decrypt using the randomness.
 
 ```rust
-type Curve = RistrettoGroup;
+type G = RistrettoGroup;
+
+#[test]
+fn encrypt_and_decrypt() {
+    let mut rng = thread_rng();
+    
+    let el_gamal = ElGamal::<G>::default();
+    let sk = el_gamal.generate_secret_key(&mut rng);
+    let pk = el_gamal.derive_public_key(&sk);
+
+    let m = G::point_random(&mut rng);
+    let r = G::scalar_random(&mut rng);
+    let ciphertext = el_gamal.encrypt(&pk, &r, &m);
+
+    // re-encrypt
+    let r_2 = G::scalar_random(&mut rng);
+    let ciphertext_2 = el_gamal.reencrypt(&pk, &r_2, &ciphertext);
+
+    // decrypt using randomness
+    let m_recovered = el_gamal.decrypt_randomness(&pk, &(r_2 + r), &ciphertext_2);
+
+    assert_eq!(m_recovered, m);
+}
+```
+
+You may also use the `ExponentialElGamal` scheme, and use the additive homomorphic properties of the scheme. Note that for decryption, you need to provide a `decoder` that performs the discrete logarithm to recover the plaintext.
+
+```rust
+type G = RistrettoGroup;
 type Scalar = <RistrettoGroup as Group>::Scalar;
 
 #[test]
 fn homomorphic_encrypt_and_decrypt() {
     let mut rng = thread_rng();
-    let message = Scalar::from(1u8);
+    let exponential_el_gamal = ExponentialElGamal::<G>::default();
 
-    let el_gamal = ExponentialElGamal::<Curve>::default();
-    let secret_key = el_gamal.0.generate_secret_key(&mut rng);
-    let public_key = el_gamal.0.derive_public_key(&secret_key);
+    let sk = exponential_el_gamal.0.generate_secret_key(&mut rng);
+    let pk = exponential_el_gamal.0.derive_public_key(&sk);
+    let r = G::scalar_random(&mut rng);
+    let m = Scalar::from(1u8);
 
-    let ciphertext = el_gamal.encrypt(&public_key, &Curve::scalar_random(&mut rng), &message);
-    let ciphertext_reencrypted = el_gamal.0.reencrypt(&public_key, &Curve::scalar_random(&mut rng), &ciphertext);
-    let ciphertext_aggregated = (ciphertext_reencrypted.0 + ciphertext.0, ciphertext_reencrypted.1 + ciphertext.1);
+    let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
+    let ciphertext_aggregated = (ciphertext.0 + ciphertext.0, ciphertext.1 + ciphertext.1);
 
-    let message_decoder = BruteForceDiscreteLog::<Curve>::new(Scalar::from(2u8), None);
-    let decoded = el_gamal.decrypt(&secret_key, &ciphertext_aggregated, &message_decoder);
+    let decoder = BruteForceDiscreteLog::new(m, None);
+    let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_aggregated, &decoder);
 
-    assert_eq!(decoded, Some(Scalar::from(2u8)));
+    assert_eq!(m_decrypted, Some(Scalar::from(2u8)));
 }
 ```
 
-Points of interest:
-- The `ExponentialElGamal` operates on scalars instead of points, and is a wrapper around `ElGamal`.
-- `ElGamal` ciphertext can be re-encrypted, and aggregated. In case of `ExponentialElGamal`, the aggregated ciphertext represents the sum of the original messages.
-- You need to pass a `decoder` to the `decrypt` function to recover the scalar (the decoder logically performs the discrete log).
+Besides `BruteForceDiscreteLog`, we also provide `PrecomputedDiscreteLog` which precomputes the values within a given range.
