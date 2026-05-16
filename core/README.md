@@ -1,39 +1,16 @@
-# Core
+# README
 
-## Commitment
+This is the documentation of the library.
 
-A (homomorphic) commitment based on Pedersen. 
+## Public-key Encryption
 
-```rust
-type Curve = RistrettoGroup;
-type Scalar = <RistrettoGroup as Group>::Scalar;
+Public-key encryption allows encryption under a public key. The resulting ciphertext can then only be decrypted using the secret key. Only the secret key needs to be kept secret, the public key can be published.
 
-#[test]
-fn commitment() {
-    let mut rng = thread_rng();
-
-    let commitment = Commitment::<Curve>::default();
-
-    let messages = [Scalar::from(2u8)];
-    let (commit, opening) = commitment.commit(&mut rng, &messages);
-
-    assert!(commitment.open(&messages, &commit, &opening));
-}
-```
-
-Points of interest:
-- The commitment is `N`-way commitment, with the default being `N=1`.
-- The generators are picked verifiably. You can override them with `Commitment::new()`.
-- The `opening` is marked as `ZeroizeOnDrop`, as it is the secret that can open the commitment.
-
-
-## Encryption
-
-Encryption based on ElGamal.
+Here is an example of encryption and decryption.
 
 ```rust
 type Curve = RistrettoGroup;
-type Scalar = <RistrettoGroup as Group>::Scalar;
+use crate::primitives::encryption::Encryption;
 
 #[test]
 fn encryption() {
@@ -49,6 +26,36 @@ fn encryption() {
     assert_eq!(message_recovered, Some(message));
 }
 ```
+
+You'll notice that the encryption operates on points on the curve. The plaintext therefore needs to first be encoded to a point. If your plaintext is a number, you can use the `ScalarEncoder` to encode it to a point. Note that you need to provide the expected plaintext range.
+
+```rust
+type Curve = RistrettoGroup;
+use crate::foundation::encoder::ScalarEncoder;
+
+fn encoding_decoding() {
+    // define the encoder with the expected plaintext range of length 2, i.e., (0..1)
+    let encoder = ScalarEncoder::<Curve>::new((Scalar::from(0u8), 2));
+
+    // encoding
+    let plaintext = Scalar::from(1u8);
+    let message = encoder.encode(&plaintext);
+
+    // decoding
+    let plaintext_recovered = encoder.decode(&message);
+}
+````
+
+
+### Advanced Usage
+
+
+> [!NOTE]
+> The encryption is based on ElGamal, which is (only) IND-CPA secure. ElGamal is therefore malleable (i.e., the ciphertext can be operated on without knowing the secret key), which is necessary for some of the advanced cryptography used in electronic voting, but can be dangerous when not used carefully.
+Therefore, the encryption used here is ELGamal augmented with a HTDH2 zero-knowledge proof (ZKP). The augmented scheme is IND-CCA2, and therefore non-malleable.
+
+
+
 
 Points of interest:
 - The encryption operates on points on the curve, hence the plaintext needs to first be encoded to a point.
@@ -84,89 +91,3 @@ Points of interest:
 - The `ExponentialElGamal` operates on scalars instead of points, and is a wrapper around `ElGamal`.
 - `ElGamal` ciphertext can be re-encrypted, and aggregated. In case of `ExponentialElGamal`, the aggregated ciphertext represents the sum of the original messages.
 - You need to pass a `decoder` to the `decrypt` function to recover the scalar (the decoder logically performs the discrete log).
-
-## Zero Knowledge Proofs
-
-Implementation of an interactive Zero Knowledge Proof.
-
-```rust
-type Curve = RistrettoGroup;
-type Scalar = <RistrettoGroup as Group>::Scalar;
-
-#[test]
-fn zk_proof() {
-    let mut rng = thread_rng();
-    let message = Curve::point_random(&mut rng);
-
-    let el_gamal = ElGamal::<Curve>::default();
-    let secret_key = el_gamal.generate_secret_key(&mut rng);
-    let public_key = el_gamal.derive_public_key(&secret_key);
-
-    let ciphertext = el_gamal.encrypt(&public_key, &Curve::scalar_random(&mut rng), &message);
-    let randomness = Curve::scalar_random(&mut rng);
-    let ciphertext_dash = el_gamal.reencrypt(&public_key, &randomness, &ciphertext);
-
-    let claim = ReEncProofBuilder::build_claim::<Curve>(public_key, ciphertext, ciphertext_dash);
-    let zk_proof = ZKProof { claim };
-    
-    let knowledge = ReEncProofBuilder::build_knowledge::<Curve>(Some(randomness));
-    let secret_knowledge = SecretKnowledge(knowledge);
-    
-    let proof_preparation = zk_proof.commit(&mut rng, &secret_knowledge);
-    let c = Curve::scalar_random(&mut rng);
-    let proof = zk_proof.response(&mut rng, &proof_preparation, &secret_knowledge, &c);
-
-    assert!(zk_proof.verify(&proof, &c))
-}
-```
-
-Points of interest:
-- As we need the randomness used in the re-encryption to form the ZKP, we use the low-level API directly via `el_gamal.reencrypt`
-- We use the previded ElGamal `ReEncProofBuilder` that is able to build the re-encryption statements & knowledge.
-- The `SecretKnowledge` is marked as `ZeroizeOnDrop`.
-- We derive `c` randomly here, while in a real execution this value is received by the verifier
-- This interactive proof can also be transformed into a non-interactive proof, see the next example
-
-```rust
-#[test]
-fn nizk_proof() {
-    let mut rng = thread_rng();
-    let message1 = Curve::point_random(&mut rng);
-    let message2 = Curve::point_random(&mut rng);
-
-    let el_gamal = ElGamal::<Curve>::default();
-    let secret_key = el_gamal.generate_secret_key(&mut rng);
-    let public_key = el_gamal.derive_public_key(&secret_key);
-
-    let randomness = Curve::scalar_random(&mut rng);
-    let ciphertext = el_gamal.encrypt(&public_key, &randomness, &message1);
-
-    let claim1 = EncProofBuilder::build_claim::<Curve>(public_key, ciphertext, message1);
-    let claim2 = EncProofBuilder::build_claim::<Curve>(public_key, ciphertext, message2);
-    let claim: Claim<Curve> = Or(vec![claim1, claim2]);
-
-    let context_hash = VectorContextHash::new(b"Example".into());
-    let nizkp = NIZKProof::new(claim, context_hash);
-
-    let knowledge1 = ReEncProofBuilder::build_knowledge::<Curve>(Some(randomness));
-    let knowledge2 = ReEncProofBuilder::build_knowledge::<Curve>(None);
-    let knowledge: Knowledge<Curve> = Or(vec![knowledge1, knowledge2]);
-    let proof = nizkp.prove(&mut rng, &SecretKnowledge(knowledge));
-
-    assert!(nizkp.verify(&proof))
-}
-```
-
-Points of interest:
-- We compose claims into a proof tree; here we claim encryption towards `message1` or `message2`.
-- The non-interace proof needs a hash function. We use the default implementation `VectorContextHash`, which we prefix with `Example`.
-- When composing the knowledge, note that we only have a witness for the first statement `Some(randomness)`, as indeed the second statement is false.
-
-## Future steps
-
-features:
-- add encoding of plaintext to EncodedMessage (i.e., numbers to group points)
-- serialization and deserialization of ciphertexts, public keys, private keys and messages
-
-technical:
-- when to implement which default traits? is there any harm in doing so?
