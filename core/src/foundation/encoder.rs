@@ -1,4 +1,3 @@
-use std::fmt::Pointer;
 use crate::foundation::discrete_log::{DiscreteLog, PrecomputedDiscreteLog};
 use crate::foundation::group::Group;
 
@@ -15,7 +14,7 @@ impl<G: Group + 'static> ScalarEncoder<G> {
     }
 
     pub fn encode(&self, value: &G::Scalar) -> G::Point {
-        G::basepoint() * &value
+        G::basepoint() * value
     }
     pub fn decode(&self, value: &G::Point) -> Option<G::Scalar> {
         self.decoder.log(&G::basepoint(), value)
