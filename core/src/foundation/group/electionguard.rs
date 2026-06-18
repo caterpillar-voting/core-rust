@@ -108,6 +108,23 @@ impl<'a> Add<&'a FFPoint> for FFPoint {
         Self(x.mul(&rhs.0))
     }
 }
+
+impl Add<FFPoint> for FFPoint {
+    type Output = FFPoint;
+    fn add(self, rhs: FFPoint) -> FFPoint {
+        let x = self.0;
+        FFPoint(x.mul(&rhs.0))
+    }
+}
+
+impl<'a> Add<&'a FFPoint> for &FFPoint {
+    type Output = FFPoint;
+    fn add(self, rhs:&'a FFPoint) -> FFPoint {
+        let x = self.0;
+        FFPoint(x.mul(&rhs.0))
+    }
+}
+
 impl AddAssign for FFPoint {
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + &rhs;
