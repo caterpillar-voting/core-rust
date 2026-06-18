@@ -27,7 +27,7 @@ mod tests {
 
         let commitment = Commitment::<Curve>::default();
 
-        let messages = [Scalar::from(2u8)];
+        let messages = [Scalar::from(2u64)];
         let (commit, opening) = commitment.commit(&mut rng, &messages);
 
         assert!(commitment.open(&messages, &commit, &opening));
@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn homomorphic_encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = Scalar::from(1u8);
+        let message = Scalar::from(1u64);
 
         let el_gamal = ExponentialElGamal::<Curve>::default();
         let secret_key = el_gamal.0.generate_secret_key(&mut rng);
@@ -60,10 +60,10 @@ mod tests {
         let ciphertext_reencrypted = el_gamal.0.reencrypt(&public_key, &Curve::scalar_random(&mut rng), &ciphertext);
         let ciphertext_aggregated = (ciphertext_reencrypted.0 + ciphertext.0, ciphertext_reencrypted.1 + ciphertext.1);
 
-        let message_decoder = BruteForceDiscreteLog::<Curve>::new(Scalar::from(2u8), None);
+        let message_decoder = BruteForceDiscreteLog::<Curve>::new(Scalar::from(2u64), None);
         let decoded = el_gamal.decrypt(&secret_key, &ciphertext_aggregated, &message_decoder);
 
-        assert_eq!(decoded, Some(Scalar::from(2u8)));
+        assert_eq!(decoded, Some(Scalar::from(2u64)));
     }
 
     #[test]
