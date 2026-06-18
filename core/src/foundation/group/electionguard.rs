@@ -119,7 +119,7 @@ impl Add<FFPoint> for FFPoint {
 
 impl<'a> Add<&'a FFPoint> for &FFPoint {
     type Output = FFPoint;
-    fn add(self, rhs:&'a FFPoint) -> FFPoint {
+    fn add(self, rhs: &'a FFPoint) -> FFPoint {
         let x = self.0;
         FFPoint(x.mul(&rhs.0))
     }
