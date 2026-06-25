@@ -24,7 +24,7 @@ pub fn new_exponential_el_gamal_sample<R: RngCore + CryptoRng>(rng: &mut R) -> (
     let sk = exponential_el_gamal.0.generate_secret_key(rng);
     let pk = exponential_el_gamal.0.derive_public_key(&sk);
     let r = Curve::scalar_random(rng);
-    let m = Scalar::from(2u8);
+    let m = Scalar::from(2u64);
 
     (exponential_el_gamal, sk, pk, r, m)
 }

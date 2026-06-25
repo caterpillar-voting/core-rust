@@ -87,20 +87,20 @@ mod tests {
     fn greedy_discrete_log_finds_values_in_range() {
         let g = Curve::basepoint();
 
-        let start = Scalar::from(0u8);
-        let end = Scalar::from(3u8);
+        let start = Scalar::from(0u64);
+        let end = Scalar::from(3u64);
         let dlog = BruteForceDiscreteLog::<Curve>::new(start, Some(end));
 
-        let expected_start = Scalar::from(0u8);
+        let expected_start = Scalar::from(0u64);
         assert_eq!(dlog.log(&g, &(g * &expected_start)), Some(expected_start));
 
-        let expected_end = Scalar::from(3u8);
+        let expected_end = Scalar::from(3u64);
         assert_eq!(dlog.log(&g, &(g * &expected_end)), Some(expected_end));
 
-        let expected_middle = Scalar::from(2u8);
+        let expected_middle = Scalar::from(2u64);
         assert_eq!(dlog.log(&g, &(g * &expected_middle)), Some(expected_middle));
 
-        let out_of_range = Scalar::from(4u8);
+        let out_of_range = Scalar::from(4u64);
         assert_eq!(dlog.log(&g, &(g * &out_of_range)), None);
     }
 
@@ -108,19 +108,19 @@ mod tests {
     fn precomputed_discrete_log_returns_none_for_non_members() {
         let g = Curve::basepoint();
 
-        let range = (Scalar::from(0u8), 4);
+        let range = (Scalar::from(0u64), 4);
         let dlog = PrecomputedDiscreteLog::<Curve>::new(range, g);
 
-        let expected_start = Scalar::from(0u8);
+        let expected_start = Scalar::from(0u64);
         assert_eq!(dlog.log(&g, &(g * &expected_start)), Some(expected_start));
 
-        let expected_end = Scalar::from(3u8);
+        let expected_end = Scalar::from(3u64);
         assert_eq!(dlog.log(&g, &(g * &expected_end)), Some(expected_end));
 
-        let expected_middle = Scalar::from(2u8);
+        let expected_middle = Scalar::from(2u64);
         assert_eq!(dlog.log(&g, &(g * &expected_middle)), Some(expected_middle));
 
-        let out_of_range = Scalar::from(4u8);
+        let out_of_range = Scalar::from(4u64);
         assert_eq!(dlog.log(&g, &(g * &out_of_range)), None);
     }
 
@@ -128,7 +128,7 @@ mod tests {
     fn precomputed_discrete_log_requires_same_generator() {
         let g = Curve::basepoint();
 
-        let range = (Scalar::from(0u8), 1);
+        let range = (Scalar::from(0u64), 1);
         let dlog = PrecomputedDiscreteLog::<Curve>::new(range, g);
 
         let other_g = g + &g;
