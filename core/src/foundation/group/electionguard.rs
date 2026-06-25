@@ -3,7 +3,10 @@ use crate::foundation::group::Group;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use crypto_bigint::{Encoding, U256, U4096, const_monty_params, modular::ConstMontyForm};
 use rand_core::{CryptoRng, RngCore};
-use sha3::Digest;
+use sha3::{
+    Shake128,
+    digest::{ExtendableOutput, Update, XofReader},
+};
 use zeroize::Zeroize;
 // ElectionGuard group. p of 4096 bits, q of 256 bits.
 // p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFB17217F7D1CF79ABC9E3B39803F2F6AF40F343267298B62D8A0D175B8BAAFA2BE7B876206DEBAC98559552FB4AFA1B10ED2EAE35C138214427573B291169B8253E96CA16224AE8C51ACBDA11317C387EB9EA9BC3B136603B256FA0EC7657F74B72CE87B19D6548CAF5DFA6BD38303248655FA1872F20E3A2DA2D97C50F3FD5C607F4CA11FB5BFB90610D30F88FE551A2EE569D6DFC1EFA157D2E23DE1400B39617460775DB8990E5C943E732B479CD33CCCC4E659393514C4C1A1E0BD1D6095D25669B333564A3376A9C7F8A5E148E82074DB6015CFE7AA30C480A5417350D2C955D5179B1E17B9DAE313CDB6C606CB1078F735D1B2DB31B5F50B5185064C18B4D162DB3B365853D7598A1951AE273EE5570B6C68F96983496D4E6D330AF889B44A02554731CDC8EA17293D1228A4EF98D6F5177FBCF0755268A5C1F9538B98261AFFD446B1CA3CF5E9222B88C66D3C5422183EDC99421090BBB16FAF3D949F236E02B20CEE886B905C128D53D0BD2F9621363196AF503020060E49908391A0C57339BA2BEBA7D052AC5B61CC4E9207CEF2F0CE2D7373958D762265890445744FB5F2DA4B751005892D356890DEFE9CAD9B9D4B713E06162A2D8FDD0DF2FD608FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
@@ -223,18 +226,22 @@ impl Group for ElectionGuardGroup {
     }
 
     fn hash_to_point(payload: &[u8]) -> Self::Point {
-        let mut hash = sha3::Sha3_512::default();
-        hash.update(payload);
-        let hash = hash.finalize();
-        let p = Self::Point::from_bytes(hash.as_slice()).unwrap();
+        let mut hasher = Shake128::default();
+        hasher.update(payload);
+        let mut reader = hasher.finalize_xof();
+        let mut res = [0u8; Self::Point::BUFFER_SIZE];
+        reader.read(&mut res);
+        let p = Self::Point::from_bytes(res.as_slice()).unwrap();
         map_to_subgroup(&p)
     }
 
     fn hash_to_scalar(payload: &[u8]) -> Self::Scalar {
-        let mut hash = sha3::Sha3_512::default();
-        hash.update(payload);
-        let hash = hash.finalize();
-        Self::Scalar::from_bytes(hash.as_slice()).unwrap()
+        let mut hasher = Shake128::default();
+        hasher.update(payload);
+        let mut reader = hasher.finalize_xof();
+        let mut res = [0u8; Self::Scalar::BUFFER_SIZE];
+        reader.read(&mut res);
+        Self::Scalar::from_bytes(res.as_slice()).unwrap()
     }
 
     fn independent_generators<const N: usize>(prefix: &[u8]) -> Box<[Self::Point; N]> {
@@ -270,6 +277,7 @@ impl Group for ElectionGuardGroup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::thread_rng;
 
     type Scalar = <ElectionGuardGroup as Group>::Scalar;
 
@@ -327,5 +335,33 @@ mod tests {
 
         assigned *= &three;
         assert_eq!(assigned, basepoint * &Scalar::from(6u64));
+    }
+
+    #[test]
+    fn serialization_roundtrips() {
+        let mut rng = thread_rng();
+
+        let points = [
+            ElectionGuardGroup::identity(),
+            ElectionGuardGroup::basepoint(),
+            ElectionGuardGroup::point_random(&mut rng),
+            ElectionGuardGroup::hash_to_point(b"payload"),
+        ];
+
+        for point in points {
+            let mut bytes = [0u8; <FFPoint as ByteSerialize>::BUFFER_SIZE];
+            ByteSerialize::to_bytes(&point, &mut bytes);
+            let recovered_point = FFPoint::from_bytes(&bytes).unwrap();
+            assert_eq!(point, recovered_point);
+        }
+
+        let scalars = [Scalar::from(0u64), Scalar::from(1u64), ElectionGuardGroup::scalar_random(&mut rng)];
+
+        for scalar in scalars {
+            let mut bytes = [0u8; <Scalar as ByteSerialize>::BUFFER_SIZE];
+            ByteSerialize::to_bytes(&scalar, &mut bytes);
+            let recovered_scalar = Scalar::from_bytes(&bytes).unwrap();
+            assert_eq!(scalar, recovered_scalar);
+        }
     }
 }
