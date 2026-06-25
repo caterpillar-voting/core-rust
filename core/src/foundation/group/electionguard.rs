@@ -231,6 +231,7 @@ impl Group for ElectionGuardGroup {
         let mut reader = hasher.finalize_xof();
         let mut res = [0u8; Self::Point::BUFFER_SIZE];
         reader.read(&mut res);
+        // FIXME: this does not work. We need to hash to a larger integer and reduce, to get close to uniform distribution.
         let p = Self::Point::from_bytes(res.as_slice()).unwrap();
         map_to_subgroup(&p)
     }
@@ -241,6 +242,7 @@ impl Group for ElectionGuardGroup {
         let mut reader = hasher.finalize_xof();
         let mut res = [0u8; Self::Scalar::BUFFER_SIZE];
         reader.read(&mut res);
+        // FIXME: this does not work. We need to hash to a larger integer and reduce, to get close to uniform distribution.
         Self::Scalar::from_bytes(res.as_slice()).unwrap()
     }
 

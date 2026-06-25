@@ -38,7 +38,6 @@ pub trait Group {
         + Copy
         + Eq
         + PartialEq
-        + fmt::Debug
         + From<u64>
         + for<'a> ops::Add<&'a Self::Scalar, Output = Self::Scalar>
         + ops::AddAssign
@@ -61,6 +60,7 @@ pub trait Group {
     fn hash_to_scalar(payload: &[u8]) -> Self::Scalar;
 
     /// Generate (verifiably) independent generators
+    /// FIXME: N is sometimes known only at runtime (e.g. when these generators are used in a mixnet)
     fn independent_generators<const N: usize>(prefix: &[u8]) -> Box<[Self::Point; N]>;
 
     /// Generate a random Point.
