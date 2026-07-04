@@ -1,8 +1,8 @@
-use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, GroupContextHash, VectorContextHash};
-use crate::primitives::zkp3::{InteractiveGenericZKP, ZKP_Items};
 use crate::primitives::zkp3::zkp_from_phi::ZKP_From_Phi;
+use crate::primitives::zkp3::{InteractiveGenericZKP, ZKP_Items};
+use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone)]
 pub struct LeafClaim<G: Group + Clone> {
@@ -16,7 +16,7 @@ impl<G: Group + Clone> LeafClaim<G> {
         let public_args = public_args.clone();
         let witness_args = witness_args.clone();
         let zkp = zkp.clone();
-        Self { public_args , witness_args, zkp }
+        Self { public_args, witness_args, zkp }
     }
 }
 
@@ -50,23 +50,24 @@ pub enum SubTreeOfChallenges<G: Group + Clone> {
 }
 
 pub struct Combined_ZKP<G: Group + Clone> {
-    pub public_data: Vec<ZKP_Items<G>>,  // the list of public data to which the claims refer
-    pub claim: Claim<G>, // the tree of claims
+    pub public_data: Vec<ZKP_Items<G>>, // the list of public data to which the claims refer
+    pub claim: Claim<G>,                // the tree of claims
 }
-
 
 impl<G: Group + Clone> Combined_ZKP<G> {
     pub fn new(public_data: Vec<ZKP_Items<G>>, claim: Claim<G>) -> Self {
         Self { public_data, claim }
     }
-    fn commit_rec<R: RngCore + CryptoRng>(&self, claim: &Claim<G>, witness: &Vec<ZKP_Items<G>>, rng: &mut R)
-        -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
+    fn commit_rec<R: RngCore + CryptoRng>(&self, claim: &Claim<G>, witness: &Vec<ZKP_Items<G>>, rng: &mut R) -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
         match claim {
             Claim::LeafClaim(leaf) => {
                 let pub_data: Vec<ZKP_Items<G>> = leaf.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
-                let wit : Vec<ZKP_Items<G>> = leaf.witness_args.iter().map(|i| witness[*i as usize].clone()).collect();
+                let wit: Vec<ZKP_Items<G>> = leaf.witness_args.iter().map(|i| witness[*i as usize].clone()).collect();
                 let (com, st) = leaf.zkp.commit(&wit, &pub_data, rng);
-                let no_chal = TreeOfChallenges { node_challenge: None, sub_tree: SubTreeOfChallenges::NoSubTree() };
+                let no_chal = TreeOfChallenges {
+                    node_challenge: None,
+                    sub_tree: SubTreeOfChallenges::NoSubTree(),
+                };
                 (TreeOfData::LeafData(com), TreeOfData::LeafData(st), no_chal, TreeOfData::LeafData(vec![]))
             }
             Claim::AndClaim(and_claim) => {
@@ -81,7 +82,10 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                     out_chal.push(chal);
                     out_resp.push(resp);
                 }
-                let chal = TreeOfChallenges { node_challenge: None, sub_tree: SubTreeOfChallenges::AndSubTree(out_chal) };
+                let chal = TreeOfChallenges {
+                    node_challenge: None,
+                    sub_tree: SubTreeOfChallenges::AndSubTree(out_chal),
+                };
                 (TreeOfData::AndData(out_com), TreeOfData::AndData(out_st), chal, TreeOfData::AndData(out_resp))
             }
             Claim::OrClaim(or_claim) => {
@@ -98,20 +102,25 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                     out_chal.push(chal);
                     out_resp.push(resp);
                 }
-                let chal = TreeOfChallenges { node_challenge: None, sub_tree: SubTreeOfChallenges::OrSubTree(out_chal) };
+                let chal = TreeOfChallenges {
+                    node_challenge: None,
+                    sub_tree: SubTreeOfChallenges::OrSubTree(out_chal),
+                };
                 (TreeOfData::OrData(out_com), TreeOfData::OrData(out_st), chal, TreeOfData::OrData(out_resp))
             }
         }
     }
 
-    fn simulate_rec<R: RngCore + CryptoRng>(&self, claim: &Claim<G>, challenge: Option<G::Scalar>, rng: &mut R)
-        -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
+    fn simulate_rec<R: RngCore + CryptoRng>(&self, claim: &Claim<G>, challenge: Option<G::Scalar>, rng: &mut R) -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
         match claim {
             Claim::LeafClaim(claim) => {
                 let pub_data: Vec<ZKP_Items<G>> = claim.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
                 let (commit, challenge, mut response) = claim.zkp.simulate(&pub_data, challenge, rng);
-                let chal = TreeOfChallenges { node_challenge: Some(challenge), sub_tree: SubTreeOfChallenges::NoSubTree() };
-                ( TreeOfData::LeafData(commit), TreeOfData::LeafData(vec![]), chal, TreeOfData::LeafData(response))
+                let chal = TreeOfChallenges {
+                    node_challenge: Some(challenge),
+                    sub_tree: SubTreeOfChallenges::NoSubTree(),
+                };
+                (TreeOfData::LeafData(commit), TreeOfData::LeafData(vec![]), chal, TreeOfData::LeafData(response))
             }
             Claim::AndClaim(and_claim) => {
                 let challenge = match challenge {
@@ -128,9 +137,12 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                     out_st.push(st);
                     out_resp.push(resp);
                     out_chal.push(chal);
+                }
+                let chal = TreeOfChallenges {
+                    node_challenge: Some(challenge),
+                    sub_tree: SubTreeOfChallenges::AndSubTree(out_chal),
                 };
-                let chal = TreeOfChallenges { node_challenge: Some(challenge), sub_tree: SubTreeOfChallenges::AndSubTree(out_chal) };
-                (TreeOfData::AndData(out_com), TreeOfData::AndData(out_st), chal, TreeOfData::AndData(out_resp) )
+                (TreeOfData::AndData(out_com), TreeOfData::AndData(out_st), chal, TreeOfData::AndData(out_resp))
             }
             Claim::OrClaim(or_claim) => {
                 let mut out_com = vec![];
@@ -141,11 +153,7 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                 let n = or_claim.len();
                 for i in 0..n {
                     let claim = &or_claim[i];
-                    let forced_chal = if i == n - 1 && challenge.is_some() {
-                        Some(challenge.unwrap() - &sum_chall)
-                    } else {
-                        None
-                    };
+                    let forced_chal = if i == n - 1 && challenge.is_some() { Some(challenge.unwrap() - &sum_chall) } else { None };
                     let (com, st, chal, resp) = self.simulate_rec(claim, forced_chal, rng);
                     out_com.push(com);
                     out_st.push(st);
@@ -153,14 +161,18 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                     out_chal.push(chal);
                     out_resp.push(resp);
                 }
-                if challenge.is_some() { assert_eq!(sum_chall, challenge.unwrap()) };
-                let chal = TreeOfChallenges { node_challenge: Some(sum_chall), sub_tree: SubTreeOfChallenges::AndSubTree(out_chal) };
+                if challenge.is_some() {
+                    assert_eq!(sum_chall, challenge.unwrap())
+                };
+                let chal = TreeOfChallenges {
+                    node_challenge: Some(sum_chall),
+                    sub_tree: SubTreeOfChallenges::AndSubTree(out_chal),
+                };
                 (TreeOfData::AndData(out_com), TreeOfData::AndData(out_st), chal, TreeOfData::AndData(out_resp))
             }
         }
     }
-    pub fn commit<R: RngCore + CryptoRng>(&self, witness: &Vec<ZKP_Items<G>>, rng: &mut R)
-        -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
+    pub fn commit<R: RngCore + CryptoRng>(&self, witness: &Vec<ZKP_Items<G>>, rng: &mut R) -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
         self.commit_rec(&self.claim, witness, rng)
     }
 
@@ -218,29 +230,52 @@ impl<G: Group + Clone> Combined_ZKP<G> {
         G::hash_to_scalar(<VectorContextHash as ContextHash<G>>::get_context(&buf).as_slice())
     }
 
-    fn respond_rec(&self, claim: &Claim<G>, witness: &Vec<ZKP_Items<G>>, challenge: G::Scalar,
-                   challenge_tree: &TreeOfChallenges<G>, states: &States<G>, responses: &Responses<G>)
-        -> (TreeOfChallenges<G>, Responses<G>) {
+    fn respond_rec(
+        &self,
+        claim: &Claim<G>,
+        witness: &Vec<ZKP_Items<G>>,
+        challenge: G::Scalar,
+        challenge_tree: &TreeOfChallenges<G>,
+        states: &States<G>,
+        responses: &Responses<G>,
+    ) -> (TreeOfChallenges<G>, Responses<G>) {
         match claim {
             Claim::LeafClaim(claim) => {
-                if challenge_tree.node_challenge.is_some() { // has been simulated
+                if challenge_tree.node_challenge.is_some() {
+                    // has been simulated
                     assert_eq!(challenge, challenge_tree.node_challenge.unwrap());
-                    return (challenge_tree.clone(), responses.clone())
+                    return (challenge_tree.clone(), responses.clone());
                 }
                 let wit: Vec<ZKP_Items<G>> = claim.witness_args.iter().map(|i| witness[*i as usize].clone()).collect();
-                let state = match states { TreeOfData::LeafData(st) => st, _ => panic!("Unexpected state type")};
+                let state = match states {
+                    TreeOfData::LeafData(st) => st,
+                    _ => panic!("Unexpected state type"),
+                };
                 let resp = claim.zkp.respond(&wit, challenge, &state);
-                let chal = TreeOfChallenges { node_challenge: None, sub_tree: SubTreeOfChallenges::NoSubTree() };
-                return (chal, TreeOfData::LeafData(resp))
+                let chal = TreeOfChallenges {
+                    node_challenge: None,
+                    sub_tree: SubTreeOfChallenges::NoSubTree(),
+                };
+                return (chal, TreeOfData::LeafData(resp));
             }
             Claim::AndClaim(and_claim) => {
-                if challenge_tree.node_challenge.is_some() { // has been simulated
+                if challenge_tree.node_challenge.is_some() {
+                    // has been simulated
                     assert_eq!(challenge, challenge_tree.node_challenge.unwrap());
-                    return (challenge_tree.clone(), responses.clone())
+                    return (challenge_tree.clone(), responses.clone());
                 }
-                let chals = match challenge_tree.sub_tree.clone() { SubTreeOfChallenges::AndSubTree(chals) => chals, _ => panic!("Unexpected challenge type")};
-                let states = match states { TreeOfData::AndData(st) => st, _ => panic!("Unexpected state type")};
-                let responses = match responses { TreeOfData::AndData(resps) => resps, _ => panic!("Unexpected response type")};
+                let chals = match challenge_tree.sub_tree.clone() {
+                    SubTreeOfChallenges::AndSubTree(chals) => chals,
+                    _ => panic!("Unexpected challenge type"),
+                };
+                let states = match states {
+                    TreeOfData::AndData(st) => st,
+                    _ => panic!("Unexpected state type"),
+                };
+                let responses = match responses {
+                    TreeOfData::AndData(resps) => resps,
+                    _ => panic!("Unexpected response type"),
+                };
                 let n = and_claim.len();
                 assert_eq!(n, chals.len());
                 assert_eq!(n, states.len());
@@ -257,17 +292,30 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                     out_chal.push(chal);
                     out_resp.push(resp);
                 }
-                let chal = TreeOfChallenges { node_challenge: Some(challenge), sub_tree: SubTreeOfChallenges::AndSubTree(out_chal) };
-                return (chal, TreeOfData::AndData(out_resp))
+                let chal = TreeOfChallenges {
+                    node_challenge: Some(challenge),
+                    sub_tree: SubTreeOfChallenges::AndSubTree(out_chal),
+                };
+                return (chal, TreeOfData::AndData(out_resp));
             }
             Claim::OrClaim(or_claim) => {
-                if challenge_tree.node_challenge.is_some() { // has been simulated
+                if challenge_tree.node_challenge.is_some() {
+                    // has been simulated
                     assert_eq!(challenge, challenge_tree.node_challenge.unwrap());
-                    return (challenge_tree.clone(), responses.clone())
+                    return (challenge_tree.clone(), responses.clone());
                 }
-                let chals = match challenge_tree.sub_tree.clone() { SubTreeOfChallenges::AndSubTree(chals) => chals, _ => panic!("Unexpected challenge type")};
-                let states = match states { TreeOfData::AndData(st) => st, _ => panic!("Unexpected state type")};
-                let responses = match responses { TreeOfData::AndData(resps) => resps, _ => panic!("Unexpected response type")};
+                let chals = match challenge_tree.sub_tree.clone() {
+                    SubTreeOfChallenges::AndSubTree(chals) => chals,
+                    _ => panic!("Unexpected challenge type"),
+                };
+                let states = match states {
+                    TreeOfData::AndData(st) => st,
+                    _ => panic!("Unexpected state type"),
+                };
+                let responses = match responses {
+                    TreeOfData::AndData(resps) => resps,
+                    _ => panic!("Unexpected response type"),
+                };
                 let n = or_claim.len();
                 assert_eq!(n, chals.len());
                 assert_eq!(n, states.len());
@@ -291,13 +339,15 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                     out_chal.push(chal);
                     out_resp.push(resp);
                 }
-                let chal = TreeOfChallenges { node_challenge: Some(challenge), sub_tree: SubTreeOfChallenges::OrSubTree(out_chal) };
-                return (chal, TreeOfData::OrData(out_resp))
+                let chal = TreeOfChallenges {
+                    node_challenge: Some(challenge),
+                    sub_tree: SubTreeOfChallenges::OrSubTree(out_chal),
+                };
+                return (chal, TreeOfData::OrData(out_resp));
             }
         }
     }
-    pub fn respond(&self, witness: &Vec<ZKP_Items<G>>, challenge: G::Scalar, state: &States<G>, challenge_tree: &TreeOfChallenges<G>, responses: &Responses<G>)
-        ->  (TreeOfChallenges<G>, Responses<G>) {
+    pub fn respond(&self, witness: &Vec<ZKP_Items<G>>, challenge: G::Scalar, state: &States<G>, challenge_tree: &TreeOfChallenges<G>, responses: &Responses<G>) -> (TreeOfChallenges<G>, Responses<G>) {
         self.respond_rec(&self.claim, &witness, challenge, challenge_tree, state, responses)
     }
 
@@ -308,23 +358,39 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                 assert!(matches!(challenge_tree.sub_tree, SubTreeOfChallenges::NoSubTree()));
                 let chal = challenge_tree.node_challenge.unwrap();
                 let pub_data: Vec<ZKP_Items<G>> = claim.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
-                let resp = match responses { TreeOfData::LeafData(resp) => resp, _ => panic!("Unexpected response type")};
-                let commit = match commits { TreeOfData::LeafData(commit) => commit, _ => panic!("Unexpected commit type")};
+                let resp = match responses {
+                    TreeOfData::LeafData(resp) => resp,
+                    _ => panic!("Unexpected response type"),
+                };
+                let commit = match commits {
+                    TreeOfData::LeafData(commit) => commit,
+                    _ => panic!("Unexpected commit type"),
+                };
                 claim.zkp.interactive_verify(&pub_data, chal, &commit, &resp)
             }
             Claim::AndClaim(and_claim) => {
                 assert!(challenge_tree.node_challenge.is_some());
                 let challenge = challenge_tree.node_challenge.unwrap();
                 let n = and_claim.len();
-                let chals = match challenge_tree.sub_tree.clone() { SubTreeOfChallenges::AndSubTree(chals) => chals, _ => panic!("Unexpected challenge type")};
+                let chals = match challenge_tree.sub_tree.clone() {
+                    SubTreeOfChallenges::AndSubTree(chals) => chals,
+                    _ => panic!("Unexpected challenge type"),
+                };
                 assert_eq!(n, chals.len());
-                let resps = match responses { TreeOfData::AndData(resps) => resps, _ => panic!("Unexpected response type")};
+                let resps = match responses {
+                    TreeOfData::AndData(resps) => resps,
+                    _ => panic!("Unexpected response type"),
+                };
                 assert_eq!(n, resps.len());
                 for i in 0..n {
                     assert!(chals[i].node_challenge.is_some());
-                    if chals[i].node_challenge.unwrap() != challenge { return false; }
+                    if chals[i].node_challenge.unwrap() != challenge {
+                        return false;
+                    }
                     let b = self.interactive_verify_rec(&and_claim[i], commits, &chals[i], &resps[i]);
-                    if !b { return false; }
+                    if !b {
+                        return false;
+                    }
                 }
                 true
             }
@@ -332,9 +398,15 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                 assert!(challenge_tree.node_challenge.is_some());
                 let challenge = challenge_tree.node_challenge.unwrap();
                 let n = or_claim.len();
-                let chals = match challenge_tree.sub_tree.clone() { SubTreeOfChallenges::OrSubTree(chals) => chals, _ => panic!("Unexpected challenge type")};
+                let chals = match challenge_tree.sub_tree.clone() {
+                    SubTreeOfChallenges::OrSubTree(chals) => chals,
+                    _ => panic!("Unexpected challenge type"),
+                };
                 assert_eq!(n, chals.len());
-                let resps = match responses { TreeOfData::OrData(resps) => resps, _ => panic!("Unexpected response type")};
+                let resps = match responses {
+                    TreeOfData::OrData(resps) => resps,
+                    _ => panic!("Unexpected response type"),
+                };
                 assert_eq!(n, resps.len());
                 let mut sum_chall = G::Scalar::from(0);
                 let mut found_one = false;
@@ -342,30 +414,36 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                     assert!(chals[i].node_challenge.is_some());
                     sum_chall = sum_chall + &chals[i].node_challenge.unwrap();
                     let b = self.interactive_verify_rec(&or_claim[i], commits, &chals[i], &resps[i]);
-                    if b { found_one = true }
+                    if b {
+                        found_one = true
+                    }
                 }
-                if !found_one { return false; }
-                return challenge == sum_chall
+                if !found_one {
+                    return false;
+                }
+                return challenge == sum_chall;
             }
         }
     }
 
     pub fn interactive_verify(&self, commits: &Commits<G>, challenge: G::Scalar, challenge_tree: &TreeOfChallenges<G>, responses: &Responses<G>) -> bool {
         assert!(challenge_tree.node_challenge.is_some());
-        if challenge != challenge_tree.node_challenge.unwrap() { return false; };
+        if challenge != challenge_tree.node_challenge.unwrap() {
+            return false;
+        };
         self.interactive_verify_rec(&self.claim, commits, challenge_tree, responses)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::primitives::zkp3::combinable_zkp::{Combined_ZKP, LeafClaim};
-    use rand::thread_rng;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::el_gamal::ElGamal;
-    use crate::primitives::zkp3::combinable_zkp::Claim;
-    use crate::primitives::zkp3::zkp_from_phi::{expected_output_know_dlp, expected_output_same_plaintext, phi_know_dlp, phi_same_plaintext, zeroG1_know_dlp, zeroG1_same_plaintext, ZKP_From_Phi};
     use crate::primitives::zkp3::ZKP_Items;
+    use crate::primitives::zkp3::combinable_zkp::Claim;
+    use crate::primitives::zkp3::combinable_zkp::{Combined_ZKP, LeafClaim};
+    use crate::primitives::zkp3::zkp_from_phi::{ZKP_From_Phi, expected_output_know_dlp, expected_output_same_plaintext, phi_know_dlp, phi_same_plaintext, zeroG1_know_dlp, zeroG1_same_plaintext};
+    use rand::thread_rng;
 
     type G = RistrettoGroup;
 
@@ -407,4 +485,3 @@ mod tests {
         //assert!(or_zkp.interactive_verify(&commit, challenge, &chal, &response));
     }
 }
-

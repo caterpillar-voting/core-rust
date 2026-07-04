@@ -1,8 +1,8 @@
-pub mod zkp_from_phi;
 pub mod combinable_zkp;
+pub mod zkp_from_phi;
 
-use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
+use rand_core::{CryptoRng, RngCore};
 
 type CipherText<G: Group> = (G::Point, G::Point);
 

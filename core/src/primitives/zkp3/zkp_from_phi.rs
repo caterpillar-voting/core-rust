@@ -1,12 +1,12 @@
-use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, GroupContextHash, VectorContextHash};
 use crate::primitives::zkp3::{InteractiveGenericZKP, Maurer_Phi, Maurer_Phi_Expected_Output, ZKP_Items};
+use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone)]
 pub struct ZKP_From_Phi<G: Group + Clone> {
     pub phi: Maurer_Phi<G>,
-    pub zeroG1: Vec<ZKP_Items<G>>, // Gives the type of the witness.
+    pub zeroG1: Vec<ZKP_Items<G>>,                      // Gives the type of the witness.
     pub expected_output: Maurer_Phi_Expected_Output<G>, // Compute the expected output from the public data.
 }
 
@@ -19,15 +19,9 @@ fn random_with_same_structure<R: RngCore + CryptoRng, G: Group + Clone>(items: &
     let mut res = vec![];
     for item in items {
         let x = match item {
-            ZKP_Items::Point(x) => {
-                ZKP_Items::Point(G::point_random(rng))
-            }
-            ZKP_Items::Scalar(x) => {
-                ZKP_Items::Scalar(G::scalar_random(rng))
-            }
-            ZKP_Items::CipherText(x) => {
-                ZKP_Items::CipherText((G::point_random(rng), G::point_random(rng)))
-            }
+            ZKP_Items::Point(x) => ZKP_Items::Point(G::point_random(rng)),
+            ZKP_Items::Scalar(x) => ZKP_Items::Scalar(G::scalar_random(rng)),
+            ZKP_Items::CipherText(x) => ZKP_Items::CipherText((G::point_random(rng), G::point_random(rng))),
         };
         res.push(x);
     }
@@ -38,16 +32,10 @@ fn add_items<G: Group + Clone>(items1: &Vec<ZKP_Items<G>>, items2: &Vec<ZKP_Item
     let mut res = vec![];
     for (item1, item2) in items1.iter().zip(items2.iter()) {
         let x = match (item1, item2) {
-            (ZKP_Items::Point(item1), ZKP_Items::Point(item2)) => {
-                ZKP_Items::Point(*item1 + item2)
-            }
-            (ZKP_Items::Scalar(item1),ZKP_Items::Scalar(item2)) => {
-                ZKP_Items::Scalar(*item1 + item2)
-            }
-            (ZKP_Items::CipherText(item1), ZKP_Items::CipherText(item2)) => {
-                ZKP_Items::CipherText((item1.0 + &item2.0, item1.1 + &item2.1))
-            }
-            _ => panic!("Invalid type")
+            (ZKP_Items::Point(item1), ZKP_Items::Point(item2)) => ZKP_Items::Point(*item1 + item2),
+            (ZKP_Items::Scalar(item1), ZKP_Items::Scalar(item2)) => ZKP_Items::Scalar(*item1 + item2),
+            (ZKP_Items::CipherText(item1), ZKP_Items::CipherText(item2)) => ZKP_Items::CipherText((item1.0 + &item2.0, item1.1 + &item2.1)),
+            _ => panic!("Invalid type"),
         };
         res.push(x);
     }
@@ -57,16 +45,10 @@ fn sub_items<G: Group + Clone>(items1: &Vec<ZKP_Items<G>>, items2: &Vec<ZKP_Item
     let mut res = vec![];
     for (item1, item2) in items1.iter().zip(items2.iter()) {
         let x = match (item1, item2) {
-            (ZKP_Items::Point(item1), ZKP_Items::Point(item2)) => {
-                ZKP_Items::Point(*item1 - item2)
-            }
-            (ZKP_Items::Scalar(item1),ZKP_Items::Scalar(item2)) => {
-                ZKP_Items::Scalar(*item1 - item2)
-            }
-            (ZKP_Items::CipherText(item1), ZKP_Items::CipherText(item2)) => {
-                ZKP_Items::CipherText((item1.0 - &item2.0, item1.1 - &item2.1))
-            }
-            _ => panic!("Invalid type")
+            (ZKP_Items::Point(item1), ZKP_Items::Point(item2)) => ZKP_Items::Point(*item1 - item2),
+            (ZKP_Items::Scalar(item1), ZKP_Items::Scalar(item2)) => ZKP_Items::Scalar(*item1 - item2),
+            (ZKP_Items::CipherText(item1), ZKP_Items::CipherText(item2)) => ZKP_Items::CipherText((item1.0 - &item2.0, item1.1 - &item2.1)),
+            _ => panic!("Invalid type"),
         };
         res.push(x);
     }
@@ -77,16 +59,10 @@ fn mul_items<G: Group + Clone>(items: &Vec<ZKP_Items<G>>, scal: G::Scalar) -> Ve
     let mut res = vec![];
     for item in items {
         let x = match item {
-            ZKP_Items::Point(item) => {
-                ZKP_Items::Point(scal * item)
-            }
-            ZKP_Items::Scalar(item) => {
-                ZKP_Items::Scalar(scal * item)
-            }
-            ZKP_Items::CipherText(item) => {
-                ZKP_Items::CipherText((scal * &item.0, scal * &item.1))
-            }
-            _ => panic!("Invalid type")
+            ZKP_Items::Point(item) => ZKP_Items::Point(scal * item),
+            ZKP_Items::Scalar(item) => ZKP_Items::Scalar(scal * item),
+            ZKP_Items::CipherText(item) => ZKP_Items::CipherText((scal * &item.0, scal * &item.1)),
+            _ => panic!("Invalid type"),
         };
         res.push(x);
     }
@@ -98,15 +74,21 @@ fn are_equal_items<G: Group + Clone>(items1: &Vec<ZKP_Items<G>>, items2: &Vec<ZK
     for (item1, item2) in items1.iter().zip(items2.iter()) {
         match (item1, item2) {
             (ZKP_Items::Point(item1), ZKP_Items::Point(item2)) => {
-                if item1 != item2 { return false }
+                if item1 != item2 {
+                    return false;
+                }
             }
-            (ZKP_Items::Scalar(item1),ZKP_Items::Scalar(item2)) => {
-                if item1 != item2 { return false }
+            (ZKP_Items::Scalar(item1), ZKP_Items::Scalar(item2)) => {
+                if item1 != item2 {
+                    return false;
+                }
             }
             (ZKP_Items::CipherText(item1), ZKP_Items::CipherText(item2)) => {
-                if item1 != item2 { return false }
+                if item1 != item2 {
+                    return false;
+                }
             }
-            _ => panic!("Invalid type")
+            _ => panic!("Invalid type"),
         };
     }
     true
@@ -122,8 +104,7 @@ impl<G: Group + Clone> ZKP_From_Phi<G> {
     }
 }
 impl<G: Group + Clone> InteractiveGenericZKP<G> for ZKP_From_Phi<G> {
-    fn commit<R: RngCore + CryptoRng>(&self, witness: &Vec<ZKP_Items<G>>, public_data: &Vec<ZKP_Items<G>>, rng: &mut R) -> (Vec<ZKP_Items<G>>, Vec<ZKP_Items<G>>)
-    {
+    fn commit<R: RngCore + CryptoRng>(&self, witness: &Vec<ZKP_Items<G>>, public_data: &Vec<ZKP_Items<G>>, rng: &mut R) -> (Vec<ZKP_Items<G>>, Vec<ZKP_Items<G>>) {
         let k = random_with_same_structure(witness, rng);
         let t = (self.phi)(&k, public_data);
         (t, k)
@@ -154,8 +135,7 @@ impl<G: Group + Clone> InteractiveGenericZKP<G> for ZKP_From_Phi<G> {
         add_items(&wc, state)
     }
 
-    fn interactive_verify(&self, commit: &Vec<ZKP_Items<G>>, challenge: G::Scalar, response: &Vec<ZKP_Items<G>>,
-                              public_data: &Vec<ZKP_Items<G>>) -> bool {
+    fn interactive_verify(&self, commit: &Vec<ZKP_Items<G>>, challenge: G::Scalar, response: &Vec<ZKP_Items<G>>, public_data: &Vec<ZKP_Items<G>>) -> bool {
         let public_output = (self.expected_output)(public_data);
         let tmp = mul_items(&public_output, challenge);
         let tmp = add_items(&tmp, commit);
@@ -163,8 +143,7 @@ impl<G: Group + Clone> InteractiveGenericZKP<G> for ZKP_From_Phi<G> {
         are_equal_items(&phir, &tmp)
     }
 
-    fn simulate<R: RngCore + CryptoRng>(&self, public_data: &Vec<ZKP_Items<G>>, challenge: Option<G::Scalar>, rng: &mut R)
-        -> (Vec<ZKP_Items<G>>, G::Scalar, Vec<ZKP_Items<G>>) {
+    fn simulate<R: RngCore + CryptoRng>(&self, public_data: &Vec<ZKP_Items<G>>, challenge: Option<G::Scalar>, rng: &mut R) -> (Vec<ZKP_Items<G>>, G::Scalar, Vec<ZKP_Items<G>>) {
         let challenge = match challenge {
             Some(x) => x,
             None => G::scalar_random(rng),
@@ -182,7 +161,6 @@ impl<G: Group + Clone> InteractiveGenericZKP<G> for ZKP_From_Phi<G> {
 // Two examples of Maurer-Phi functions, that can be used with the above framework
 //////////////////////
 
-
 // Let G=<g> be a group, and h be a public element of G.
 // This is the Maurer-Phi function to prove knowledge of x s.t. h = x*g.
 // This is just Zq -> G, x -> x*g.
@@ -191,10 +169,8 @@ pub fn phi_know_dlp<G: Group + Clone>(x: &Vec<ZKP_Items<G>>, public_data: &Vec<Z
     assert_eq!(x.len(), 1);
     assert_eq!(public_data.len(), 1);
     let z = match x[0] {
-        ZKP_Items::Scalar(x) => {
-            x * &G::basepoint()
-        }
-        _ => panic!("Invalid type")
+        ZKP_Items::Scalar(x) => x * &G::basepoint(),
+        _ => panic!("Invalid type"),
     };
     vec![ZKP_Items::Point(z)]
 }
@@ -220,10 +196,22 @@ pub fn expected_output_know_dlp<G: Group + Clone>(public_data: &Vec<ZKP_Items<G>
 pub fn phi_same_plaintext<G: Group + Clone>(x: &Vec<ZKP_Items<G>>, public_data: &Vec<ZKP_Items<G>>) -> Vec<ZKP_Items<G>> {
     assert_eq!(x.len(), 2);
     assert_eq!(public_data.len(), 4);
-    let pk1 = match public_data[0] { ZKP_Items::Point(pk1) => pk1, _ => panic!("Invalid type") };
-    let pk2 = match public_data[1] { ZKP_Items::Point(pk2) => pk2, _ => panic!("Invalid type") };
-    let r1 = match x[0] { ZKP_Items::Scalar(r1) => r1, _ => panic!("Invalid type") };
-    let r2 = match x[1] { ZKP_Items::Scalar(r2) => r2, _ => panic!("Invalid type") };
+    let pk1 = match public_data[0] {
+        ZKP_Items::Point(pk1) => pk1,
+        _ => panic!("Invalid type"),
+    };
+    let pk2 = match public_data[1] {
+        ZKP_Items::Point(pk2) => pk2,
+        _ => panic!("Invalid type"),
+    };
+    let r1 = match x[0] {
+        ZKP_Items::Scalar(r1) => r1,
+        _ => panic!("Invalid type"),
+    };
+    let r2 = match x[1] {
+        ZKP_Items::Scalar(r2) => r2,
+        _ => panic!("Invalid type"),
+    };
     let res0 = ZKP_Items::Point(r1 * &G::basepoint());
     let res1 = ZKP_Items::Point(r2 * &G::basepoint());
     let res2 = ZKP_Items::Point(r1 * &pk1 - &(r2 * &pk2));
@@ -236,19 +224,25 @@ pub fn zeroG1_same_plaintext<G: Group + Clone>() -> Vec<ZKP_Items<G>> {
 
 pub fn expected_output_same_plaintext<G: Group + Clone>(public_data: &Vec<ZKP_Items<G>>) -> Vec<ZKP_Items<G>> {
     assert_eq!(public_data.len(), 4);
-    let C1 = match public_data[2] { ZKP_Items::CipherText(C1) => C1, _ => panic!("Invalid type") };
-    let C2 = match public_data[3] { ZKP_Items::CipherText(C2) => C2, _ => panic!("Invalid type") };
+    let C1 = match public_data[2] {
+        ZKP_Items::CipherText(C1) => C1,
+        _ => panic!("Invalid type"),
+    };
+    let C2 = match public_data[3] {
+        ZKP_Items::CipherText(C2) => C2,
+        _ => panic!("Invalid type"),
+    };
     vec![ZKP_Items::Point(C1.0), ZKP_Items::Point(C2.0), ZKP_Items::Point(C1.1 - &C2.1)]
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::el_gamal::ElGamal;
-    use rand::thread_rng;
-    use crate::foundation::group::Group;
-    use crate::primitives::zkp3::zkp_from_phi::{expected_output_know_dlp, expected_output_same_plaintext, phi_know_dlp, phi_same_plaintext, zeroG1_know_dlp, zeroG1_same_plaintext, ZKP_From_Phi};
+    use crate::primitives::zkp3::zkp_from_phi::{ZKP_From_Phi, expected_output_know_dlp, expected_output_same_plaintext, phi_know_dlp, phi_same_plaintext, zeroG1_know_dlp, zeroG1_same_plaintext};
     use crate::primitives::zkp3::{InteractiveGenericZKP, ZKP_Items};
+    use rand::thread_rng;
 
     type G = RistrettoGroup;
 
