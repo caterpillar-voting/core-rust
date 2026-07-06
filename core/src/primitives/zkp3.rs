@@ -1,4 +1,5 @@
 pub mod combinable_zkp;
+pub mod wrapper;
 pub mod zkp_from_phi;
 
 use crate::foundation::group::Group;
