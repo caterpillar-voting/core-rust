@@ -51,7 +51,7 @@ pub enum SubTreeOfChallenges<G: Group + Clone> {
 
 pub struct CombinedZkp<G: Group + Clone> {
     pub public_data: Vec<ZkpItems<G>>, // the list of public data to which the claims refer
-    pub claim: Claim<G>,                // the tree of claims
+    pub claim: Claim<G>,               // the tree of claims
 }
 
 impl<G: Group + Clone> CombinedZkp<G> {

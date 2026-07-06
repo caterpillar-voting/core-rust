@@ -6,7 +6,7 @@ use rand_core::{CryptoRng, RngCore};
 #[derive(Clone)]
 pub struct ZkpFromPhi<G: Group + Clone> {
     pub phi: MaurerPhi<G>,
-    pub zeroG1: Vec<ZkpItems<G>>,                      // Gives the type of the witness.
+    pub zeroG1: Vec<ZkpItems<G>>,                    // Gives the type of the witness.
     pub expected_output: MaurerPhiExpectedOutput<G>, // Compute the expected output from the public data.
 }
 
