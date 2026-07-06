@@ -1,18 +1,18 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, GroupContextHash, VectorContextHash};
-use crate::primitives::zkp3::zkp_from_phi::ZKP_From_Phi;
-use crate::primitives::zkp3::{InteractiveGenericZKP, ZKP_Items};
+use crate::primitives::zkp3::zkp_from_phi::ZkpFromPhi;
+use crate::primitives::zkp3::{InteractiveGenericZKP, ZkpItems};
 use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone)]
 pub struct LeafClaim<G: Group + Clone> {
     pub public_args: Vec<u16>,
     pub witness_args: Vec<u16>,
-    pub zkp: ZKP_From_Phi<G>,
+    pub zkp: ZkpFromPhi<G>,
 }
 
 impl<G: Group + Clone> LeafClaim<G> {
-    pub fn new(public_args: &Vec<u16>, witness_args: &Vec<u16>, zkp: &ZKP_From_Phi<G>) -> Self {
+    pub fn new(public_args: &Vec<u16>, witness_args: &Vec<u16>, zkp: &ZkpFromPhi<G>) -> Self {
         let public_args = public_args.clone();
         let witness_args = witness_args.clone();
         let zkp = zkp.clone();
@@ -28,7 +28,7 @@ pub enum Claim<G: Group + Clone> {
 }
 #[derive(Clone)]
 pub enum TreeOfData<G: Group + Clone> {
-    LeafData(Vec<ZKP_Items<G>>),
+    LeafData(Vec<ZkpItems<G>>),
     OrData(Vec<TreeOfData<G>>),
     AndData(Vec<TreeOfData<G>>),
 }
@@ -49,20 +49,20 @@ pub enum SubTreeOfChallenges<G: Group + Clone> {
     NoSubTree(),
 }
 
-pub struct Combined_ZKP<G: Group + Clone> {
-    pub public_data: Vec<ZKP_Items<G>>, // the list of public data to which the claims refer
+pub struct CombinedZkp<G: Group + Clone> {
+    pub public_data: Vec<ZkpItems<G>>, // the list of public data to which the claims refer
     pub claim: Claim<G>,                // the tree of claims
 }
 
-impl<G: Group + Clone> Combined_ZKP<G> {
-    pub fn new(public_data: Vec<ZKP_Items<G>>, claim: Claim<G>) -> Self {
+impl<G: Group + Clone> CombinedZkp<G> {
+    pub fn new(public_data: Vec<ZkpItems<G>>, claim: Claim<G>) -> Self {
         Self { public_data, claim }
     }
-    fn commit_rec<R: RngCore + CryptoRng>(&self, claim: &Claim<G>, witness: &Vec<ZKP_Items<G>>, rng: &mut R) -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
+    fn commit_rec<R: RngCore + CryptoRng>(&self, claim: &Claim<G>, witness: &Vec<ZkpItems<G>>, rng: &mut R) -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
         match claim {
             Claim::LeafClaim(leaf) => {
-                let pub_data: Vec<ZKP_Items<G>> = leaf.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
-                let wit: Vec<ZKP_Items<G>> = leaf.witness_args.iter().map(|i| witness[*i as usize].clone()).collect();
+                let pub_data: Vec<ZkpItems<G>> = leaf.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
+                let wit: Vec<ZkpItems<G>> = leaf.witness_args.iter().map(|i| witness[*i as usize].clone()).collect();
                 let (com, st) = leaf.zkp.commit(&wit, &pub_data, rng);
                 let no_chal = TreeOfChallenges {
                     node_challenge: None,
@@ -114,7 +114,7 @@ impl<G: Group + Clone> Combined_ZKP<G> {
     fn simulate_rec<R: RngCore + CryptoRng>(&self, claim: &Claim<G>, challenge: Option<G::Scalar>, rng: &mut R) -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
         match claim {
             Claim::LeafClaim(claim) => {
-                let pub_data: Vec<ZKP_Items<G>> = claim.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
+                let pub_data: Vec<ZkpItems<G>> = claim.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
                 let (commit, challenge, mut response) = claim.zkp.simulate(&pub_data, challenge, rng);
                 let chal = TreeOfChallenges {
                     node_challenge: Some(challenge),
@@ -172,7 +172,7 @@ impl<G: Group + Clone> Combined_ZKP<G> {
             }
         }
     }
-    pub fn commit<R: RngCore + CryptoRng>(&self, witness: &Vec<ZKP_Items<G>>, rng: &mut R) -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
+    pub fn commit<R: RngCore + CryptoRng>(&self, witness: &Vec<ZkpItems<G>>, rng: &mut R) -> (Commits<G>, States<G>, TreeOfChallenges<G>, Responses<G>) {
         self.commit_rec(&self.claim, witness, rng)
     }
 
@@ -182,13 +182,13 @@ impl<G: Group + Clone> Combined_ZKP<G> {
             TreeOfData::LeafData(commit) => {
                 for item in commit {
                     match item {
-                        ZKP_Items::Point(item) => {
+                        ZkpItems::Point(item) => {
                             <VectorContextHash as GroupContextHash<G>>::add_point(buf, &item);
                         }
-                        ZKP_Items::Scalar(item) => {
+                        ZkpItems::Scalar(item) => {
                             <VectorContextHash as GroupContextHash<G>>::add_scalar(buf, &item);
                         }
-                        ZKP_Items::CipherText(item) => {
+                        ZkpItems::CipherText(item) => {
                             <VectorContextHash as GroupContextHash<G>>::add_point(buf, &item.0);
                             <VectorContextHash as GroupContextHash<G>>::add_point(buf, &item.1);
                         }
@@ -214,13 +214,13 @@ impl<G: Group + Clone> Combined_ZKP<G> {
         let mut buf = VectorContextHash::new(Vec::from("TODO_context"));
         for item in &self.public_data {
             match item {
-                ZKP_Items::Point(item) => {
+                ZkpItems::Point(item) => {
                     <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &item);
                 }
-                ZKP_Items::Scalar(item) => {
+                ZkpItems::Scalar(item) => {
                     <VectorContextHash as GroupContextHash<G>>::add_scalar(&mut buf, &item);
                 }
-                ZKP_Items::CipherText(item) => {
+                ZkpItems::CipherText(item) => {
                     <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &item.0);
                     <VectorContextHash as GroupContextHash<G>>::add_point(&mut buf, &item.1);
                 }
@@ -233,7 +233,7 @@ impl<G: Group + Clone> Combined_ZKP<G> {
     fn respond_rec(
         &self,
         claim: &Claim<G>,
-        witness: &Vec<ZKP_Items<G>>,
+        witness: &Vec<ZkpItems<G>>,
         challenge: G::Scalar,
         challenge_tree: &TreeOfChallenges<G>,
         states: &States<G>,
@@ -246,7 +246,7 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                     assert_eq!(challenge, challenge_tree.node_challenge.unwrap());
                     return (challenge_tree.clone(), responses.clone());
                 }
-                let wit: Vec<ZKP_Items<G>> = claim.witness_args.iter().map(|i| witness[*i as usize].clone()).collect();
+                let wit: Vec<ZkpItems<G>> = claim.witness_args.iter().map(|i| witness[*i as usize].clone()).collect();
                 let state = match states {
                     TreeOfData::LeafData(st) => st,
                     _ => panic!("Unexpected state type"),
@@ -347,7 +347,7 @@ impl<G: Group + Clone> Combined_ZKP<G> {
             }
         }
     }
-    pub fn respond(&self, witness: &Vec<ZKP_Items<G>>, challenge: G::Scalar, state: &States<G>, challenge_tree: &TreeOfChallenges<G>, responses: &Responses<G>) -> (TreeOfChallenges<G>, Responses<G>) {
+    pub fn respond(&self, witness: &Vec<ZkpItems<G>>, challenge: G::Scalar, state: &States<G>, challenge_tree: &TreeOfChallenges<G>, responses: &Responses<G>) -> (TreeOfChallenges<G>, Responses<G>) {
         self.respond_rec(&self.claim, &witness, challenge, challenge_tree, state, responses)
     }
 
@@ -357,7 +357,7 @@ impl<G: Group + Clone> Combined_ZKP<G> {
                 assert!(challenge_tree.node_challenge.is_some());
                 assert!(matches!(challenge_tree.sub_tree, SubTreeOfChallenges::NoSubTree()));
                 let chal = challenge_tree.node_challenge.unwrap();
-                let pub_data: Vec<ZKP_Items<G>> = claim.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
+                let pub_data: Vec<ZkpItems<G>> = claim.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
                 let resp = match responses {
                     TreeOfData::LeafData(resp) => resp,
                     _ => panic!("Unexpected response type"),
@@ -439,10 +439,10 @@ impl<G: Group + Clone> Combined_ZKP<G> {
 mod tests {
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::el_gamal::ElGamal;
-    use crate::primitives::zkp3::ZKP_Items;
+    use crate::primitives::zkp3::ZkpItems;
     use crate::primitives::zkp3::combinable_zkp::Claim;
-    use crate::primitives::zkp3::combinable_zkp::{Combined_ZKP, LeafClaim};
-    use crate::primitives::zkp3::zkp_from_phi::{ZKP_From_Phi, expected_output_know_dlp, expected_output_same_plaintext, phi_know_dlp, phi_same_plaintext, zeroG1_know_dlp, zeroG1_same_plaintext};
+    use crate::primitives::zkp3::combinable_zkp::{CombinedZkp, LeafClaim};
+    use crate::primitives::zkp3::zkp_from_phi::{ZkpFromPhi, expected_output_know_dlp, expected_output_same_plaintext, phi_know_dlp, phi_same_plaintext, zeroG1_know_dlp, zeroG1_same_plaintext};
     use rand::thread_rng;
 
     type G = RistrettoGroup;
@@ -456,10 +456,10 @@ mod tests {
         let sk2 = el_gamal.generate_secret_key(&mut rng);
         let pk2 = el_gamal.derive_public_key(&sk2);
 
-        let zkp_dl = ZKP_From_Phi::new(phi_know_dlp::<G>, zeroG1_know_dlp(), expected_output_know_dlp::<G>);
+        let zkp_dl = ZkpFromPhi::new(phi_know_dlp::<G>, zeroG1_know_dlp(), expected_output_know_dlp::<G>);
 
-        let pub_data = vec![ZKP_Items::<G>::Point(pk1), ZKP_Items::Point(pk2)];
-        let witness = vec![ZKP_Items::<G>::Scalar(sk1), ZKP_Items::Scalar(sk2)];
+        let pub_data = vec![ZkpItems::<G>::Point(pk1), ZkpItems::Point(pk2)];
+        let witness = vec![ZkpItems::<G>::Scalar(sk1), ZkpItems::Scalar(sk2)];
 
         let pub_pos1 = vec![0u16];
         let wit_pos1 = vec![0u16];
@@ -469,7 +469,7 @@ mod tests {
         let wit_pos2 = vec![0u16];
         let claim2 = LeafClaim::<G>::new(&pub_pos2, &wit_pos2, &zkp_dl);
 
-        let zkp = Combined_ZKP::new(pub_data.clone(), Claim::LeafClaim(claim1.clone()));
+        let zkp = CombinedZkp::new(pub_data.clone(), Claim::LeafClaim(claim1.clone()));
 
         let (commit, st, ch, resp) = zkp.commit(&witness, &mut rng);
         let challenge = zkp.get_challenge(&commit);
@@ -478,7 +478,7 @@ mod tests {
         // assert!(zkp.interactive_verify(&commit, challenge, &chal, &response));
 
         let or_claim = Claim::OrClaim(vec![Claim::LeafClaim(claim1), Claim::LeafClaim(claim2)]);
-        let or_zkp = Combined_ZKP::new(pub_data, or_claim);
+        let or_zkp = CombinedZkp::new(pub_data, or_claim);
         let (commit, st, ch, resp) = or_zkp.commit(&witness, &mut rng);
         let challenge = or_zkp.get_challenge(&commit);
         //let (chal, response) = or_zkp.respond(&witness, challenge, &st, &ch, &resp);
