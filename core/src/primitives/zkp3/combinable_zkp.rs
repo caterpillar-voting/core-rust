@@ -253,7 +253,7 @@ impl<G: Group + Clone> CombinedZkp<G> {
                 };
                 let resp = claim.zkp.respond(&wit, challenge, &state);
                 let chal = TreeOfChallenges {
-                    node_challenge: None,
+                    node_challenge: Some(challenge),
                     sub_tree: SubTreeOfChallenges::NoSubTree(),
                 };
                 return (chal, TreeOfData::LeafData(resp));
@@ -305,15 +305,15 @@ impl<G: Group + Clone> CombinedZkp<G> {
                     return (challenge_tree.clone(), responses.clone());
                 }
                 let chals = match challenge_tree.sub_tree.clone() {
-                    SubTreeOfChallenges::AndSubTree(chals) => chals,
+                    SubTreeOfChallenges::OrSubTree(chals) => chals,
                     _ => panic!("Unexpected challenge type"),
                 };
                 let states = match states {
-                    TreeOfData::AndData(st) => st,
+                    TreeOfData::OrData(st) => st,
                     _ => panic!("Unexpected state type"),
                 };
                 let responses = match responses {
-                    TreeOfData::AndData(resps) => resps,
+                    TreeOfData::OrData(resps) => resps,
                     _ => panic!("Unexpected response type"),
                 };
                 let n = or_claim.len();
@@ -366,7 +366,7 @@ impl<G: Group + Clone> CombinedZkp<G> {
                     TreeOfData::LeafData(commit) => commit,
                     _ => panic!("Unexpected commit type"),
                 };
-                claim.zkp.interactive_verify(&pub_data, chal, &commit, &resp)
+                claim.zkp.interactive_verify(&commit, chal, &resp, &pub_data)
             }
             Claim::AndClaim(and_claim) => {
                 assert!(challenge_tree.node_challenge.is_some());
@@ -408,12 +408,17 @@ impl<G: Group + Clone> CombinedZkp<G> {
                     _ => panic!("Unexpected response type"),
                 };
                 assert_eq!(n, resps.len());
+                let coms = match commits {
+                    TreeOfData::OrData(coms) => coms,
+                    _ => panic!("Unexpected commit type"),
+                };
+                assert_eq!(n, coms.len());
                 let mut sum_chall = G::Scalar::from(0);
                 let mut found_one = false;
                 for i in 0..n {
                     assert!(chals[i].node_challenge.is_some());
                     sum_chall = sum_chall + &chals[i].node_challenge.unwrap();
-                    let b = self.interactive_verify_rec(&or_claim[i], commits, &chals[i], &resps[i]);
+                    let b = self.interactive_verify_rec(&or_claim[i], &coms[i], &chals[i], &resps[i]);
                     if b {
                         found_one = true
                     }
@@ -465,23 +470,23 @@ mod tests {
         let wit_pos1 = vec![0u16];
         let claim1 = LeafClaim::<G>::new(&pub_pos1, &wit_pos1, &zkp_dl);
 
-        let pub_pos2 = vec![0u16];
-        let wit_pos2 = vec![0u16];
+        let pub_pos2 = vec![1u16];
+        let wit_pos2 = vec![1u16];
         let claim2 = LeafClaim::<G>::new(&pub_pos2, &wit_pos2, &zkp_dl);
 
-        let zkp = CombinedZkp::new(pub_data.clone(), Claim::LeafClaim(claim1.clone()));
+        let zkp = CombinedZkp::new(pub_data.clone(), Claim::LeafClaim(claim2.clone()));
 
         let (commit, st, ch, resp) = zkp.commit(&witness, &mut rng);
         let challenge = zkp.get_challenge(&commit);
         let (chal, response) = zkp.respond(&witness, challenge, &st, &ch, &resp);
 
-        // assert!(zkp.interactive_verify(&commit, challenge, &chal, &response));
+        assert!(zkp.interactive_verify(&commit, challenge, &chal, &response));
 
         let or_claim = Claim::OrClaim(vec![Claim::LeafClaim(claim1), Claim::LeafClaim(claim2)]);
         let or_zkp = CombinedZkp::new(pub_data, or_claim);
         let (commit, st, ch, resp) = or_zkp.commit(&witness, &mut rng);
         let challenge = or_zkp.get_challenge(&commit);
-        //let (chal, response) = or_zkp.respond(&witness, challenge, &st, &ch, &resp);
-        //assert!(or_zkp.interactive_verify(&commit, challenge, &chal, &response));
+        let (chal, response) = or_zkp.respond(&witness, challenge, &st, &ch, &resp);
+        assert!(or_zkp.interactive_verify(&commit, challenge, &chal, &response));
     }
 }
