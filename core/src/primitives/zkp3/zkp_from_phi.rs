@@ -1,12 +1,12 @@
 use crate::foundation::group::Group;
 use crate::foundation::hash::{ContextHash, GroupContextHash, VectorContextHash};
-use crate::primitives::zkp3::{InteractiveGenericZKP, MaurerPhi, MaurerPhiExpectedOutput, ZkpItems};
+use crate::primitives::zkp3::{InteractiveGenericZKP, MaurerPhi, MaurerPhiExpectedOutput, MaurerPhiZeroG1, ZkpItems};
 use rand_core::{CryptoRng, RngCore};
 
 #[derive(Clone)]
 pub struct ZkpFromPhi<G: Group + Clone> {
     pub phi: MaurerPhi<G>,
-    pub zeroG1: Vec<ZkpItems<G>>,                    // Gives the type of the witness.
+    pub zero_g1: Vec<ZkpItems<G>>,                   // Gives the type of the witness.
     pub expected_output: MaurerPhiExpectedOutput<G>, // Compute the expected output from the public data.
 }
 
@@ -62,7 +62,6 @@ fn mul_items<G: Group + Clone>(items: &Vec<ZkpItems<G>>, scal: G::Scalar) -> Vec
             ZkpItems::Point(item) => ZkpItems::Point(scal * item),
             ZkpItems::Scalar(item) => ZkpItems::Scalar(scal * item),
             ZkpItems::CipherText(item) => ZkpItems::CipherText((scal * &item.0, scal * &item.1)),
-            _ => panic!("Invalid type"),
         };
         res.push(x);
     }
@@ -99,8 +98,9 @@ fn are_equal_items<G: Group + Clone>(items1: &Vec<ZkpItems<G>>, items2: &Vec<Zkp
 //////////////////////
 
 impl<G: Group + Clone> ZkpFromPhi<G> {
-    pub fn new(phi: MaurerPhi<G>, zeroG1: Vec<ZkpItems<G>>, expected_output: MaurerPhiExpectedOutput<G>) -> Self {
-        Self { phi, zeroG1, expected_output }
+    pub fn new(phi: MaurerPhi<G>, zero_g1: MaurerPhiZeroG1<G>, expected_output: MaurerPhiExpectedOutput<G>) -> Self {
+        let zero_g1 = zero_g1();
+        Self { phi, zero_g1, expected_output }
     }
 }
 impl<G: Group + Clone> InteractiveGenericZKP<G> for ZkpFromPhi<G> {
@@ -149,7 +149,7 @@ impl<G: Group + Clone> InteractiveGenericZKP<G> for ZkpFromPhi<G> {
             None => G::scalar_random(rng),
         };
         let public_output = (self.expected_output)(public_data);
-        let response = random_with_same_structure(&self.zeroG1, rng);
+        let response = random_with_same_structure(&self.zero_g1, rng);
         let phir = (self.phi)(&response, public_data);
         let tmp = mul_items(&public_output, challenge);
         let commit = sub_items(&phir, &tmp);
@@ -174,7 +174,7 @@ pub fn phi_know_dlp<G: Group + Clone>(x: &Vec<ZkpItems<G>>, public_data: &Vec<Zk
     };
     vec![ZkpItems::Point(z)]
 }
-pub fn zeroG1_know_dlp<G: Group + Clone>() -> Vec<ZkpItems<G>> {
+pub fn zero_g1_know_dlp<G: Group + Clone>() -> Vec<ZkpItems<G>> {
     vec![ZkpItems::Scalar(G::Scalar::from(0))]
 }
 
@@ -218,21 +218,21 @@ pub fn phi_same_plaintext<G: Group + Clone>(x: &Vec<ZkpItems<G>>, public_data: &
     vec![res0, res1, res2]
 }
 
-pub fn zeroG1_same_plaintext<G: Group + Clone>() -> Vec<ZkpItems<G>> {
+pub fn zero_g1_same_plaintext<G: Group + Clone>() -> Vec<ZkpItems<G>> {
     vec![ZkpItems::Scalar(G::Scalar::from(0)), ZkpItems::Scalar(G::Scalar::from(0))]
 }
 
 pub fn expected_output_same_plaintext<G: Group + Clone>(public_data: &Vec<ZkpItems<G>>) -> Vec<ZkpItems<G>> {
     assert_eq!(public_data.len(), 4);
-    let C1 = match public_data[2] {
-        ZkpItems::CipherText(C1) => C1,
+    let c1 = match public_data[2] {
+        ZkpItems::CipherText(c1) => c1,
         _ => panic!("Invalid type"),
     };
-    let C2 = match public_data[3] {
-        ZkpItems::CipherText(C2) => C2,
+    let c2 = match public_data[3] {
+        ZkpItems::CipherText(c2) => c2,
         _ => panic!("Invalid type"),
     };
-    vec![ZkpItems::Point(C1.0), ZkpItems::Point(C2.0), ZkpItems::Point(C1.1 - &C2.1)]
+    vec![ZkpItems::Point(c1.0), ZkpItems::Point(c2.0), ZkpItems::Point(c1.1 - &c2.1)]
 }
 
 #[cfg(test)]
@@ -240,7 +240,7 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::el_gamal::ElGamal;
-    use crate::primitives::zkp3::zkp_from_phi::{ZkpFromPhi, expected_output_know_dlp, expected_output_same_plaintext, phi_know_dlp, phi_same_plaintext, zeroG1_know_dlp, zeroG1_same_plaintext};
+    use crate::primitives::zkp3::zkp_from_phi::{ZkpFromPhi, expected_output_know_dlp, expected_output_same_plaintext, phi_know_dlp, phi_same_plaintext, zero_g1_know_dlp, zero_g1_same_plaintext};
     use crate::primitives::zkp3::{InteractiveGenericZKP, ZkpItems};
     use rand::thread_rng;
 
@@ -253,8 +253,8 @@ mod tests {
         let sk1 = el_gamal.generate_secret_key(&mut rng);
         let pk1 = el_gamal.derive_public_key(&sk1);
 
-        let zkp_dl = ZkpFromPhi::new(phi_know_dlp::<G>, zeroG1_know_dlp(), expected_output_know_dlp::<G>);
-        let zkp_eqm = ZkpFromPhi::new(phi_same_plaintext::<G>, zeroG1_same_plaintext(), expected_output_same_plaintext::<G>);
+        let zkp_dl = ZkpFromPhi::new(phi_know_dlp::<G>, zero_g1_know_dlp::<G>, expected_output_know_dlp::<G>);
+        let zkp_eqm = ZkpFromPhi::new(phi_same_plaintext::<G>, zero_g1_same_plaintext::<G>, expected_output_same_plaintext::<G>);
 
         let pub1 = vec![ZkpItems::Point(pk1)];
         let wit1 = vec![ZkpItems::Scalar(sk1)];

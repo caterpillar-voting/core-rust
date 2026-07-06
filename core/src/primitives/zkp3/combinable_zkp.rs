@@ -33,9 +33,9 @@ pub enum TreeOfData<G: Group + Clone> {
     AndData(Vec<TreeOfData<G>>),
 }
 
-type Commits<G: Group + Clone> = TreeOfData<G>;
-type Responses<G: Group + Clone> = TreeOfData<G>;
-type States<G: Group + Clone> = TreeOfData<G>;
+type Commits<G> = TreeOfData<G>;
+type Responses<G> = TreeOfData<G>;
+type States<G> = TreeOfData<G>;
 
 #[derive(Clone)]
 pub struct TreeOfChallenges<G: Group + Clone> {
@@ -115,7 +115,7 @@ impl<G: Group + Clone> CombinedZkp<G> {
         match claim {
             Claim::LeafClaim(claim) => {
                 let pub_data: Vec<ZkpItems<G>> = claim.public_args.iter().map(|i| self.public_data[*i as usize].clone()).collect();
-                let (commit, challenge, mut response) = claim.zkp.simulate(&pub_data, challenge, rng);
+                let (commit, challenge, response) = claim.zkp.simulate(&pub_data, challenge, rng);
                 let chal = TreeOfChallenges {
                     node_challenge: Some(challenge),
                     sub_tree: SubTreeOfChallenges::NoSubTree(),
@@ -442,7 +442,7 @@ mod tests {
     use crate::primitives::zkp3::ZkpItems;
     use crate::primitives::zkp3::combinable_zkp::Claim;
     use crate::primitives::zkp3::combinable_zkp::{CombinedZkp, LeafClaim};
-    use crate::primitives::zkp3::zkp_from_phi::{ZkpFromPhi, expected_output_know_dlp, expected_output_same_plaintext, phi_know_dlp, phi_same_plaintext, zeroG1_know_dlp, zeroG1_same_plaintext};
+    use crate::primitives::zkp3::zkp_from_phi::{ZkpFromPhi, expected_output_know_dlp, phi_know_dlp, zero_g1_know_dlp};
     use rand::thread_rng;
 
     type G = RistrettoGroup;
@@ -456,7 +456,7 @@ mod tests {
         let sk2 = el_gamal.generate_secret_key(&mut rng);
         let pk2 = el_gamal.derive_public_key(&sk2);
 
-        let zkp_dl = ZkpFromPhi::new(phi_know_dlp::<G>, zeroG1_know_dlp(), expected_output_know_dlp::<G>);
+        let zkp_dl = ZkpFromPhi::new(phi_know_dlp::<G>, zero_g1_know_dlp::<G>, expected_output_know_dlp::<G>);
 
         let pub_data = vec![ZkpItems::<G>::Point(pk1), ZkpItems::Point(pk2)];
         let witness = vec![ZkpItems::<G>::Scalar(sk1), ZkpItems::Scalar(sk2)];

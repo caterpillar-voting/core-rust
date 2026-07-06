@@ -4,7 +4,7 @@ pub mod zkp_from_phi;
 use crate::foundation::group::Group;
 use rand_core::{CryptoRng, RngCore};
 
-type CipherText<G: Group> = (G::Point, G::Point);
+type CipherText<G> = (<G as Group>::Point, <G as Group>::Point);
 
 // Types of items that can be involved in the statement of a ZKP (public value or witness)
 #[derive(Clone)]
@@ -18,10 +18,10 @@ pub enum ZkpItems<G: Group + Clone> {
 //  - a set of witness
 // and returns
 //  - a set of public values (the public output, that can be computed from the public data)
-type MaurerPhi<G: Group + Clone> = fn(&Vec<ZkpItems<G>>, &Vec<ZkpItems<G>>) -> Vec<ZkpItems<G>>;
+type MaurerPhi<G> = fn(&Vec<ZkpItems<G>>, &Vec<ZkpItems<G>>) -> Vec<ZkpItems<G>>;
 // For convenience, we need also the following:
-type MaurerPhiZeroG1<G: Group + Clone> = fn() -> Vec<ZkpItems<G>>; // returns a 0-vec of the same type as the witness
-type MaurerPhiExpectedOutput<G: Group + Clone> = fn(&Vec<ZkpItems<G>>) -> Vec<ZkpItems<G>>; // computes the expected output from the public data.
+type MaurerPhiZeroG1<G> = fn() -> Vec<ZkpItems<G>>; // returns a 0-vec of the same type as the witness
+type MaurerPhiExpectedOutput<G> = fn(&Vec<ZkpItems<G>>) -> Vec<ZkpItems<G>>; // computes the expected output from the public data.
 
 pub trait InteractiveGenericZKP<G: Group + Clone> {
     fn commit<R: RngCore + CryptoRng>(&self, witness: &Vec<ZkpItems<G>>, public_data: &Vec<ZkpItems<G>>, rng: &mut R) -> (Vec<ZkpItems<G>>, Vec<ZkpItems<G>>);
