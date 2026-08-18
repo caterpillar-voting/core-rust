@@ -4,7 +4,7 @@ mod _shared;
 pub mod electionguard;
 pub mod ristretto;
 
-use core::{fmt, ops};
+use core::{cmp, fmt, ops};
 use rand_core::{CryptoRng, RngCore};
 use zeroize::Zeroize;
 
@@ -21,31 +21,22 @@ pub trait Group {
 
     type Point: Clone
         + Copy
-        + Eq
-        + PartialEq
+        + cmp::Eq
+        + cmp::PartialEq
         + for<'a> ops::Add<&'a Self::Point, Output = Self::Point>
-        + ops::AddAssign
         + for<'a> ops::Sub<&'a Self::Point, Output = Self::Point>
-        + ops::SubAssign
-        + for<'a> ops::Neg<Output = Self::Point>
         + for<'a> ops::Mul<&'a Self::Scalar, Output = Self::Point>
-        + Zeroize
         + ByteSerialize
         + fmt::Debug;
 
     type Scalar: Clone
-        + Default
         + Copy
-        + Eq
-        + PartialEq
+        + cmp::Eq
+        + cmp::PartialEq
         + From<u64>
         + for<'a> ops::Add<&'a Self::Scalar, Output = Self::Scalar>
-        + ops::AddAssign
         + for<'a> ops::Sub<&'a Self::Scalar, Output = Self::Scalar>
-        + ops::SubAssign
         + for<'a> ops::Mul<&'a Self::Scalar, Output = Self::Scalar>
-        + for<'a> ops::Mul<&'a Self::Point, Output = Self::Point>
-        + ops::MulAssign
         + Zeroize
         + ByteSerialize
         + fmt::Debug;

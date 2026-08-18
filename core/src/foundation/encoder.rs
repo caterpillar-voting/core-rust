@@ -32,9 +32,9 @@ mod tests {
 
     #[test]
     fn scalar_encoder_reversible() {
-        let encoder = ScalarEncoder::<G>::new((Scalar::from(0u8), 2));
+        let encoder = ScalarEncoder::<G>::new((Scalar::from(0u64), 2));
 
-        let value = Scalar::from(0u8);
+        let value = Scalar::from(0u64);
         let encoded = encoder.encode(&value);
         let recovered_value = encoder.decode(&encoded);
 

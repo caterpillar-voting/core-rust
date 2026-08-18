@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod foundation;
 pub mod primitives;
 mod utils;
@@ -53,7 +55,7 @@ mod tests {
 
         let ciphertext = el_gamal.encrypt(&public_key, &Curve::scalar_random(&mut rng), &message);
         let ciphertext_reencrypted = el_gamal.0.reencrypt(&public_key, &Curve::scalar_random(&mut rng), &ciphertext);
-        let ciphertext_aggregated = (ciphertext_reencrypted.0 + ciphertext.0, ciphertext_reencrypted.1 + ciphertext.1);
+        let ciphertext_aggregated = (ciphertext_reencrypted.0 + &ciphertext.0, ciphertext_reencrypted.1 + &ciphertext.1);
 
         let message_decoder = BruteForceDiscreteLog::<Curve>::new(Scalar::from(2u64), None);
         let decoded = el_gamal.decrypt(&secret_key, &ciphertext_aggregated, &message_decoder);
