@@ -1,14 +1,16 @@
-use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
-use crate::primitives::zkp::get_challenge::{get_challenge_default, GetChallenge};
+use crate::primitives::zkp::get_challenge::{GetChallenge, get_challenge_default};
+use rand_core::{CryptoRng, RngCore};
 
 pub struct ZKPDiscreteLog<G: Group> {
-    get_challenge: GetChallenge<G>
+    get_challenge: GetChallenge<G>,
 }
 
 impl<G: Group> Default for ZKPDiscreteLog<G> {
     fn default() -> Self {
-        Self { get_challenge: get_challenge_default::<G> }
+        Self {
+            get_challenge: get_challenge_default::<G>,
+        }
     }
 }
 
@@ -33,7 +35,6 @@ impl<G: Group> ZKPDiscreteLog<G> {
         *c == c_dash
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -9,7 +9,7 @@ mod tests {
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::commitment::Commitment;
     use crate::primitives::encryption::Encryption;
-    use crate::primitives::encryption::el_gamal::{ExponentialElGamal};
+    use crate::primitives::encryption::el_gamal::ExponentialElGamal;
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;
