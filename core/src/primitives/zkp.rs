@@ -6,15 +6,15 @@ As an alternative, one could build ZKP by building an abstraction of a Maurer ZK
 This approach was explored and works, the code is however hard to read and review. As there are only a few ZKP used in practice, the trade-off has been deemed to be not worth it.
 You can explore these implementations in the git history.
 */
-pub mod discrete_log;
 pub mod get_challenge;
+pub mod discrete_log;
 pub mod htdh2;
 
 #[cfg(test)]
 mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::primitives::zkp4::discrete_log::ZKPDiscreteLog;
+    use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 
     type G = RistrettoGroup;
 

@@ -3,7 +3,7 @@ use crate::foundation::representation::EncodedMessage;
 use crate::primitives::encryption::el_gamal::ElGamal;
 pub use crate::primitives::encryption::representation::{Ciphertext, PublicKey, SecretKey};
 use rand_core::{CryptoRng, RngCore};
-use crate::primitives::zkp4::htdh2::ZKPHTDH2;
+use crate::primitives::zkp::htdh2::ZKPHTDH2;
 
 pub mod el_gamal;
 mod representation;
