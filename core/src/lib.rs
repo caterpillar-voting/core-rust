@@ -49,7 +49,7 @@ mod tests {
         let mut rng = thread_rng();
         let message = Scalar::from(1u64);
 
-        let el_gamal = ExponentialElGamal::<Curve>::default();
+        let el_gamal = ExponentialElGamal::default();
         let secret_key = el_gamal.0.generate_secret_key(&mut rng);
         let public_key = el_gamal.0.derive_public_key(&secret_key);
 

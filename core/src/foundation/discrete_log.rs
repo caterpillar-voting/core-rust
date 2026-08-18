@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 
 pub trait DiscreteLog<G: Group> {
-    fn log(&self, g: &G::Point, point: &G::Point) -> Option<G::Scalar>;
+    fn log(&self, point: &G::Point) -> Option<G::Scalar>;
 }
 
 pub struct BruteForceDiscreteLog<G: Group> {
@@ -22,10 +22,10 @@ impl<G: Group> BruteForceDiscreteLog<G> {
 }
 
 impl<G: Group> DiscreteLog<G> for BruteForceDiscreteLog<G> {
-    fn log(&self, g: &G::Point, point: &G::Point) -> Option<G::Scalar> {
+    fn log(&self, point: &G::Point) -> Option<G::Scalar> {
         let mut current = self.start;
         loop {
-            if *g * &current == *point {
+            if G::basepoint() * &current == *point {
                 return Some(current);
             }
 
@@ -40,20 +40,19 @@ impl<G: Group> DiscreteLog<G> for BruteForceDiscreteLog<G> {
 
 pub struct PrecomputedDiscreteLog<G: Group> {
     range: (G::Scalar, usize),
-    g: G::Point,
     table: Box<[G::Point]>, // TODO: consider hash map for O(1) access, but would require to hash over G::Scalar
 }
 
 impl<G: Group> PrecomputedDiscreteLog<G> {
-    pub fn new(range: (G::Scalar, usize), g: G::Point) -> Self {
+    pub fn new(range: (G::Scalar, usize)) -> Self {
         let mut table = Vec::with_capacity(range.1);
 
-        let mut point = g * &range.0;
+        let mut point = G::basepoint() * &range.0;
         table.push(point);
 
         let mut current = 1;
         while current < range.1 {
-            point = point + &g;
+            point = point + &G::basepoint();
             table.push(point);
 
             current += 1;
@@ -61,16 +60,13 @@ impl<G: Group> PrecomputedDiscreteLog<G> {
 
         Self {
             range,
-            g,
             table: table.into_boxed_slice(),
         }
     }
 }
 
 impl<G: Group> DiscreteLog<G> for PrecomputedDiscreteLog<G> {
-    fn log(&self, g: &G::Point, point: &G::Point) -> Option<G::Scalar> {
-        assert_eq!(*g, self.g);
-
+    fn log(&self, point: &G::Point) -> Option<G::Scalar> {
         self.table.iter().position(|candidate| candidate == point).map(|index| self.range.0 + &G::Scalar::from(index as u64))
     }
 }
@@ -92,16 +88,16 @@ mod tests {
         let dlog = BruteForceDiscreteLog::<G>::new(start, Some(end));
 
         let expected_start = Scalar::from(0u64);
-        assert_eq!(dlog.log(&g, &(g * &expected_start)), Some(expected_start));
+        assert_eq!(dlog.log(&(g * &expected_start)), Some(expected_start));
 
         let expected_end = Scalar::from(3u64);
-        assert_eq!(dlog.log(&g, &(g * &expected_end)), Some(expected_end));
+        assert_eq!(dlog.log(&(g * &expected_end)), Some(expected_end));
 
         let expected_middle = Scalar::from(2u64);
-        assert_eq!(dlog.log(&g, &(g * &expected_middle)), Some(expected_middle));
+        assert_eq!(dlog.log(&(g * &expected_middle)), Some(expected_middle));
 
         let out_of_range = Scalar::from(4u64);
-        assert_eq!(dlog.log(&g, &(g * &out_of_range)), None);
+        assert_eq!(dlog.log(&(g * &out_of_range)), None);
     }
 
     #[test]
@@ -109,30 +105,18 @@ mod tests {
         let g = G::basepoint();
 
         let range = (Scalar::from(0u64), 4);
-        let dlog = PrecomputedDiscreteLog::<G>::new(range, g);
+        let dlog = PrecomputedDiscreteLog::<G>::new(range);
 
         let expected_start = Scalar::from(0u64);
-        assert_eq!(dlog.log(&g, &(g * &expected_start)), Some(expected_start));
+        assert_eq!(dlog.log(&(g * &expected_start)), Some(expected_start));
 
         let expected_end = Scalar::from(3u64);
-        assert_eq!(dlog.log(&g, &(g * &expected_end)), Some(expected_end));
+        assert_eq!(dlog.log(&(g * &expected_end)), Some(expected_end));
 
         let expected_middle = Scalar::from(2u64);
-        assert_eq!(dlog.log(&g, &(g * &expected_middle)), Some(expected_middle));
+        assert_eq!(dlog.log(&(g * &expected_middle)), Some(expected_middle));
 
         let out_of_range = Scalar::from(4u64);
-        assert_eq!(dlog.log(&g, &(g * &out_of_range)), None);
-    }
-
-    #[test]
-    fn precomputed_discrete_log_requires_same_generator() {
-        let g = G::basepoint();
-
-        let range = (Scalar::from(0u64), 1);
-        let dlog = PrecomputedDiscreteLog::<G>::new(range, g);
-
-        let other_g = g + &g;
-        let result = std::panic::catch_unwind(|| dlog.log(&other_g, &g));
-        assert!(result.is_err());
+        assert_eq!(dlog.log(&(g * &out_of_range)), None);
     }
 }

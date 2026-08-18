@@ -9,7 +9,7 @@ pub struct ScalarEncoder<G: Group> {
 impl<G: Group + 'static> ScalarEncoder<G> {
     pub fn new(range: (G::Scalar, usize)) -> Self {
         let g = G::basepoint();
-        let log = PrecomputedDiscreteLog::<G>::new(range, g);
+        let log = PrecomputedDiscreteLog::<G>::new(range);
         Self { g, decoder: Box::new(log) }
     }
 
@@ -17,7 +17,7 @@ impl<G: Group + 'static> ScalarEncoder<G> {
         G::basepoint() * value
     }
     pub fn decode(&self, value: &G::Point) -> Option<G::Scalar> {
-        self.decoder.log(&G::basepoint(), value)
+        self.decoder.log(value)
     }
 }
 

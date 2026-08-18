@@ -1,33 +1,30 @@
 use crate::foundation::discrete_log::DiscreteLog;
 use crate::foundation::group::Group;
 use rand_core::{CryptoRng, RngCore};
+use std::marker::PhantomData;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ElGamal<G: Group> {
-    g: G::Point,
+    _marker: PhantomData<G>,
 }
 
 impl<G: Group> Default for ElGamal<G> {
     fn default() -> Self {
-        Self { g: G::basepoint() }
+        Self { _marker: Default::default() }
     }
 }
 
 impl<G: Group> ElGamal<G> {
-    pub fn new(g: G::Point) -> Self {
-        Self { g }
-    }
-
     pub fn generate_secret_key<R: RngCore + CryptoRng>(&self, rng: &mut R) -> G::Scalar {
         G::scalar_random(rng)
     }
 
     pub fn derive_public_key(&self, sk: &G::Scalar) -> G::Point {
-        self.g * sk
+        G::basepoint() * sk
     }
 
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Point) -> (G::Point, G::Point) {
-        let alpha = self.g * r;
+        let alpha = G::basepoint() * r;
         let beta = *pk * r + m;
 
         (alpha, beta)
@@ -51,7 +48,7 @@ impl<G: Group> ElGamal<G> {
     pub fn reencrypt(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point)) -> (G::Point, G::Point) {
         let (alpha, beta) = ciphertext;
 
-        let alpha = self.g * r + alpha;
+        let alpha = G::basepoint() * r + alpha;
         let beta = *pk * r + beta;
 
         (alpha, beta)
@@ -73,20 +70,20 @@ impl<G: Group> ExponentialElGamal<G> {
     }
 
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Scalar) -> (G::Point, G::Point) {
-        let m_point = self.0.g * m;
+        let m_point = G::basepoint() * m;
         self.0.encrypt(pk, r, &m_point)
     }
 
     pub fn decrypt(&self, sk: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
         let m_point = self.0.decrypt(sk, ciphertext);
 
-        decoder.log(&self.0.g, &m_point)
+        decoder.log(&m_point)
     }
 
     pub fn decrypt_randomness(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
         let m_point = self.0.decrypt_randomness(pk, r, ciphertext);
 
-        decoder.log(&self.0.g, &m_point)
+        decoder.log(&m_point)
     }
 
     // we explicitly do not repeat the methods that remain the same towards ElGamal (e.g., key generation, renecryption)
