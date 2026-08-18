@@ -2,7 +2,6 @@
 
 pub mod commitment;
 pub mod encryption;
-pub mod zkp;
 pub mod zkp2;
 pub mod zkp3;
 pub mod zkp4;
