@@ -102,7 +102,7 @@ mod tests {
     use crate::primitives::encryption::_test_utils::{new_el_gamal_sample, new_exponential_el_gamal_sample};
     use rand::thread_rng;
 
-    type Curve = RistrettoGroup;
+    type G = RistrettoGroup;
 
     #[test]
     fn encrypt_and_decrypt() {
@@ -124,7 +124,7 @@ mod tests {
 
         let ciphertext = el_gamal.encrypt(&pk, &r, &m);
 
-        let r_2 = Curve::scalar_random(&mut rng);
+        let r_2 = G::scalar_random(&mut rng);
         let ciphertext_2 = el_gamal.reencrypt(&pk, &r_2, &ciphertext);
 
         let m_decrypted = el_gamal.decrypt(&sk, &ciphertext_2);
@@ -156,7 +156,7 @@ mod tests {
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
 
-        let r_2 = Curve::scalar_random(&mut rng);
+        let r_2 = G::scalar_random(&mut rng);
         let ciphertext_2 = exponential_el_gamal.0.reencrypt(&pk, &r_2, &ciphertext);
 
         let m_decoder = BruteForceDiscreteLog::new(m, None);

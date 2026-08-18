@@ -46,13 +46,13 @@ mod tests {
     use rand::rngs::ThreadRng;
     use rand::thread_rng;
 
-    type Curve = RistrettoGroup;
-    type Scalar = <Curve as Group>::Scalar;
+    type G = RistrettoGroup;
+    type Scalar = <G as Group>::Scalar;
 
     #[test]
     fn commit_and_open() {
         let mut rng = thread_rng();
-        let pedersen = Pedersen::<Curve, 1>::default();
+        let pedersen = Pedersen::<G, 1>::default();
         let (randomness, messages) = new_pedersen_sample::<ThreadRng, 1>(&mut rng);
 
         let commitment = pedersen.commit(&randomness, &messages);
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn homomorphic_properties() {
         let mut rng = thread_rng();
-        let pedersen = Pedersen::<Curve, 5>::default();
+        let pedersen = Pedersen::<G, 5>::default();
 
         let (r_1, m_1) = new_pedersen_sample::<ThreadRng, 5>(&mut rng);
         let (r_2, m_2) = new_pedersen_sample::<ThreadRng, 5>(&mut rng);

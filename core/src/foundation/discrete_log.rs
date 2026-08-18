@@ -80,16 +80,16 @@ mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
 
-    type Curve = RistrettoGroup;
-    type Scalar = <Curve as Group>::Scalar;
+    type G = RistrettoGroup;
+    type Scalar = <G as Group>::Scalar;
 
     #[test]
     fn greedy_discrete_log_finds_values_in_range() {
-        let g = Curve::basepoint();
+        let g = G::basepoint();
 
         let start = Scalar::from(0u64);
         let end = Scalar::from(3u64);
-        let dlog = BruteForceDiscreteLog::<Curve>::new(start, Some(end));
+        let dlog = BruteForceDiscreteLog::<G>::new(start, Some(end));
 
         let expected_start = Scalar::from(0u64);
         assert_eq!(dlog.log(&g, &(g * &expected_start)), Some(expected_start));
@@ -106,10 +106,10 @@ mod tests {
 
     #[test]
     fn precomputed_discrete_log_returns_none_for_non_members() {
-        let g = Curve::basepoint();
+        let g = G::basepoint();
 
         let range = (Scalar::from(0u64), 4);
-        let dlog = PrecomputedDiscreteLog::<Curve>::new(range, g);
+        let dlog = PrecomputedDiscreteLog::<G>::new(range, g);
 
         let expected_start = Scalar::from(0u64);
         assert_eq!(dlog.log(&g, &(g * &expected_start)), Some(expected_start));
@@ -126,10 +126,10 @@ mod tests {
 
     #[test]
     fn precomputed_discrete_log_requires_same_generator() {
-        let g = Curve::basepoint();
+        let g = G::basepoint();
 
         let range = (Scalar::from(0u64), 1);
-        let dlog = PrecomputedDiscreteLog::<Curve>::new(range, g);
+        let dlog = PrecomputedDiscreteLog::<G>::new(range, g);
 
         let other_g = g + &g;
         let result = std::panic::catch_unwind(|| dlog.log(&other_g, &g));
