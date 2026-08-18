@@ -3,6 +3,7 @@ use crate::foundation::representation::EncodedMessage;
 use crate::primitives::encryption::el_gamal::ElGamal;
 pub use crate::primitives::encryption::representation::{Ciphertext, PublicKey, SecretKey};
 use rand_core::{CryptoRng, RngCore};
+pub use crate::primitives::encryption::representation::Context;
 use crate::primitives::zkp::htdh2::ZKPHTDH2;
 
 pub mod el_gamal;
@@ -37,12 +38,12 @@ impl<G: Group> Encryption<G> {
         (secret_key, public_key)
     }
 
-    pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, ctx: &Vec<u8>, rng: &mut R, message: &EncodedMessage<G>) -> Ciphertext<G> {
+    pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, context: &Context, rng: &mut R, message: &EncodedMessage<G>) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
         let uv = self.el_gamal.encrypt(public_key, &randomness, message);
 
         let zkp = ZKPHTDH2::<G>::default();
-        let proof = zkp.prove(&self.g0, &uv, &randomness, ctx, rng);
+        let proof = zkp.prove(&self.g0, &uv, &randomness, context, rng);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
@@ -51,11 +52,11 @@ impl<G: Group> Encryption<G> {
         (uv, proof)
     }
 
-    pub fn decrypt(&self, ctx: &Vec<u8>, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> Option<EncodedMessage<G>> {
+    pub fn decrypt(&self, context: &Context, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> Option<EncodedMessage<G>> {
         let (uv, proof) = ciphertext;
 
         let zkp = ZKPHTDH2::<G>::default();
-        if !zkp.verify(&self.g0, &uv, &proof.0, &proof.1, &proof.2, ctx) {
+        if !zkp.verify(&self.g0, &uv, &proof.0, &proof.1, &proof.2, context) {
             return None
         }
 
