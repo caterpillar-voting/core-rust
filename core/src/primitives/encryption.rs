@@ -31,7 +31,7 @@ impl<G: Group> Default for Encryption<G> {
         Self {
             el_gamal: ElGamal::default(),
             label: b"ElGamal".to_vec(),
-            g0: G::independent_generators::<1>(b"HTDH2ZKP")[0],
+            g0: G::independent_generators(1, b"HTDH2ZKP")[0],
         }
     }
 }

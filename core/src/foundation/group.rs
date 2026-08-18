@@ -59,8 +59,7 @@ pub trait Group {
     fn hash_to_scalar(payload: &[u8]) -> Self::Scalar;
 
     /// Generate (verifiably) independent generators
-    /// FIXME: N is sometimes known only at runtime (e.g. when these generators are used in a mixnet)
-    fn independent_generators<const N: usize>(prefix: &[u8]) -> Box<[Self::Point; N]>;
+    fn independent_generators(size: usize, prefix: &[u8]) -> Vec<Self::Point>;
 
     /// Generate a random Point.
     fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point;
