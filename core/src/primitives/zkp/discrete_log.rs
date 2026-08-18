@@ -1,6 +1,6 @@
 use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
-use crate::primitives::zkp4::get_challenge::{get_challenge_default, GetChallenge};
+use crate::primitives::zkp::get_challenge::{get_challenge_default, GetChallenge};
 
 pub struct ZKPDiscreteLog<G: Group> {
     get_challenge: GetChallenge<G>
@@ -39,7 +39,7 @@ impl<G: Group> ZKPDiscreteLog<G> {
 mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::primitives::zkp4::discrete_log::ZKPDiscreteLog;
+    use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 
     type G = RistrettoGroup;
 
