@@ -1,7 +1,7 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
 use caterpillar_voting_core::foundation::group::{ByteSerialize, Group};
 use caterpillar_voting_core::foundation::representation::EncodedMessage;
-use caterpillar_voting_core::primitives::encryption::{Ciphertext, Encryption, PublicKey, SecretKey};
+use caterpillar_voting_core::primitives::encryption::{Ciphertext, Encryption, PublicKey, SecretKey, Context};
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 
@@ -16,6 +16,10 @@ pub struct WasmSecretKey(SecretKey<RistrettoGroup>);
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct WasmPublicKey(PublicKey<RistrettoGroup>);
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct WasmContext(Context);
 
 #[wasm_bindgen]
 pub struct WasmKeyPair {
@@ -82,13 +86,13 @@ impl WasmEncryption {
         }
     }
 
-    pub fn encrypt(&self, public_key: &WasmPublicKey, message: &WasmEncodedMessage) -> WasmCiphertext {
+    pub fn encrypt(&self, public_key: &WasmPublicKey, context: &WasmContext, message: &WasmEncodedMessage) -> WasmCiphertext {
         let mut rng = OsRng;
 
-        WasmCiphertext(self.0.encrypt(&public_key.0, &mut rng, &message.0))
+        WasmCiphertext(self.0.encrypt(&public_key.0, &context.0, &mut rng, &message.0))
     }
 
-    pub fn decrypt(&self, secret_key: &WasmSecretKey, ciphertext: &WasmCiphertext) -> WasmEncodedMessage {
-        WasmEncodedMessage(self.0.decrypt(&secret_key.0, &ciphertext.0).unwrap())
+    pub fn decrypt(&self, secret_key: &WasmSecretKey, context: &WasmContext, ciphertext: &WasmCiphertext) -> WasmEncodedMessage {
+        WasmEncodedMessage(self.0.decrypt(&context.0, &secret_key.0, &ciphertext.0).unwrap())
     }
 }
