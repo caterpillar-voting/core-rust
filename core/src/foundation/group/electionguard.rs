@@ -246,15 +246,16 @@ impl Group for ElectionGuardGroup {
         Self::Scalar::from_bytes(res.as_slice()).unwrap()
     }
 
-    fn independent_generators<const N: usize>(prefix: &[u8]) -> Box<[Self::Point; N]> {
-        let mut result = Vec::with_capacity(N);
+    // TODO: extract in generic implementation
+    fn independent_generators(size: usize, prefix: &[u8]) -> Vec<Self::Point> {
+        let mut result = Vec::with_capacity(size);
 
         let shared_prefix_len = prefix.len() + Self::GROUP_IDENTIFIER.len();
         let mut payload = Vec::with_capacity(shared_prefix_len + size_of::<u32>());
         payload.extend_from_slice(prefix);
         payload.extend_from_slice(Self::GROUP_IDENTIFIER);
 
-        for i in 0..N {
+        for i in 0..size {
             let i = u32::try_from(i).expect("index does not fit in u32");
             payload.truncate(shared_prefix_len);
             payload.extend_from_slice(&i.to_le_bytes());

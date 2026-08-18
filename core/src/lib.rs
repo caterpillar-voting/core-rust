@@ -21,7 +21,7 @@ mod tests {
 
         let commitment = Commitment::<Curve>::default();
 
-        let messages = [Scalar::from(2u64)];
+        let messages = vec![Scalar::from(2u64)];
         let (commit, opening) = commitment.commit(&mut rng, &messages);
 
         assert!(commitment.open(&messages, &commit, &opening));

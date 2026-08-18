@@ -1,34 +1,34 @@
 use crate::foundation::group::Group;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Pedersen<G: Group, const N: usize = 1> {
-    pub g: G::Point,
-    pub h: Box<[G::Point; N]>,
+pub struct Pedersen<G: Group> {
+    pub h: Vec<G::Point>,
 }
 
-impl<G: Group, const N: usize> Default for Pedersen<G, N> {
+impl<G: Group> Default for Pedersen<G> {
     fn default() -> Self {
-        Self::new(G::basepoint(), G::independent_generators::<N>(b"Pedersen"))
+        Self::new(1)
     }
 }
 
-impl<G: Group, const N: usize> Pedersen<G, N> {
-    pub fn new(g: G::Point, h: Box<[G::Point; N]>) -> Self {
-        Self { g, h }
+impl<G: Group> Pedersen<G> {
+    pub fn new(size: usize) -> Self {
+        Self::new_with_generators(G::independent_generators(size, b"Pedersen"))
+    }
+
+    pub fn new_with_generators(h: Vec<G::Point>) -> Self {
+        Self { h }
     }
 
     pub fn commit(&self, r: &G::Scalar, m: &[G::Scalar]) -> G::Point {
         assert!(m.len() <= self.h.len());
 
-        let hiding_factor = self.g * r;
+        let hiding_factor = G::basepoint() * r;
 
         m.iter().zip(self.h.iter()).fold(hiding_factor, |acc, (m, h)| acc + &(*m * h))
     }
 
     pub fn verify(&self, r: &G::Scalar, m: &[G::Scalar], commitment: &G::Point) -> bool {
-        // TODO remove; exposes implementation details of commit()
-        assert!(m.len() <= self.h.len());
-
         let recomputed_commitment = self.commit(r, m);
 
         recomputed_commitment == *commitment
@@ -52,23 +52,23 @@ mod tests {
     #[test]
     fn commit_and_open() {
         let mut rng = thread_rng();
-        let pedersen = Pedersen::<G, 1>::default();
-        let (randomness, messages) = new_pedersen_sample::<ThreadRng, 1>(&mut rng);
+        let pedersen = Pedersen::<G>::default();
+        let (randomness, messages) = new_pedersen_sample::<ThreadRng>(1, &mut rng);
 
         let commitment = pedersen.commit(&randomness, &messages);
         assert!(pedersen.verify(&randomness, &messages, &commitment));
 
-        let (randomness, messages) = new_pedersen_sample::<ThreadRng, 1>(&mut rng);
+        let (randomness, messages) = new_pedersen_sample::<ThreadRng>(1, &mut rng);
         assert_eq!(pedersen.verify(&randomness, &messages, &commitment), false);
     }
 
     #[test]
     fn homomorphic_properties() {
         let mut rng = thread_rng();
-        let pedersen = Pedersen::<G, 5>::default();
+        let pedersen = Pedersen::<G>::new(5);
 
-        let (r_1, m_1) = new_pedersen_sample::<ThreadRng, 5>(&mut rng);
-        let (r_2, m_2) = new_pedersen_sample::<ThreadRng, 5>(&mut rng);
+        let (r_1, m_1) = new_pedersen_sample::<ThreadRng>(5, &mut rng);
+        let (r_2, m_2) = new_pedersen_sample::<ThreadRng>(5, &mut rng);
 
         let commitment_1 = pedersen.commit(&r_1, &m_1);
         let commitment_2 = pedersen.commit(&r_2, &m_2);
