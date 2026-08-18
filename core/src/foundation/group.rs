@@ -3,7 +3,6 @@
 pub mod electionguard;
 pub mod ristretto;
 
-/// Define a Trait for a generic Elliptic Curve Group
 use core::{fmt, ops};
 use rand_core::{CryptoRng, RngCore};
 use zeroize::Zeroize;

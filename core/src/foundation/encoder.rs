@@ -27,12 +27,12 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
 
-    type Curve = RistrettoGroup;
-    type Scalar = <Curve as Group>::Scalar;
+    type G = RistrettoGroup;
+    type Scalar = <G as Group>::Scalar;
 
     #[test]
     fn scalar_encoder_reversible() {
-        let encoder = ScalarEncoder::<Curve>::new((Scalar::from(0u8), 2));
+        let encoder = ScalarEncoder::<G>::new((Scalar::from(0u8), 2));
 
         let value = Scalar::from(0u8);
         let encoded = encoder.encode(&value);

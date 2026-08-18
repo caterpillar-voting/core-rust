@@ -7,9 +7,6 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub mod el_gamal;
 
-#[cfg(test)]
-mod _test_utils;
-
 #[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKey<G: Group>(pub G::Scalar);
 
@@ -75,20 +72,22 @@ impl<G: Group> Encryption<G> {
 }
 
 #[cfg(test)]
+mod _test_utils;
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use rand::thread_rng;
 
-    type Curve = RistrettoGroup;
+    type G = RistrettoGroup;
 
     #[test]
     fn encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let message = Curve::point_random(&mut rng);
+        let message = G::point_random(&mut rng);
 
-        let encryption = Encryption::<Curve>::default();
+        let encryption = Encryption::<G>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
 
         let ctx = "test_encrypt".as_bytes().to_vec();

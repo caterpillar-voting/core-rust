@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod _test_utils;
 pub mod pedersen;
 
 use crate::foundation::group::Group;
@@ -49,15 +47,17 @@ impl<G: Group, const N: usize> Commitment<G, N> {
 }
 
 #[cfg(test)]
+mod _test_utils;
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use rand::thread_rng;
 
-    type Curve = RistrettoGroup;
-    type Scalar = <Curve as Group>::Scalar;
+    type G = RistrettoGroup;
+    type Scalar = <G as Group>::Scalar;
 
-    fn new_messages<const N: usize>() -> [Message<Curve>; N] {
+    fn new_messages<const N: usize>() -> [Message<G>; N] {
         std::array::from_fn(|i| Scalar::from(u64::try_from(i).unwrap()))
     }
 
@@ -65,7 +65,7 @@ mod tests {
     fn commit_and_open() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = Commitment::<Curve, 2>::default();
+        let hiding_commitment = Commitment::<G, 2>::default();
 
         let messages = new_messages::<2>();
         let (commitment, randomness) = hiding_commitment.commit(&mut rng, &messages);
@@ -77,7 +77,7 @@ mod tests {
     fn commit_and_open_homomorphic() {
         let mut rng = thread_rng();
 
-        let hiding_commitment = Commitment::<Curve, 2>::default();
+        let hiding_commitment = Commitment::<G, 2>::default();
 
         let messages1 = new_messages::<2>();
         let (commitment1, randomness1) = hiding_commitment.commit(&mut rng, &messages1);
