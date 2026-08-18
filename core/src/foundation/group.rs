@@ -10,7 +10,7 @@ use zeroize::Zeroize;
 
 pub trait ByteSerialize {
     const BUFFER_SIZE: usize;
-    fn to_bytes(&self, buffer: &mut [u8]);
+    fn to_bytes(&self, buffer: &mut [u8]); // TODO: Refactor API to return vec<u8>, not take &mut as argument
     fn from_bytes(buffer: &[u8]) -> Option<Self>
     where
         Self: Sized;
