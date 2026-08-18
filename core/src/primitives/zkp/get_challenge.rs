@@ -12,4 +12,4 @@ pub fn get_challenge_default<G: Group>(points: &Vec<G::Point>, context: &Vec<u8>
 }
 
 #[allow(type_alias_bounds)]
-pub type GetChallenge<G: Group> = fn (&Vec<G::Point>, &Vec<u8>) -> G::Scalar;
+pub type GetChallenge<G: Group> = fn(&Vec<G::Point>, &Vec<u8>) -> G::Scalar;

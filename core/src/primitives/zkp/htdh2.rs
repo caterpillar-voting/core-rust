@@ -1,19 +1,20 @@
+use crate::foundation::group::Group;
+use crate::primitives::zkp::get_challenge::{GetChallenge, get_challenge_default};
 /**
 https://www.usenix.org/legacy/event/evtwote11/tech/final_files/Bulens.pdf
 section 4.1.4
 */
-
 use rand_core::{CryptoRng, RngCore};
-use crate::foundation::group::Group;
-use crate::primitives::zkp::get_challenge::{get_challenge_default, GetChallenge};
 
 pub struct ZKPHTDH2<G: Group> {
-    get_challenge: GetChallenge<G>
+    get_challenge: GetChallenge<G>,
 }
 
 impl<G: Group> Default for ZKPHTDH2<G> {
     fn default() -> Self {
-        Self { get_challenge: get_challenge_default::<G> }
+        Self {
+            get_challenge: get_challenge_default::<G>,
+        }
     }
 }
 
@@ -44,7 +45,6 @@ impl<G: Group> ZKPHTDH2<G> {
         *c == c_dash
     }
 }
-
 
 #[cfg(test)]
 mod tests {

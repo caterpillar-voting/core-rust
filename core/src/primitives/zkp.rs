@@ -1,3 +1,4 @@
+pub mod discrete_log;
 /**
 Implementations of ZKP. Variable naming and structure aims to follow https://crypto.ethz.ch/publications/files/Maurer15.pdf, but no explicit abstractions are done.
 
@@ -7,7 +8,6 @@ This approach was explored and works, the code is however hard to read and revie
 You can explore these implementations in the git history.
 */
 pub mod get_challenge;
-pub mod discrete_log;
 pub mod htdh2;
 
 #[cfg(test)]

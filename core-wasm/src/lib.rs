@@ -1,7 +1,7 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
 use caterpillar_voting_core::foundation::group::{ByteSerialize, Group};
 use caterpillar_voting_core::foundation::representation::EncodedMessage;
-use caterpillar_voting_core::primitives::encryption::{Ciphertext, Encryption, PublicKey, SecretKey, Context};
+use caterpillar_voting_core::primitives::encryption::{Ciphertext, Context, Encryption, PublicKey, SecretKey};
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 

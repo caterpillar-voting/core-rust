@@ -1,10 +1,10 @@
 use crate::foundation::group::Group;
 use crate::foundation::representation::EncodedMessage;
 use crate::primitives::encryption::el_gamal::ElGamal;
-pub use crate::primitives::encryption::representation::{Ciphertext, PublicKey, SecretKey};
-use rand_core::{CryptoRng, RngCore};
 pub use crate::primitives::encryption::representation::Context;
+pub use crate::primitives::encryption::representation::{Ciphertext, PublicKey, SecretKey};
 use crate::primitives::zkp::htdh2::ZKPHTDH2;
+use rand_core::{CryptoRng, RngCore};
 
 pub mod el_gamal;
 mod representation;
@@ -57,7 +57,7 @@ impl<G: Group> Encryption<G> {
 
         let zkp = ZKPHTDH2::<G>::default();
         if !zkp.verify(&self.g0, &uv, &proof.0, &proof.1, &proof.2, context) {
-            return None
+            return None;
         }
 
         Some(self.el_gamal.decrypt(&secret_key.0, uv))
