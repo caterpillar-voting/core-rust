@@ -2,6 +2,7 @@
 //!
 //! [`ristretto`]: https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/index.html
 
+use crate::foundation::group::_shared::independent_generators_default;
 use crate::foundation::group::ByteSerialize;
 use crate::foundation::group::Group;
 use curve25519_dalek::{
@@ -69,22 +70,7 @@ impl Group for RistrettoGroup {
     }
 
     fn independent_generators(size: usize, context: &[u8]) -> Vec<Self::Point> {
-        let mut result = Vec::with_capacity(size);
-
-        let shared_prefix_len = context.len() + Self::GROUP_IDENTIFIER.len();
-        let mut payload = Vec::with_capacity(shared_prefix_len + size_of::<u32>());
-        payload.extend_from_slice(context);
-        payload.extend_from_slice(Self::GROUP_IDENTIFIER);
-
-        for i in 0..size {
-            let i = u32::try_from(i).expect("index does not fit in u32");
-            payload.truncate(shared_prefix_len);
-            payload.extend_from_slice(&i.to_le_bytes());
-
-            result.push(RistrettoPointRaw::hash_from_bytes::<Sha3_512>(&payload));
-        }
-
-        result.try_into().expect("incorrect number of generators generated")
+        independent_generators_default::<Self>(size, context)
     }
 
     fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point {

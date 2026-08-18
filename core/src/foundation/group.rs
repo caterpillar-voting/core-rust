@@ -1,5 +1,6 @@
 //! Wrapper around different rust implementations of prime-order groups
 
+mod _shared;
 pub mod electionguard;
 pub mod ristretto;
 
