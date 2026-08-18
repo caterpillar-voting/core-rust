@@ -2,4 +2,5 @@
 
 pub mod commitment;
 pub mod encryption;
+pub mod signature;
 pub mod zkp;
