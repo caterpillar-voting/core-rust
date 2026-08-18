@@ -1,16 +1,26 @@
 use crate::foundation::group::Group;
 use crate::foundation::representation::EncodedMessage;
 use crate::primitives::encryption::el_gamal::ElGamal;
-pub use crate::primitives::encryption::representation::Context;
-pub use crate::primitives::encryption::representation::{Ciphertext, PublicKey, SecretKey};
 use crate::primitives::zkp::htdh2::ZKPHTDH2;
 use rand_core::{CryptoRng, RngCore};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub mod el_gamal;
-mod representation;
 
 #[cfg(test)]
 mod _test_utils;
+
+#[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
+pub struct SecretKey<G: Group>(pub G::Scalar);
+
+#[allow(type_alias_bounds)]
+pub type PublicKey<G: Group> = G::Point;
+
+#[allow(type_alias_bounds)]
+pub type Context = Vec<u8>;
+
+#[allow(type_alias_bounds)]
+pub type Ciphertext<G: Group> = ((G::Point, G::Point), (G::Point, G::Scalar, G::Scalar));
 
 #[derive(Debug)]
 pub struct Encryption<G: Group> {

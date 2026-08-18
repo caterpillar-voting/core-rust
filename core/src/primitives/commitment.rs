@@ -1,13 +1,18 @@
 #[cfg(test)]
 mod _test_utils;
 pub mod pedersen;
-mod representation;
 
 use crate::foundation::group::Group;
 use crate::foundation::representation::Message;
 use crate::primitives::commitment::pedersen::Pedersen;
-pub use crate::primitives::commitment::representation::{Commit, SecretOpening};
 use rand_core::{CryptoRng, RngCore};
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
+#[allow(type_alias_bounds)]
+pub type Commit<G: Group> = G::Point;
+
+#[derive(Debug, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
+pub struct SecretOpening<G: Group>(pub G::Scalar);
 
 /// A hiding commitment (Pedersen) with N messages.
 #[derive(Debug, PartialEq)]
