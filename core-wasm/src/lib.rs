@@ -6,7 +6,6 @@ use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-#[derive(Debug)]
 pub struct WasmEncryption(Encryption<RistrettoGroup>);
 
 #[wasm_bindgen]

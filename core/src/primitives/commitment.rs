@@ -83,8 +83,8 @@ mod tests {
         let messages2 = new_messages(2);
         let (commitment2, randomness2) = hiding_commitment.commit(&mut rng, &messages2);
 
-        let messages = (0..messages2.len()).map(|i| &messages1[i] + &messages2[i]).collect();
-        let commitment = &commitment1 + &commitment2;
+        let messages = (0..messages2.len()).map(|i| messages1[i] + &messages2[i]).collect();
+        let commitment = commitment1 + &commitment2;
         let randomness = &SecretOpening(randomness1.0 + &randomness2.0);
 
         assert!(hiding_commitment.open(&messages, &commitment, &randomness));

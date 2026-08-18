@@ -53,7 +53,7 @@ impl<G: Group> PrecomputedDiscreteLog<G> {
 
         let mut current = 1;
         while current < range.1 {
-            point += g;
+            point = point + &g;
             table.push(point);
 
             current += 1;
