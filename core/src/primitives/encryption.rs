@@ -2,11 +2,8 @@ use crate::foundation::group::Group;
 use crate::foundation::representation::EncodedMessage;
 use crate::primitives::encryption::el_gamal::ElGamal;
 pub use crate::primitives::encryption::representation::{Ciphertext, PublicKey, SecretKey};
-use crate::primitives::zkp::NIZKProof;
-use crate::primitives::zkp::context::htdh2::HTDH2Hash;
-use crate::primitives::zkp::proof_builder::el_gamal::HTDH2ProofBuilder;
-use crate::primitives::zkp::representation::SecretKnowledge;
 use rand_core::{CryptoRng, RngCore};
+use crate::primitives::zkp4::htdh2::ZKPHTDH2;
 
 pub mod el_gamal;
 mod representation;
@@ -40,31 +37,26 @@ impl<G: Group> Encryption<G> {
         (secret_key, public_key)
     }
 
-    pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, rng: &mut R, message: &EncodedMessage<G>) -> Ciphertext<G> {
+    pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, ctx: &Vec<u8>, rng: &mut R, message: &EncodedMessage<G>) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
         let uv = self.el_gamal.encrypt(public_key, &randomness, message);
 
-        let g0r = self.g0 * &randomness;
-        let claim = HTDH2ProofBuilder::build_claim::<G>(self.g0, uv, g0r);
-        let nizkp = NIZKProof::new(claim, HTDH2Hash::new(self.label.clone(), uv));
-
-        let knowledge = HTDH2ProofBuilder::build_knowledge::<G>(Some(randomness));
-        let proof = nizkp.prove(rng, &SecretKnowledge(knowledge));
+        let zkp = ZKPHTDH2::<G>::default();
+        let proof = zkp.prove(&self.g0, &uv, &randomness, ctx, rng);
 
         // we do not expose the randomness to the user.
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
         // this deliberate choice also leads to not providing the method to decrypt using the randomness.
 
-        (uv, g0r, proof)
+        (uv, proof)
     }
 
-    pub fn decrypt(&self, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> Option<EncodedMessage<G>> {
-        let (uv, g0r, proof) = ciphertext;
+    pub fn decrypt(&self, ctx: &Vec<u8>, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> Option<EncodedMessage<G>> {
+        let (uv, proof) = ciphertext;
 
-        let claim = HTDH2ProofBuilder::build_claim::<G>(self.g0, *uv, *g0r);
-        let nizkp = NIZKProof::new(claim, HTDH2Hash::new(self.label.clone(), *uv));
-        if !nizkp.verify(proof) {
-            return None;
+        let zkp = ZKPHTDH2::<G>::default();
+        if !zkp.verify(&self.g0, &uv, &proof.0, &proof.1, &proof.2, ctx) {
+            return None
         }
 
         Some(self.el_gamal.decrypt(&secret_key.0, uv))
@@ -88,8 +80,9 @@ mod tests {
         let encryption = Encryption::<Curve>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
 
-        let ciphertext = encryption.encrypt(&public_key, &mut rng, &message);
-        let message_recovered = encryption.decrypt(&secret_key, &ciphertext);
+        let ctx = "test_encrypt".as_bytes().to_vec();
+        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message);
+        let message_recovered = encryption.decrypt(&ctx, &secret_key, &ciphertext);
 
         assert_eq!(message_recovered, Some(message));
     }

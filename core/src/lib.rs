@@ -7,15 +7,9 @@ mod tests {
     use crate::foundation::discrete_log::BruteForceDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::foundation::hash::VectorContextHash;
     use crate::primitives::commitment::Commitment;
     use crate::primitives::encryption::Encryption;
-    use crate::primitives::encryption::el_gamal::{ElGamal, ExponentialElGamal};
-    use crate::primitives::zkp::proof::{Claim, Knowledge};
-    use crate::primitives::zkp::proof_builder::el_gamal::{EncProofBuilder, ReEncProofBuilder};
-    use crate::primitives::zkp::representation::SecretKnowledge;
-    use crate::primitives::zkp::{NIZKProof, ZKProof};
-    use crate::utils::tree::BooleanTree::Or;
+    use crate::primitives::encryption::el_gamal::{ExponentialElGamal};
     use rand::thread_rng;
 
     type Curve = RistrettoGroup;
@@ -41,8 +35,9 @@ mod tests {
         let encryption = Encryption::<Curve>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
 
-        let ciphertext = encryption.encrypt(&public_key, &mut rng, &message);
-        let message_recovered = encryption.decrypt(&secret_key, &ciphertext);
+        let ctx = "test_encrypt".as_bytes().to_vec();
+        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message);
+        let message_recovered = encryption.decrypt(&ctx, &secret_key, &ciphertext);
 
         assert_eq!(message_recovered, Some(message));
     }
