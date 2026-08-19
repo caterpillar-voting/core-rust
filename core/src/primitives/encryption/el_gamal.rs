@@ -15,12 +15,11 @@ impl<G: Group> Default for ElGamal<G> {
 }
 
 impl<G: Group> ElGamal<G> {
-    pub fn generate_secret_key<R: RngCore + CryptoRng>(&self, rng: &mut R) -> G::Scalar {
-        G::scalar_random(rng)
-    }
+    pub fn keygen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (G::Scalar, G::Point) {
+        let sk = G::scalar_random(rng);
+        let pk = G::basepoint() * &sk;
 
-    pub fn derive_public_key(&self, sk: &G::Scalar) -> G::Point {
-        G::basepoint() * sk
+        (sk, pk)
     }
 
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Point) -> (G::Point, G::Point) {

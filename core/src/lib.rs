@@ -50,8 +50,7 @@ mod tests {
         let message = Scalar::from(1u64);
 
         let el_gamal = ExponentialElGamal::default();
-        let secret_key = el_gamal.0.generate_secret_key(&mut rng);
-        let public_key = el_gamal.0.derive_public_key(&secret_key);
+        let (secret_key, public_key) = el_gamal.0.keygen(&mut rng);
 
         let ciphertext = el_gamal.encrypt(&public_key, &Curve::scalar_random(&mut rng), &message);
         let ciphertext_reencrypted = el_gamal.0.reencrypt(&public_key, &Curve::scalar_random(&mut rng), &ciphertext);
