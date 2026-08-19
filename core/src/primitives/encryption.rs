@@ -38,11 +38,9 @@ impl<G: Group> Default for Encryption<G> {
 
 impl<G: Group> Encryption<G> {
     pub fn key_gen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (SecretKey<G>, PublicKey<G>) {
-        let secret_key = SecretKey(self.el_gamal.generate_secret_key(rng));
+        let (secret_key, public_key) = self.el_gamal.keygen(rng);
 
-        let public_key = self.el_gamal.derive_public_key(&secret_key.0);
-
-        (secret_key, public_key)
+        (SecretKey(secret_key), public_key)
     }
 
     pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, context: &Context, rng: &mut R, message: &EncodedMessage<G>) -> Ciphertext<G> {
