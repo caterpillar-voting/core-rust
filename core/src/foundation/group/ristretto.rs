@@ -16,7 +16,7 @@ use rand_core::{CryptoRng, RngCore};
 use sha3::Sha3_512;
 use zeroize::Zeroize;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct RistrettoGroup(());
 
 #[derive(Clone, Copy, cmp::Eq, cmp::PartialEq, fmt::Debug)]
