@@ -3,7 +3,7 @@
 //! [`ristretto`]: https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/index.html
 
 use crate::foundation::group::_shared::independent_generators_default;
-use crate::foundation::group::ByteSerialize;
+use crate::foundation::group::ByteNormalize;
 use crate::foundation::group::Group;
 use core::{cmp, fmt, ops};
 use curve25519_dalek::{
@@ -46,16 +46,14 @@ impl<'a> ops::Mul<&'a RistrettoScalar> for RistrettoPoint {
     }
 }
 
-impl ByteSerialize for RistrettoPoint {
-    const BUFFER_SIZE: usize = 32;
-
-    fn to_bytes(&self, out: &mut [u8]) {
+impl ByteNormalize for RistrettoPoint {
+    fn normalize(&self) -> Vec<u8> {
         let bytes = &self.0.compress().to_bytes();
-        out.copy_from_slice(bytes);
+        bytes.to_vec()
     }
 
-    fn from_bytes(buffer: &[u8]) -> Option<Self> {
-        CompressedRistretto::from_slice(buffer).ok()?.decompress().map(RistrettoPoint)
+    fn denormalize(value: &Vec<u8>) -> Option<Self> {
+        CompressedRistretto::from_slice(value).ok()?.decompress().map(RistrettoPoint)
     }
 }
 
@@ -92,19 +90,17 @@ impl From<u64> for RistrettoScalar {
     }
 }
 
-impl ByteSerialize for RistrettoScalar {
-    const BUFFER_SIZE: usize = 32;
-
-    fn to_bytes(&self, out: &mut [u8]) {
+impl ByteNormalize for RistrettoScalar {
+    fn normalize(&self) -> Vec<u8> {
         let bytes = &self.0.to_bytes();
-        out.copy_from_slice(bytes)
+        bytes.to_vec()
     }
 
-    fn from_bytes(buffer: &[u8]) -> Option<Self>
+    fn denormalize(buffer: &Vec<u8>) -> Option<Self>
     where
         Self: Sized,
     {
-        let bytes: [u8; 32] = buffer.try_into().expect("Incorrect byte size");
+        let bytes: [u8; 32] = buffer.as_slice().try_into().ok()?;
         RistrettoScalarRaw::from_canonical_bytes(bytes).into_option().map(RistrettoScalar)
     }
 }
@@ -194,18 +190,16 @@ mod tests {
         ];
 
         for point in points {
-            let mut bytes = [0u8; <Point as ByteSerialize>::BUFFER_SIZE];
-            ByteSerialize::to_bytes(&point, &mut bytes);
-            let recovered_point = Point::from_bytes(&bytes).unwrap();
+            let bytes = ByteNormalize::normalize(&point);
+            let recovered_point = Point::denormalize(&bytes).unwrap();
             assert_eq!(point, recovered_point);
         }
 
         let scalars = [Scalar::from(0u64), Scalar::from(1u64), RistrettoGroup::scalar_random(&mut rng)];
 
         for scalar in scalars {
-            let mut bytes = [0u8; <Scalar as ByteSerialize>::BUFFER_SIZE];
-            ByteSerialize::to_bytes(&scalar, &mut bytes);
-            let recovered_scalar = Scalar::from_bytes(&bytes).unwrap();
+            let bytes = ByteNormalize::normalize(&scalar);
+            let recovered_scalar = Scalar::denormalize(&bytes).unwrap();
             assert_eq!(scalar, recovered_scalar);
         }
     }

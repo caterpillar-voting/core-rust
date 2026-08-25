@@ -46,6 +46,7 @@ impl<G: Group> Commitment<G> {
 
 #[cfg(test)]
 mod _test_utils;
+
 #[cfg(test)]
 mod tests {
     use super::*;
