@@ -15,7 +15,7 @@ pub struct MessageEncoder<G: Group> {
 
 impl<G: Group> MessageEncoder<G> {
     const MIN_COUNTER_BITS: u32 = 8; // how many bits are reserved for the counter
-    pub fn encode(&self, message: &Vec<u8>) -> Option<Vec<G::Point>> {
+    pub fn encode(&self, message: &[u8]) -> Option<Vec<G::Point>> {
         // to make ilog2 computation well-defined
         assert!(G::ENCODING_SIZE.is_power_of_two());
         assert!(G::ENCODING_LIKELIHOOD.is_power_of_two());
@@ -38,8 +38,10 @@ impl<G: Group> MessageEncoder<G> {
 
         assert!(counter_bits + size_bits < 32); // assumption (A2) for simpler prefix computation
         let max_counter: u32 = 1u32 << counter_bits; // by (A1), size_bits > 0; and therefore by (A2), counter_bits < 31; hence this cannot overflow
-        let mut encoded_values = vec![];
-        'encode: for chunk in message.chunks(available_bytes) {
+        let mut encoded_values: Vec<G::Point> = vec![];
+        for chunk in message.chunks(available_bytes) {
+            let mut encoded_value: Option<G::Point> = None;
+
             let chunk_size = chunk.len(); // invariant (3): chunk_size <= available_bytes
             let prefix_template = (chunk_size << counter_bits) as u32; // by (1) and (3), log2(chunk_size) <= size_bits. by A2, size_bits + counter_bits cannot overflow
             for counter in 0..max_counter {
@@ -47,17 +49,20 @@ impl<G: Group> MessageEncoder<G> {
                 let prefix_bytes = prefix.to_be_bytes();
                 let prefix_offset = prefix_bytes.len() - reserved_bytes;
 
-                let mut encoded_value = vec![0u8; G::ENCODING_SIZE];
-                encoded_value[..reserved_bytes].copy_from_slice(&prefix_bytes[prefix_offset..]); // prefix of 0 for big-endian does not change value
-                encoded_value[reserved_bytes..(reserved_bytes + chunk_size)].copy_from_slice(chunk); // extend chunk starting from reserved_bytes
+                let mut encoded_value_bytes = vec![0u8; G::ENCODING_SIZE];
+                encoded_value_bytes[..reserved_bytes].copy_from_slice(&prefix_bytes[prefix_offset..]); // prefix of 0 for big-endian does not change value
+                encoded_value_bytes[reserved_bytes..(reserved_bytes + chunk_size)].copy_from_slice(chunk); // extend chunk starting from reserved_bytes
                 // as encoded value initialized to 0, the rest of encoded_value is 0
 
-                let encoded_value = G::try_encode(encoded_value.as_slice());
+                encoded_value = G::try_encode(encoded_value_bytes.as_slice());
                 if encoded_value.is_some() {
-                    encoded_values.push(encoded_value.unwrap());
-                    break 'encode;
+                    break;
                 }
+            }
 
+            if let Some(unwrapped) = encoded_value {
+                encoded_values.push(unwrapped);
+            } else {
                 return None;
             }
         }
@@ -95,7 +100,7 @@ impl<G: Group> MessageEncoder<G> {
 
             let payload_size = reserved_bytes + chunk_size;
             let expected_zeros = &message_chunk[payload_size..];
-            if expected_zeros != &vec![0u8; G::ENCODING_SIZE - payload_size] {
+            if expected_zeros != vec![0u8; G::ENCODING_SIZE - payload_size] {
                 return None;
             }
 

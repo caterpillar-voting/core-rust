@@ -25,7 +25,7 @@ impl<G: Group> Pedersen<G> {
 
         let hiding_factor = G::basepoint() * r;
 
-        m.iter().zip(self.h.iter()).fold(hiding_factor, |acc, (m, h)| acc + &(*h * &m))
+        m.iter().zip(self.h.iter()).fold(hiding_factor, |acc, (m, h)| acc + &(*h * m))
     }
 
     pub fn verify(&self, r: &G::Scalar, m: &[G::Scalar], commitment: &G::Point) -> bool {
