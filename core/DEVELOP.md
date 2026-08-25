@@ -21,25 +21,20 @@ general:
 
 foundation/group:
 - we introduce the group abstraction to support multiple possible groups.
-- the group does not wrap its implementation (i.e., it is just an implemented trait), as this is a low-level API
-- we implement the serialization directly on the point/scalar with `to_bytes` and `from_bytes` to have no doubt about the serialization format used. we accept the name collision notably in ristretto with existing to_bytes and from_bytes functions.
+- the group wraps its implementation (i.e., it is just an implemented trait), to avoid name-collision of methods from different low-level libraries (e.g., `to_bytes`).
 - use naming of Points/Scalars (even if finite fields are also supported)
 
 primitives/encryption/*:
-- No multi-message API because this would simply be a list of ElGamal ciphertext.
 - Homomorphism has no direct implementation at this API level (trivial to do self).
 
-primitives/commitment/*:
-- assert that checks number of messages is lower/equal to available generators as otherwise a bug.
 
 ## High-level API
 
 the high-level API shields implementation details from the user, and instead gives semantic wrappers to all data structures.
 
 general:
-- secret values: secret keys or randomness (pedersen) are wrapped and annotated with ZeroOnDrop
+- secret values: secrets (e.g., private keys) are wrapped and annotated with ZeroOnDrop
 - wrapper types: only introduce wrapper types to add functionality (e.g., for secret values). else, use a type alias.
-- validation: done at compile time, unless type system not expressive enough
 
 primitives/encryption/*:
 - directly include ZKP to ensure ciphertext is non-malleable. Consequentially, reencryption or homomorphism is not provided in the API, but this is an advanced scenario that normal users should not touch.
