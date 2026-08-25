@@ -1,5 +1,5 @@
 use caterpillar_voting_core::foundation::group::ristretto::RistrettoGroup;
-use caterpillar_voting_core::foundation::group::{ByteSerialize, Group};
+use caterpillar_voting_core::foundation::group::{ByteNormalize, Group};
 use caterpillar_voting_core::foundation::representation::EncodedMessage;
 use caterpillar_voting_core::primitives::encryption::{Ciphertext, Context, Encryption, PublicKey, SecretKey};
 use rand::rngs::OsRng;
@@ -53,8 +53,7 @@ impl WasmEncodedMessage {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = [0u8; <RistrettoGroup as Group>::Point::BUFFER_SIZE];
-        self.0.to_bytes(&mut bytes);
+        let bytes = self.0.normalize();
         bytes.into()
     }
 }

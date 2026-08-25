@@ -1,5 +1,5 @@
 use super::_shared::independent_generators_default;
-use crate::foundation::group::ByteSerialize;
+use crate::foundation::group::ByteNormalize;
 use crate::foundation::group::Group;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use crypto_bigint::{Encoding, U256, U4096, const_monty_params, modular::ConstMontyForm};
@@ -54,39 +54,37 @@ impl Default for ZqElement {
     }
 }
 
-impl ByteSerialize for FFPoint {
-    const BUFFER_SIZE: usize = 512;
-
-    fn to_bytes(&self, buffer: &mut [u8]) {
+impl ByteNormalize for FFPoint {
+    fn normalize(&self) -> Vec<u8> {
         let x = self.0.retrieve();
         let bytes = x.to_be_bytes();
-        buffer.copy_from_slice(&bytes);
+        bytes.to_vec()
     }
 
-    fn from_bytes(buffer: &[u8]) -> Option<Self>
+    fn denormalize(buffer: &Vec<u8>) -> Option<Self>
     where
         Self: Sized,
     {
-        let x = U4096::from_be_bytes(buffer.try_into().unwrap());
+        let uint = buffer.as_slice().try_into().ok()?;
+        let x = U4096::from_be_bytes(uint);
         let xx = FPMgy4096::new(&x);
         Some(FFPoint(xx))
     }
 }
 
-impl ByteSerialize for ZqElement {
-    const BUFFER_SIZE: usize = 32;
-
-    fn to_bytes(&self, buffer: &mut [u8]) {
+impl ByteNormalize for ZqElement {
+    fn normalize(&self) -> Vec<u8> {
         let x = self.0.retrieve();
         let bytes = x.to_be_bytes();
-        buffer.copy_from_slice(&bytes);
+        bytes.to_vec()
     }
 
-    fn from_bytes(buffer: &[u8]) -> Option<Self>
+    fn denormalize(buffer: &Vec<u8>) -> Option<Self>
     where
         Self: Sized,
     {
-        let x = U256::from_be_bytes(buffer.try_into().unwrap());
+        let uint = buffer.as_slice().try_into().ok()?;
+        let x = U256::from_be_bytes(uint);
         let xx = FPMgy256::new(&x);
         Some(ZqElement(xx))
     }
@@ -230,10 +228,10 @@ impl Group for ElectionGuardGroup {
         let mut hasher = Shake128::default();
         hasher.update(payload);
         let mut reader = hasher.finalize_xof();
-        let mut res = [0u8; Self::Point::BUFFER_SIZE];
+        let mut res = [0u8; 512];
         reader.read(&mut res);
         // FIXME: this does not work. We need to hash to a larger integer and reduce, to get close to uniform distribution.
-        let p = Self::Point::from_bytes(res.as_slice()).unwrap();
+        let p = Self::Point::denormalize(&res.to_vec()).unwrap();
         map_to_subgroup(&p)
     }
 
@@ -241,10 +239,10 @@ impl Group for ElectionGuardGroup {
         let mut hasher = Shake128::default();
         hasher.update(payload);
         let mut reader = hasher.finalize_xof();
-        let mut res = [0u8; Self::Scalar::BUFFER_SIZE];
+        let mut res = [0u8; 32];
         reader.read(&mut res);
         // FIXME: this does not work. We need to hash to a larger integer and reduce, to get close to uniform distribution.
-        Self::Scalar::from_bytes(res.as_slice()).unwrap()
+        Self::Scalar::denormalize(&res.to_vec()).unwrap()
     }
 
     fn independent_generators(size: usize, context: &[u8]) -> Vec<Self::Point> {
@@ -339,18 +337,16 @@ mod tests {
         ];
 
         for point in points {
-            let mut bytes = [0u8; <FFPoint as ByteSerialize>::BUFFER_SIZE];
-            ByteSerialize::to_bytes(&point, &mut bytes);
-            let recovered_point = FFPoint::from_bytes(&bytes).unwrap();
+            let bytes = ByteNormalize::normalize(&point);
+            let recovered_point = FFPoint::denormalize(&bytes).unwrap();
             assert_eq!(point, recovered_point);
         }
 
         let scalars = [Scalar::from(0u64), Scalar::from(1u64), ElectionGuardGroup::scalar_random(&mut rng)];
 
         for scalar in scalars {
-            let mut bytes = [0u8; <Scalar as ByteSerialize>::BUFFER_SIZE];
-            ByteSerialize::to_bytes(&scalar, &mut bytes);
-            let recovered_scalar = Scalar::from_bytes(&bytes).unwrap();
+            let bytes = ByteNormalize::normalize(&scalar);
+            let recovered_scalar = Scalar::denormalize(&bytes).unwrap();
             assert_eq!(scalar, recovered_scalar);
         }
     }

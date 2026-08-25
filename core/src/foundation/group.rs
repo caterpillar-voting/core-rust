@@ -8,10 +8,9 @@ use core::{cmp, fmt, ops};
 use rand_core::{CryptoRng, RngCore};
 use zeroize::Zeroize;
 
-pub trait ByteSerialize {
-    const BUFFER_SIZE: usize;
-    fn to_bytes(&self, buffer: &mut [u8]); // TODO: Refactor API to return vec<u8>, not take &mut as argument
-    fn from_bytes(buffer: &[u8]) -> Option<Self>
+pub trait ByteNormalize {
+    fn normalize(&self) -> Vec<u8>;
+    fn denormalize(value: &Vec<u8>) -> Option<Self>
     where
         Self: Sized;
 }
@@ -26,7 +25,7 @@ pub trait Group {
         + for<'a> ops::Add<&'a Self::Point, Output = Self::Point>
         + for<'a> ops::Sub<&'a Self::Point, Output = Self::Point>
         + for<'a> ops::Mul<&'a Self::Scalar, Output = Self::Point>
-        + ByteSerialize
+        + ByteNormalize
         + fmt::Debug;
 
     type Scalar: Clone
@@ -38,7 +37,7 @@ pub trait Group {
         + for<'a> ops::Sub<&'a Self::Scalar, Output = Self::Scalar>
         + for<'a> ops::Mul<&'a Self::Scalar, Output = Self::Scalar>
         + Zeroize
-        + ByteSerialize
+        + ByteNormalize
         + fmt::Debug;
 
     /// Return the identity

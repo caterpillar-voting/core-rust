@@ -1,12 +1,9 @@
-use crate::foundation::group::{ByteSerialize, Group};
+use crate::foundation::group::{ByteNormalize, Group};
 
 pub fn hash_default<G: Group>(point: &G::Point, message: &Vec<u8>) -> G::Scalar {
-    let mut buf = vec![];
-    let mut bytes = vec![0u8; G::Point::BUFFER_SIZE];
-    point.to_bytes(&mut bytes[..]);
-    buf.append(&mut bytes);
-    buf.append(&mut message.clone());
-    G::hash_to_scalar(&buf)
+    let mut buffer = point.normalize();
+    buffer.append(&mut message.clone());
+    G::hash_to_scalar(&buffer)
 }
 
 #[allow(type_alias_bounds)]
