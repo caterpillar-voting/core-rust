@@ -127,6 +127,16 @@ impl Group for RistrettoGroup {
         RistrettoScalar(RistrettoScalarRaw::hash_from_bytes::<Sha3_512>(payload))
     }
 
+    const ENCODING_SIZE: usize = 32;
+    /// Set to 8 as ristretto builds upon curve25519 which has cofactor 8. We ignore the small (<30) number of additionally invalid points in this estimation (8 points of low order, 19 non-canonical encoding points).
+    const ENCODING_LIKELIHOOD: u8 = 8;
+    fn try_encode(payload: &[u8]) -> Option<Self::Point> {
+        CompressedRistretto::from_slice(payload).ok()?.decompress().map(RistrettoPoint)
+    }
+    fn decode(point: &Self::Point) -> Vec<u8> {
+        point.0.compress().to_bytes().to_vec()
+    }
+
     fn independent_generators(size: usize, context: &[u8]) -> Vec<Self::Point> {
         independent_generators_default::<Self>(size, context)
     }
