@@ -126,10 +126,10 @@ impl<G: Group + 'static> ScalarMessageEncoder<G> {
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::message::{MessageEncoder, ScalarMessageEncoder};
+    use std::vec;
 
     type G = RistrettoGroup;
     type Scalar = <G as Group>::Scalar;
