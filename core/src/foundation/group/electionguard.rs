@@ -271,7 +271,6 @@ impl Group for ElectionGuardGroup {
         rng.try_fill_bytes(&mut uniform_bytes).unwrap();
         Self::hash_to_scalar(&uniform_bytes)
     }
-
 }
 
 #[cfg(test)]
