@@ -61,7 +61,7 @@ impl<G: Group> Encryption<G> {
         let (uv, proof) = ciphertext;
 
         let zkp = ZKPHTDH2::<G>::default();
-        if !zkp.verify(&self.g0, &uv, &proof.0, &proof.1, &proof.2, context) {
+        if !zkp.verify(&self.g0, uv, &proof.0, &proof.1, &proof.2, context) {
             return None;
         }
 

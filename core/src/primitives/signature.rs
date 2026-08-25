@@ -37,9 +37,8 @@ impl<G: Group> SchnorrSignature<G> {
 
     pub fn sign<R: RngCore + CryptoRng>(&self, secret_key: &SecretKey<G>, rng: &mut R, message: &Message) -> Signature<G> {
         let randomness = G::scalar_random(rng);
-        let se = self.schnorr.sign(&secret_key.0, &randomness, message);
 
-        se
+        self.schnorr.sign(&secret_key.0, &randomness, message)
     }
 
     pub fn verify(&self, public_key: &PublicKey<G>, message: &Message, signature: &Signature<G>) -> bool {

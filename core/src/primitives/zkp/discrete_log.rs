@@ -19,18 +19,18 @@ impl<G: Group> ZKPDiscreteLog<G> {
         Self { get_challenge }
     }
 
-    pub fn prove<R: RngCore + CryptoRng>(&self, h: &G::Point, x: &G::Scalar, ctx: &Vec<u8>, rng: &mut R) -> (G::Scalar, G::Scalar) {
+    pub fn prove<R: RngCore + CryptoRng>(&self, h: &G::Point, x: &G::Scalar, ctx: &[u8], rng: &mut R) -> (G::Scalar, G::Scalar) {
         let k = G::scalar_random(rng);
         let t = G::basepoint() * &k;
-        let c = (self.get_challenge)(&vec![h.clone(), t], ctx);
+        let c = (self.get_challenge)(&[*h, t], ctx);
         let r = k + &(*x * &c);
 
         (c, r)
     }
 
-    pub fn verify(&self, h: &G::Point, c: &G::Scalar, r: &G::Scalar, ctx: &Vec<u8>) -> bool {
-        let t = G::basepoint() * r - &(*h * &c);
-        let c_dash = (self.get_challenge)(&vec![h.clone(), t], ctx);
+    pub fn verify(&self, h: &G::Point, c: &G::Scalar, r: &G::Scalar, ctx: &[u8]) -> bool {
+        let t = G::basepoint() * r - &(*h * c);
+        let c_dash = (self.get_challenge)(&[*h, t], ctx);
 
         *c == c_dash
     }

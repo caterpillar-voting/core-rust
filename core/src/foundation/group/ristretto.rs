@@ -52,7 +52,7 @@ impl ByteNormalize for RistrettoPoint {
         bytes.to_vec()
     }
 
-    fn denormalize(value: &Vec<u8>) -> Option<Self> {
+    fn denormalize(value: &[u8]) -> Option<Self> {
         CompressedRistretto::from_slice(value).ok()?.decompress().map(RistrettoPoint)
     }
 }
@@ -96,11 +96,11 @@ impl ByteNormalize for RistrettoScalar {
         bytes.to_vec()
     }
 
-    fn denormalize(buffer: &Vec<u8>) -> Option<Self>
+    fn denormalize(buffer: &[u8]) -> Option<Self>
     where
         Self: Sized,
     {
-        let bytes: [u8; 32] = buffer.as_slice().try_into().ok()?;
+        let bytes: [u8; 32] = buffer.try_into().ok()?;
         RistrettoScalarRaw::from_canonical_bytes(bytes).into_option().map(RistrettoScalar)
     }
 }

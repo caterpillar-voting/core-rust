@@ -53,8 +53,7 @@ impl WasmEncodedMessage {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let bytes = self.0.normalize();
-        bytes.into()
+        self.0.normalize()
     }
 }
 

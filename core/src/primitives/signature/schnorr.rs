@@ -21,7 +21,7 @@ impl<G: Group> Schnorr<G> {
         (sk, pk)
     }
 
-    pub fn sign(&self, sk: &G::Scalar, k: &G::Scalar, m: &Vec<u8>) -> (G::Scalar, G::Scalar) {
+    pub fn sign(&self, sk: &G::Scalar, k: &G::Scalar, m: &[u8]) -> (G::Scalar, G::Scalar) {
         let r = G::basepoint() * k;
         let e = (self.hash)(&r, m);
         let s = *k + &(*sk * &e);
@@ -29,7 +29,7 @@ impl<G: Group> Schnorr<G> {
         (s, e)
     }
 
-    pub fn verify(&self, pk: &G::Point, m: &Vec<u8>, s: &G::Scalar, e: &G::Scalar) -> bool {
+    pub fn verify(&self, pk: &G::Point, m: &[u8], s: &G::Scalar, e: &G::Scalar) -> bool {
         let r = G::basepoint() * s - &(*pk * e);
         let e_dash = (self.hash)(&r, m);
 

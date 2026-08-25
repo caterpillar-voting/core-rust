@@ -29,16 +29,16 @@ impl<G: Group> Commitment<G> {
         Self { pedersen }
     }
 
-    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R, messages: &Vec<Message<G>>) -> (Commit<G>, SecretOpening<G>) {
+    pub fn commit<R: RngCore + CryptoRng>(&self, rng: &mut R, messages: &[Message<G>]) -> (Commit<G>, SecretOpening<G>) {
         let randomness = G::scalar_random(rng);
-        let scalar_messages: Vec<G::Scalar> = messages.iter().copied().collect();
+        let scalar_messages: Vec<G::Scalar> = messages.to_vec();
         let commitment = self.pedersen.commit(&randomness, &scalar_messages);
 
         (commitment, SecretOpening(randomness))
     }
 
-    pub fn open(&self, messages: &Vec<Message<G>>, commit: &Commit<G>, opening: &SecretOpening<G>) -> bool {
-        let scalar_messages: Vec<G::Scalar> = messages.iter().copied().collect();
+    pub fn open(&self, messages: &[Message<G>], commit: &Commit<G>, opening: &SecretOpening<G>) -> bool {
+        let scalar_messages: Vec<G::Scalar> = messages.to_vec();
 
         self.pedersen.commit(&opening.0, &scalar_messages) == *commit
     }
@@ -84,7 +84,7 @@ mod tests {
         let messages2 = new_messages(2);
         let (commitment2, randomness2) = hiding_commitment.commit(&mut rng, &messages2);
 
-        let messages = (0..messages2.len()).map(|i| messages1[i] + &messages2[i]).collect();
+        let messages: Vec<Scalar> = (0..messages2.len()).map(|i| messages1[i] + &messages2[i]).collect();
         let commitment = commitment1 + &commitment2;
         let randomness = &SecretOpening(randomness1.0 + &randomness2.0);
 

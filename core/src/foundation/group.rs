@@ -10,7 +10,7 @@ use zeroize::Zeroize;
 
 pub trait ByteNormalize {
     fn normalize(&self) -> Vec<u8>;
-    fn denormalize(value: &Vec<u8>) -> Option<Self>
+    fn denormalize(value: &[u8]) -> Option<Self>
     where
         Self: Sized;
 }

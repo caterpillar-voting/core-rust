@@ -61,11 +61,11 @@ impl ByteNormalize for FFPoint {
         bytes.to_vec()
     }
 
-    fn denormalize(buffer: &Vec<u8>) -> Option<Self>
+    fn denormalize(buffer: &[u8]) -> Option<Self>
     where
         Self: Sized,
     {
-        let uint = buffer.as_slice().try_into().ok()?;
+        let uint = buffer.try_into().ok()?;
         let x = U4096::from_be_bytes(uint);
         let xx = FPMgy4096::new(&x);
         Some(FFPoint(xx))
@@ -79,11 +79,11 @@ impl ByteNormalize for ZqElement {
         bytes.to_vec()
     }
 
-    fn denormalize(buffer: &Vec<u8>) -> Option<Self>
+    fn denormalize(buffer: &[u8]) -> Option<Self>
     where
         Self: Sized,
     {
-        let uint = buffer.as_slice().try_into().ok()?;
+        let uint = buffer.try_into().ok()?;
         let x = U256::from_be_bytes(uint);
         let xx = FPMgy256::new(&x);
         Some(ZqElement(xx))
@@ -129,7 +129,7 @@ impl<'a> Add<&'a FFPoint> for &FFPoint {
 
 impl AddAssign for FFPoint {
     fn add_assign(&mut self, rhs: Self) {
-        *self = *self + &rhs;
+        *self = *self + rhs;
     }
 }
 
@@ -231,7 +231,7 @@ impl Group for ElectionGuardGroup {
         let mut res = [0u8; 512];
         reader.read(&mut res);
         // FIXME: this does not work. We need to hash to a larger integer and reduce, to get close to uniform distribution.
-        let p = Self::Point::denormalize(&res.to_vec()).unwrap();
+        let p = Self::Point::denormalize(res.as_ref()).unwrap();
         map_to_subgroup(&p)
     }
 
@@ -242,7 +242,7 @@ impl Group for ElectionGuardGroup {
         let mut res = [0u8; 32];
         reader.read(&mut res);
         // FIXME: this does not work. We need to hash to a larger integer and reduce, to get close to uniform distribution.
-        Self::Scalar::denormalize(&res.to_vec()).unwrap()
+        Self::Scalar::denormalize(res.as_ref()).unwrap()
     }
 
     fn independent_generators(size: usize, context: &[u8]) -> Vec<Self::Point> {
