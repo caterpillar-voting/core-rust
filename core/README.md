@@ -33,7 +33,7 @@ fn encryption() {
 }
 ```
 
-You'll notice that the encryption operates on the group `G`. The plaintext therefore needs to first be encoded into an element of `G`. If your plaintext is a number, you can use the `ScalarEncoder`. Note that you need to provide the expected plaintext range, else the decoding will fail.
+You'll notice that the encryption operates on the group `G`. The plaintext therefore needs to first be encoded into an element of `G`. If your plaintext is a number, you can use the `ScalarMessageEncoder`. Note that you need to provide the expected plaintext range, else the decoding will fail.
 
 ```rust
 type G = RistrettoGroup;

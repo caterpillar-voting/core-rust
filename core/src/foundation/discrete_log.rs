@@ -40,7 +40,7 @@ impl<G: Group> DiscreteLog<G> for BruteForceDiscreteLog<G> {
 
 pub struct PrecomputedDiscreteLog<G: Group> {
     range: (G::Scalar, usize),
-    table: Box<[G::Point]>, // TODO: consider hash map for O(1) access, but would require to hash over G::Scalar
+    table: Box<[G::Point]>,
 }
 
 impl<G: Group> PrecomputedDiscreteLog<G> {

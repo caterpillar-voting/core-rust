@@ -1,5 +1,5 @@
 use crate::foundation::group::Group;
-use crate::foundation::representation::EncodedMessage;
+use crate::foundation::message::EncodedMessage;
 use crate::primitives::encryption::el_gamal::ElGamal;
 use crate::primitives::zkp::htdh2::ZKPHTDH2;
 use rand_core::{CryptoRng, RngCore};
