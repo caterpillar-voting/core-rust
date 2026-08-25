@@ -134,7 +134,6 @@ Points of interest:
 ## Future steps
 
 primitives:
-- serialization and deserialization of ciphertexts, public keys, private keys and messages
 - refactor randomness crates or document justification
 - add commitment that uses hash; possibly as default hash (but is wrapper useful?); possibly remove high-level hash altogether
 - generalize HTDH2 to multi-recipient ElGamal, default() uses recipient = 1, new() takes #message_bytes
@@ -144,6 +143,11 @@ protocols:
 - Shuffle (Groth05; MultiRecipient; Rerandomization-Mixnet) -> draft exists
 - DKG (ElectionGuard probably, maybe Belenios)
 - PET (https://dl.acm.org/doi/10.1007/978-3-030-59013-0_2) -> draft exists
+
+interface:
+- serialization and deserialization of ciphertexts, public keys, private keys and messages
+- provide in JS high-level API 
+- provide in CLI high-level API
 
 minor technical:
 - when to implement which default traits? is there any harm in doing so?
