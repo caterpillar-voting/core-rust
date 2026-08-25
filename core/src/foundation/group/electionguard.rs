@@ -249,6 +249,17 @@ impl Group for ElectionGuardGroup {
         independent_generators_default::<Self>(size, context)
     }
 
+    // TODO: implement trivial functions
+
+    const ENCODING_SIZE: usize = 42;
+    const ENCODING_LIKELIHOOD: u8 = 1;
+    fn try_encode(payload: &[u8]) -> Option<Self::Point> {
+        None
+    }
+    fn decode(point: &Self::Point) -> Vec<u8> {
+        vec![]
+    }
+
     fn point_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Point {
         let mut uniform_bytes = [0u8; 64];
         rng.try_fill_bytes(&mut uniform_bytes).unwrap();
@@ -260,6 +271,7 @@ impl Group for ElectionGuardGroup {
         rng.try_fill_bytes(&mut uniform_bytes).unwrap();
         Self::hash_to_scalar(&uniform_bytes)
     }
+
 }
 
 #[cfg(test)]

@@ -49,6 +49,13 @@ pub trait Group {
     fn hash_to_point(payload: &[u8]) -> Self::Point;
     fn hash_to_scalar(payload: &[u8]) -> Self::Scalar;
 
+    // The number of bytes that are encoded by a single point
+    const ENCODING_SIZE: usize;
+    /// 1/ENCODING_LIKELIHOOD is the probability that a random byte string of ENCODING_SIZE is a valid point, i.e., try_encode returns Some(Point).
+    const ENCODING_LIKELIHOOD: u8;
+    fn try_encode(payload: &[u8]) -> Option<Self::Point>;
+    fn decode(point: &Self::Point) -> Vec<u8>;
+
     /// Generate (verifiably) independent generators
     fn independent_generators(size: usize, prefix: &[u8]) -> Vec<Self::Point>;
 
