@@ -28,7 +28,7 @@ const_monty_params!(EGOrder, U256, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 type FPMgy4096 = ConstMontyForm<EGModulus, 64>;
 type FPMgy256 = ConstMontyForm<EGOrder, 4>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct ElectionGuardGroup(());
 
 #[derive(Clone, Debug, Copy, Eq, PartialEq)]
@@ -253,10 +253,10 @@ impl Group for ElectionGuardGroup {
 
     const ENCODING_SIZE: usize = 42;
     const ENCODING_LIKELIHOOD: u8 = 1;
-    fn try_encode(payload: &[u8]) -> Option<Self::Point> {
+    fn try_encode(_payload: &[u8]) -> Option<Self::Point> {
         None
     }
-    fn decode(point: &Self::Point) -> Vec<u8> {
+    fn decode(_point: &Self::Point) -> Vec<u8> {
         vec![]
     }
 
