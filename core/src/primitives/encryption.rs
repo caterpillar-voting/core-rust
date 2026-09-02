@@ -22,7 +22,6 @@ pub type Ciphertext<G: Group> = ((G::Point, G::Point), (G::Point, G::Scalar, G::
 #[derive(Debug)]
 pub struct Encryption<G: Group> {
     pub el_gamal: ElGamal<G>,
-    pub label: Vec<u8>,
     pub g0: G::Point,
 }
 
@@ -30,7 +29,6 @@ impl<G: Group> Default for Encryption<G> {
     fn default() -> Self {
         Self {
             el_gamal: ElGamal::default(),
-            label: b"ElGamal".to_vec(),
             g0: G::independent_generators(1, b"HTDH2ZKP")[0],
         }
     }
