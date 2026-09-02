@@ -30,7 +30,7 @@ impl<G: Group> ZKPHTDH2<G> {
         let w = G::basepoint() * &s;
         let w0 = *g0 * &s;
 
-        let c = (self.get_challenge)(&[ue.0, ue.1, w, w0], ctx);
+        let c = (self.get_challenge)(&[ue.0, ue.1, w, u0, w0], ctx);
         let f = s + &(*r * &c);
 
         (u0, c, f)
@@ -40,7 +40,7 @@ impl<G: Group> ZKPHTDH2<G> {
         let w = G::basepoint() * f - &(ue.0 * c);
         let w0 = *g0 * f - &(*u0 * c);
 
-        let c_dash = (self.get_challenge)(&[ue.0, ue.1, w, w0], ctx);
+        let c_dash = (self.get_challenge)(&[ue.0, ue.1, w, *u0, w0], ctx);
 
         *c == c_dash
     }
