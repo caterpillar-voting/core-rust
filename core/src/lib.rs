@@ -48,11 +48,11 @@ mod tests {
         let mut rng = thread_rng();
         let message = Scalar::from(1u64);
 
-        let el_gamal = ExponentialElGamal::default();
-        let (secret_key, public_key) = el_gamal.0.keygen(&mut rng);
+        let el_gamal = ExponentialElGamal::<G>::default();
+        let (secret_key, public_key) = el_gamal.keygen(&mut rng);
 
         let ciphertext = el_gamal.encrypt(&public_key, &G::scalar_random(&mut rng), &message);
-        let ciphertext_reencrypted = el_gamal.0.reencrypt(&public_key, &G::scalar_random(&mut rng), &ciphertext);
+        let ciphertext_reencrypted = el_gamal.reencrypt(&public_key, &G::scalar_random(&mut rng), &ciphertext);
         let ciphertext_aggregated = (ciphertext_reencrypted.0 + &ciphertext.0, ciphertext_reencrypted.1 + &ciphertext.1);
 
         let message_decoder = BruteForceDiscreteLog::<G>::new(Scalar::from(2u64), None);
