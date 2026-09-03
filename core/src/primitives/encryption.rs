@@ -38,14 +38,16 @@ impl<G: Group> Default for Encryption<G> {
 
 impl<G: Group> Encryption<G> {
     pub fn key_gen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (SecretKey<G>, PublicKey<G>) {
+        assert_eq!(self.el_gamal.n, 1);
         let (secret_key, public_key) = self.el_gamal.keygen(rng);
 
-        (SecretKey(secret_key), public_key)
+        (SecretKey(secret_key[0]), public_key[0])
     }
 
     pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, context: &Context, rng: &mut R, message: &EncodedMessage<G>) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
-        let uv = self.el_gamal.encrypt(public_key, &randomness, message);
+        let uv = self.el_gamal.encrypt(&vec![*public_key], &randomness, &vec![*message]);
+        let uv = (uv.0, uv.1[0]);
 
         let zkp = ZKPHTDH2::<G>::default();
         let proof = zkp.prove(&self.g0, &uv, &randomness, context, rng);
@@ -64,8 +66,9 @@ impl<G: Group> Encryption<G> {
         if !zkp.verify(&self.g0, uv, &proof.0, &proof.1, &proof.2, context) {
             return None;
         }
+        let uv = (uv.0, vec![uv.1]);
 
-        Some(self.el_gamal.decrypt(&secret_key.0, uv))
+        Some(self.el_gamal.decrypt(&vec![secret_key.0], &uv)[0])
     }
 }
 
