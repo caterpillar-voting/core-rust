@@ -15,6 +15,14 @@ pub struct MessageEncoder<G: Group> {
 
 impl<G: Group> MessageEncoder<G> {
     const MIN_COUNTER_BITS: u32 = 8; // how many bits are reserved for the counter
+    pub fn number_of_points_from_message_length(message_length: usize) -> usize {
+        // Copy what is used in encode().
+        let size_bits = G::ENCODING_SIZE.ilog2();
+        let min_counter_bits = Self::MIN_COUNTER_BITS + G::ENCODING_LIKELIHOOD.ilog2();
+        let reserved_bytes: usize = (size_bits + min_counter_bits).div_ceil(8).try_into().unwrap();
+        let available_bytes = G::ENCODING_SIZE - reserved_bytes;
+        message_length.div_ceil(available_bytes)
+    }
     pub fn encode(&self, message: &[u8]) -> Option<Vec<G::Point>> {
         // to make ilog2 computation well-defined
         assert!(G::ENCODING_SIZE.is_power_of_two());

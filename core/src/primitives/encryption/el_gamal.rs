@@ -16,15 +16,18 @@ impl<G: Group> Default for ElGamal<G> {
 }
 
 impl<G: Group> ElGamal<G> {
+    pub fn new(n: usize) -> Self {
+        Self { _marker: Default::default(), n }
+    }
+
     pub fn keygen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (Vec<G::Scalar>, Vec<G::Point>) {
-        let n = self.n;
-        let sk = (0..n).map(|_| G::scalar_random(rng)).collect::<Vec<_>>();
-        let pk = (0..n).map(|i| G::basepoint() * &sk[i]).collect::<Vec<_>>();
+        let sk = (0..self.n).map(|_| G::scalar_random(rng)).collect::<Vec<_>>();
+        let pk = (0..self.n).map(|i| G::basepoint() * &sk[i]).collect::<Vec<_>>();
 
         (sk, pk)
     }
 
-    pub fn encrypt(&self, pk: &Vec<G::Point>, r: &G::Scalar, m: &Vec<G::Point>) -> (G::Point, Vec<G::Point>) {
+    pub fn encrypt(&self, pk: &[G::Point], r: &G::Scalar, m: &[G::Point]) -> (G::Point, Vec<G::Point>) {
         assert_eq!(pk.len(), self.n);
         assert_eq!(m.len(), self.n);
         let alpha = G::basepoint() * r;
@@ -33,7 +36,7 @@ impl<G: Group> ElGamal<G> {
         (alpha, beta)
     }
 
-    pub fn decrypt(&self, sk: &Vec<G::Scalar>, ciphertext: &(G::Point, Vec<G::Point>)) -> Vec<G::Point> {
+    pub fn decrypt(&self, sk: &[G::Scalar], ciphertext: &(G::Point, Vec<G::Point>)) -> Vec<G::Point> {
         let (alpha, beta) = ciphertext;
         assert_eq!(sk.len(), self.n);
         assert_eq!(beta.len(), self.n);
@@ -41,7 +44,7 @@ impl<G: Group> ElGamal<G> {
         (0..self.n).map(|i| beta[i] - &(*alpha * &sk[i])).collect::<Vec<_>>()
     }
 
-    pub fn decrypt_randomness(&self, pk: &Vec<G::Point>, r: &G::Scalar, ciphertext: &(G::Point, Vec<G::Point>)) -> Vec<G::Point> {
+    pub fn decrypt_randomness(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &(G::Point, Vec<G::Point>)) -> Vec<G::Point> {
         let (_alpha, beta) = ciphertext;
         assert_eq!(pk.len(), self.n);
         assert_eq!(beta.len(), self.n);
@@ -51,7 +54,7 @@ impl<G: Group> ElGamal<G> {
         (0..self.n).map(|i| beta[i] - &(pk[i] * r)).collect::<Vec<_>>()
     }
 
-    pub fn reencrypt(&self, pk: &Vec<G::Point>, r: &G::Scalar, ciphertext: &(G::Point, Vec<G::Point>)) -> (G::Point, Vec<G::Point>) {
+    pub fn reencrypt(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &(G::Point, Vec<G::Point>)) -> (G::Point, Vec<G::Point>) {
         let (alpha, beta) = ciphertext;
         assert_eq!(pk.len(), self.n);
         assert_eq!(beta.len(), self.n);
@@ -85,25 +88,25 @@ impl<G: Group> ExponentialElGamal<G> {
 
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Scalar) -> (G::Point, G::Point) {
         let m_point = G::basepoint() * m;
-        let c = self.0.encrypt(&vec![*pk], r, &vec![m_point]);
+        let c = self.0.encrypt(&[*pk], r, &[m_point]);
         (c.0, c.1[0])
     }
 
     pub fn decrypt(&self, sk: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
         let c = (ciphertext.0, vec![ciphertext.1]);
-        let m_point = self.0.decrypt(&vec![*sk], &c)[0];
+        let m_point = self.0.decrypt(&[*sk], &c)[0];
 
         decoder.log(&m_point)
     }
 
     pub fn decrypt_randomness(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
-        let m_point = self.0.decrypt_randomness(&vec![*pk], r, &(ciphertext.0, vec![ciphertext.1]))[0];
+        let m_point = self.0.decrypt_randomness(&[*pk], r, &(ciphertext.0, vec![ciphertext.1]))[0];
 
         decoder.log(&m_point)
     }
 
     pub fn reencrypt(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point)) -> (G::Point, G::Point) {
-        let c = self.0.reencrypt(&vec![*pk], r, &(ciphertext.0, vec![ciphertext.1]));
+        let c = self.0.reencrypt(&[*pk], r, &(ciphertext.0, vec![ciphertext.1]));
         (c.0, c.1[0])
     }
 }
@@ -116,6 +119,7 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::_test_utils::{new_el_gamal_sample, new_exponential_el_gamal_sample};
+    use crate::primitives::encryption::el_gamal::ElGamal;
     use rand::thread_rng;
 
     type G = RistrettoGroup;
@@ -149,6 +153,29 @@ mod tests {
 
         assert_eq!(m_decrypted, m);
         assert_eq!(m_decrypted_randomness, m);
+    }
+
+    #[test]
+    fn multi_encrypt_decrypt_reencrypt() {
+        let mut rng = thread_rng();
+        let n = 5;
+        let el_gamal = ElGamal::<G>::new(n);
+        let (sk, pk) = el_gamal.keygen(&mut rng);
+        let m = (0..n).map(|_| G::point_random(&mut rng)).collect::<Vec<_>>();
+        let r = G::scalar_random(&mut rng);
+        let ciphertext = el_gamal.encrypt(&pk, &r, &m);
+        let m_decrypted = el_gamal.decrypt(&sk, &ciphertext);
+        let m_decrypted_randomness = el_gamal.decrypt_randomness(&pk, &r, &ciphertext);
+        assert_eq!(m_decrypted, m);
+        assert_eq!(m_decrypted_randomness, m);
+
+        let r2 = G::scalar_random(&mut rng);
+        let ciphertext2 = el_gamal.reencrypt(&pk, &r2, &ciphertext);
+        let m_decrypted2 = el_gamal.decrypt(&sk, &ciphertext2);
+        let r_combined = r + &r2;
+        let m_decrypted_randomness2 = el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext2);
+        assert_eq!(m_decrypted2, m);
+        assert_eq!(m_decrypted_randomness2, m);
     }
 
     #[test]

@@ -44,7 +44,7 @@ impl<G: Group> Encryption<G> {
 
     pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, context: &Context, rng: &mut R, message: &EncodedMessage<G>) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
-        let uv = self.el_gamal.encrypt(&vec![*public_key], &randomness, &vec![*message]);
+        let uv = self.el_gamal.encrypt(&[*public_key], &randomness, &[*message]);
         let uv = (uv.0, uv.1[0]);
 
         let zkp = ZKPHTDH2::<G>::default();
@@ -66,7 +66,7 @@ impl<G: Group> Encryption<G> {
         }
         let uv = (uv.0, vec![uv.1]);
 
-        Some(self.el_gamal.decrypt(&vec![secret_key.0], &uv)[0])
+        Some(self.el_gamal.decrypt(&[secret_key.0], &uv)[0])
     }
 }
 
