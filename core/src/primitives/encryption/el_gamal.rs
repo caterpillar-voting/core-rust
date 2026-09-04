@@ -1,12 +1,13 @@
 use crate::foundation::discrete_log::DiscreteLog;
 use crate::foundation::group::Group;
 use rand_core::{CryptoRng, RngCore};
+use std::iter;
 use std::marker::PhantomData;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ElGamal<G: Group> {
     _marker: PhantomData<G>,
-    pub(crate) n: usize, // Multi-recipient ElGamal, with n recipients
+    pub(crate) n: usize, // Multi-recipient ElGamal, with n messages
 }
 
 impl<G: Group> Default for ElGamal<G> {
@@ -27,25 +28,26 @@ impl<G: Group> ElGamal<G> {
         (sk, pk)
     }
 
-    pub fn encrypt(&self, pk: &[G::Point], r: &G::Scalar, m: &[G::Point]) -> (G::Point, Vec<G::Point>) {
+    pub fn encrypt(&self, pk: &[G::Point], r: &G::Scalar, m: &[G::Point]) -> Vec<G::Point> {
         assert_eq!(pk.len(), self.n);
         assert_eq!(m.len(), self.n);
         let alpha = G::basepoint() * r;
-        let beta = (0..self.n).map(|i| pk[i] * r + &m[i]).collect::<Vec<_>>();
-
-        (alpha, beta)
+        let c = iter::once(alpha);
+        c.chain(m.into_iter().zip(pk).map(|(m, pk)| *pk * r + m)).collect::<Vec<_>>()
     }
 
-    pub fn decrypt(&self, sk: &[G::Scalar], ciphertext: &(G::Point, Vec<G::Point>)) -> Vec<G::Point> {
-        let (alpha, beta) = ciphertext;
+    pub fn decrypt(&self, sk: &[G::Scalar], ciphertext: &[G::Point]) -> Vec<G::Point> {
+        let alpha = &ciphertext[0];
+        let beta = &ciphertext[1..];
         assert_eq!(sk.len(), self.n);
         assert_eq!(beta.len(), self.n);
 
         (0..self.n).map(|i| beta[i] - &(*alpha * &sk[i])).collect::<Vec<_>>()
     }
 
-    pub fn decrypt_randomness(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &(G::Point, Vec<G::Point>)) -> Vec<G::Point> {
-        let (_alpha, beta) = ciphertext;
+    pub fn decrypt_randomness(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &[G::Point]) -> Vec<G::Point> {
+        let _alpha = &ciphertext[0];
+        let beta = &ciphertext[1..];
         assert_eq!(pk.len(), self.n);
         assert_eq!(beta.len(), self.n);
         // In production, we explicitly do not check here whether g^r = alpha, as this is expensive
@@ -54,15 +56,14 @@ impl<G: Group> ElGamal<G> {
         (0..self.n).map(|i| beta[i] - &(pk[i] * r)).collect::<Vec<_>>()
     }
 
-    pub fn reencrypt(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &(G::Point, Vec<G::Point>)) -> (G::Point, Vec<G::Point>) {
-        let (alpha, beta) = ciphertext;
+    pub fn reencrypt(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &[G::Point]) -> Vec<G::Point> {
+        let alpha = &ciphertext[0];
+        let beta = &ciphertext[1..];
         assert_eq!(pk.len(), self.n);
         assert_eq!(beta.len(), self.n);
 
-        let alpha = G::basepoint() * r + alpha;
-        let beta = (0..self.n).map(|i| pk[i] * r + &beta[i]).collect::<Vec<_>>();
-
-        (alpha, beta)
+        let c = iter::once(G::basepoint() * r + alpha);
+        c.chain(beta.into_iter().zip(pk).map(|(beta, pk)| *pk * r + beta)).collect::<Vec<_>>()
     }
 }
 
@@ -89,25 +90,25 @@ impl<G: Group> ExponentialElGamal<G> {
     pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Scalar) -> (G::Point, G::Point) {
         let m_point = G::basepoint() * m;
         let c = self.0.encrypt(&[*pk], r, &[m_point]);
-        (c.0, c.1[0])
+        (c[0], c[1])
     }
 
     pub fn decrypt(&self, sk: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
-        let c = (ciphertext.0, vec![ciphertext.1]);
+        let c = [ciphertext.0, ciphertext.1];
         let m_point = self.0.decrypt(&[*sk], &c)[0];
 
         decoder.log(&m_point)
     }
 
     pub fn decrypt_randomness(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
-        let m_point = self.0.decrypt_randomness(&[*pk], r, &(ciphertext.0, vec![ciphertext.1]))[0];
+        let m_point = self.0.decrypt_randomness(&[*pk], r, &[ciphertext.0, ciphertext.1])[0];
 
         decoder.log(&m_point)
     }
 
     pub fn reencrypt(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point)) -> (G::Point, G::Point) {
-        let c = self.0.reencrypt(&[*pk], r, &(ciphertext.0, vec![ciphertext.1]));
-        (c.0, c.1[0])
+        let c = self.0.reencrypt(&[*pk], r, &[ciphertext.0, ciphertext.1]);
+        (c[0], c[1])
     }
 }
 

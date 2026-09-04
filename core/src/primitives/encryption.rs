@@ -1,5 +1,5 @@
 use crate::foundation::group::Group;
-use crate::foundation::message::EncodedMessage;
+use crate::foundation::message::{EncodedMessage, MessageEncoder};
 use crate::primitives::encryption::el_gamal::ElGamal;
 use crate::primitives::zkp::htdh2::ZKPHTDH2;
 use rand_core::{CryptoRng, RngCore};
@@ -35,6 +35,19 @@ impl<G: Group> Default for Encryption<G> {
 }
 
 impl<G: Group> Encryption<G> {
+    /* Not yet ready for use of mr-elgamal in the high-level API.
+    pub fn new(max_message_length: Option<usize>, g0: Option<G::Point>) -> Self {
+        let message_encoder = MessageEncoder::<G>::default();
+        let g0 = g0.unwrap_or_else(|| G::independent_generators(1, b"HTDH2ZKP")[0]);
+        let n = match max_message_length {
+            Some(l) => message_encoder.number_of_points_from_message_length(l),
+            None => 1,
+        };
+        let el_gamal = ElGamal::<G>::new(n);
+        Self { el_gamal, g0 }
+    }
+     */
+
     pub fn key_gen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (SecretKey<G>, PublicKey<G>) {
         assert_eq!(self.el_gamal.n, 1);
         let (secret_key, public_key) = self.el_gamal.keygen(rng);
@@ -45,7 +58,7 @@ impl<G: Group> Encryption<G> {
     pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, context: &Context, rng: &mut R, message: &EncodedMessage<G>) -> Ciphertext<G> {
         let randomness = G::scalar_random(rng);
         let uv = self.el_gamal.encrypt(&[*public_key], &randomness, &[*message]);
-        let uv = (uv.0, uv.1[0]);
+        let uv = (uv[0], uv[1]);
 
         let zkp = ZKPHTDH2::<G>::default();
         let proof = zkp.prove(&self.g0, &uv, &randomness, context, rng);
@@ -64,9 +77,9 @@ impl<G: Group> Encryption<G> {
         if !zkp.verify(&self.g0, uv, &proof.0, &proof.1, &proof.2, context) {
             return None;
         }
-        let uv = (uv.0, vec![uv.1]);
+        let uv = &[uv.0, uv.1];
 
-        Some(self.el_gamal.decrypt(&[secret_key.0], &uv)[0])
+        Some(self.el_gamal.decrypt(&[secret_key.0], uv)[0])
     }
 }
 
