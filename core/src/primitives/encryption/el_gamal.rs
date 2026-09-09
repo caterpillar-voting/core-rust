@@ -101,7 +101,7 @@ impl<G: Group> ExponentialElGamal<G> {
 
 #[cfg(test)]
 mod tests {
-    use crate::foundation::discrete_log::{BruteForceDiscreteLog, PrecomputedDiscreteLog};
+    use crate::foundation::discrete_log::PrecomputedDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::_test_utils::{new_el_gamal_sample, new_exponential_el_gamal_sample};

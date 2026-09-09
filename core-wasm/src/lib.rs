@@ -21,6 +21,10 @@ pub struct WasmPublicKey(PublicKey<RistrettoGroup>);
 pub struct WasmContext(Context);
 
 #[wasm_bindgen]
+#[derive(Clone)]
+pub struct WasmMessage(Vec<u8>);
+
+#[wasm_bindgen]
 pub struct WasmKeyPair {
     private: WasmSecretKey,
     public: WasmPublicKey,
@@ -83,13 +87,14 @@ impl WasmEncryption {
         }
     }
 
-    pub fn encrypt(&self, public_key: &WasmPublicKey, context: &WasmContext, message: &WasmEncodedMessage) -> WasmCiphertext {
+    pub fn encrypt(&self, public_key: &WasmPublicKey, context: &WasmContext, message: &WasmMessage) -> WasmCiphertext {
         let mut rng = OsRng;
 
-        WasmCiphertext(self.0.encrypt(&public_key.0, &context.0, &mut rng, &message.0))
+        WasmCiphertext(self.0.encrypt(&public_key.0, &context.0, &mut rng, &message.0).unwrap())
+        // FIXME: how do we handle errors in wasm?
     }
 
-    pub fn decrypt(&self, secret_key: &WasmSecretKey, context: &WasmContext, ciphertext: &WasmCiphertext) -> WasmEncodedMessage {
-        WasmEncodedMessage(self.0.decrypt(&context.0, &secret_key.0, &ciphertext.0).unwrap())
+    pub fn decrypt(&self, secret_key: &WasmSecretKey, context: &WasmContext, ciphertext: &WasmCiphertext) -> WasmMessage {
+        WasmMessage(self.0.decrypt(&context.0, &secret_key.0, &ciphertext.0).unwrap())
     }
 }

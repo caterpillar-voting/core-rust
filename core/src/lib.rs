@@ -31,13 +31,13 @@ mod tests {
     #[test]
     fn encryption() {
         let mut rng = thread_rng();
-        let message = G::point_random(&mut rng);
 
         let encryption = Encryption::<G>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
 
         let ctx = "test_encrypt".as_bytes().to_vec();
-        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message);
+        let message = "Hello World!".as_bytes().to_vec();
+        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message).unwrap();
         let message_recovered = encryption.decrypt(&ctx, &secret_key, &ciphertext);
 
         assert_eq!(message_recovered, Some(message));
