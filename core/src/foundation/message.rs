@@ -228,6 +228,7 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::message::{MessageEncoder, ScalarMessageEncoder};
+    use rand_core::RngCore;
     use std::vec;
 
     type G = RistrettoGroup;
@@ -265,5 +266,22 @@ mod tests {
             let recovered_value = encoder.decode(&encoded.unwrap());
             assert_eq!(Some(message), recovered_value);
         }
+    }
+
+    #[test]
+    fn check_likelihood() {
+        let mut rng = rand::thread_rng();
+        let mut counter = 0;
+        let n = 1000;
+        for _ in 0..n {
+            let mut bytes = vec![0u8; G::ENCODING_SIZE];
+            rng.fill_bytes(&mut bytes);
+            let p = G::try_encode(bytes.as_slice());
+            if p.is_some() {
+                counter += 1;
+            }
+        }
+        let g_str = std::str::from_utf8(G::GROUP_IDENTIFIER).unwrap();
+        println!("estimated (inverse) likelihood for group {}: {}", g_str, n as f64 / counter as f64);
     }
 }
