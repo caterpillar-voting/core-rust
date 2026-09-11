@@ -20,7 +20,7 @@ impl<G: Group> Default for MessageEncoder<G> {
 }
 
 impl<G: Group> MessageEncoder<G> {
-    const MIN_COUNTER_BITS: u32 = 8; // how many bits are reserved for the counter
+    const MIN_COUNTER_BITS: u32 = 7; // how many bits are reserved for the counter
     const MAX_MESSAGE_LENGTH_BITS: u32 = 13; // how many bits are reserved for the message length; we set to 8k, i.e., 13 bits for now.
     pub fn number_of_points_from_message_length(message_length: usize) -> usize {
         // Copy what is used in encode().
@@ -61,11 +61,11 @@ impl<G: Group> MessageEncoder<G> {
         assert!(G::ENCODING_LIKELIHOOD.is_power_of_two());
 
         // we choose min_counter_bits such that the probability is low to not be able to encode.
-        // concretely, we choose 8 as a constant and add the ENCODING_LIKELIHOOD which captures the fail-probability of the underlying group.
+        // concretely, we choose 7 as a constant and add the ENCODING_LIKELIHOOD which captures the fail-probability of the underlying group.
         // example:
-        //  - for ristretto, the ENCODING_LIKELIHOOD is 8, which results in counter_bits=11.
-        // - hence 2048 draws are made, so the probability of non-success is (7/8)^2048 = 1.7 * 10^-119. this is negligible.
-        // - for ristretto, observe how counter_bits + size_bits = 16. this fits neatly into two bytes.
+        // - for ristretto, the ENCODING_LIKELIHOOD is 16, which results in counter_bits=11.
+        // - hence 2048 draws are made, so the probability of non-success is (15/16)^2048 = 2^-190. this is negligible.
+        // - setting MAX_MESSAGE_LENGTH_BITS to 13, we get first_reserved_bits=13+7+4=24, which fits nicely in 3 bytes.
         let min_counter_bits = Self::MIN_COUNTER_BITS + G::ENCODING_LIKELIHOOD.ilog2();
 
         // first chunk: reserved bits are for the counter and the length of the message.
@@ -228,7 +228,6 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::foundation::message::{MessageEncoder, ScalarMessageEncoder};
-    use rand_core::RngCore;
     use std::vec;
 
     type G = RistrettoGroup;
@@ -268,6 +267,9 @@ mod tests {
         }
     }
 
+    /*
+    // This test is not so easy to automate. The output should be close to G::ENCODING_LIKELIHOOD, but "close" is hard to define unless we take a very large n.
+    // We disable it for now, because we rely on a println! and the human having a look.
     #[test]
     fn check_likelihood() {
         let mut rng = rand::thread_rng();
@@ -284,4 +286,5 @@ mod tests {
         let g_str = std::str::from_utf8(G::GROUP_IDENTIFIER).unwrap();
         println!("estimated (inverse) likelihood for group {}: {}", g_str, n as f64 / counter as f64);
     }
+     */
 }
