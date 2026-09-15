@@ -53,7 +53,7 @@ impl<G: Group> MessageEncoder<G> {
         if message.len() <= mbe.first_available_bytes {
             encoded_values.push(self.encode_chunk(message, mbe.encoding_size, mbe.first_reserved_bytes, prefix_template, mbe.first_counter_bits));
         } else {
-            let first_chunk =  &message[..mbe.first_available_bytes];
+            let first_chunk = &message[..mbe.first_available_bytes];
             encoded_values.push(self.encode_chunk(first_chunk, mbe.encoding_size, mbe.first_reserved_bytes, prefix_template, mbe.first_counter_bits));
 
             for chunk in message[mbe.first_available_bytes..].chunks(mbe.other_available_bytes) {
@@ -156,8 +156,7 @@ impl<G: Group> MessageEncoder<G> {
     //
     // It is possible to enforce a fixed number of points for the encoding, in order to hide the length after encryption.
     // In that case we pad with the neutral element of G.
-    fn get_byte_encoding(&self) -> MessageByteEncoding
-    {
+    fn get_byte_encoding(&self) -> MessageByteEncoding {
         // TODO: sacrifice one bit of MESSAGE_LENGTH_BITS to denote encoding (i.e., fixed bit 0)?
         // this would likely enable us a clean upgrade path when we change the encoding
 
