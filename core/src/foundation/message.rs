@@ -89,56 +89,42 @@ impl<G: Group> MessageEncoder<G> {
         let mbe = self.get_byte_encoding();
         let mut value = vec![];
 
-        // Handle the first chunk
+        // Extract prefix
         let message_chunk = G::decode(&encoded_message[0]);
         let mut prefix_bytes = message_chunk[..mbe.first_reserved_bytes].to_vec();
         prefix_bytes.resize(4, 0u8);
-        let prefix: u32 = u32::from_le_bytes(prefix_bytes.as_slice().try_into().unwrap());
-        let message_length = (prefix >> mbe.first_counter_bits) as usize;
-        if message_length > mbe.first_available_bytes {
-            value.extend_from_slice(&message_chunk[mbe.first_reserved_bytes..]);
-        } else {
-            value.extend_from_slice(&message_chunk[mbe.first_reserved_bytes..(mbe.first_reserved_bytes + message_length)]);
-            let expected_zeros = &message_chunk[mbe.first_reserved_bytes + message_length..];
-            if expected_zeros != vec![0u8; G::ENCODING_SIZE - mbe.first_reserved_bytes - message_length] {
-                println!("padding is not done with zeros: {:?}", expected_zeros);
-                return None; // The padding was not done with zeros.
-            }
-            for m in &encoded_message[1..] {
-                if m != &G::identity() {
-                    println!("padding is not done with the neutral element: {:?}", m);
-                    return None; // The padding was not done with the neutral element.
-                }
-            }
-            return Some(value);
-        }
-        let mut remaining_bytes = message_length - mbe.first_available_bytes;
-        // Handle the remaining chunks
-        for i in 1..encoded_message.len() {
-            let chunk = &encoded_message[i];
-            let message_chunk = G::decode(chunk);
+        let prefix: u32 = u32::from_le_bytes(prefix_bytes.as_slice().try_into().ok()?);
+        let message_size = (prefix >> mbe.first_counter_bits) as usize;
 
-            if remaining_bytes > mbe.other_available_bytes {
+        // Extract first chunk
+        assert_eq!(message_chunk.len(), mbe.first_reserved_bytes + mbe.first_available_bytes);
+        value.extend_from_slice(&message_chunk[mbe.first_reserved_bytes..]);
+
+        // Extract other chunks
+        for i in 1..encoded_message.len() {
+            let current = encoded_message[i];
+            if value.len() < message_size {
+                let message_chunk = G::decode(&current);
+                assert_eq!(message_chunk.len(), mbe.other_reserved_bytes + mbe.other_available_bytes);
+
                 value.extend_from_slice(&message_chunk[mbe.other_reserved_bytes..]);
-                remaining_bytes -= mbe.other_available_bytes;
             } else {
-                value.extend_from_slice(&message_chunk[mbe.other_reserved_bytes..(mbe.other_reserved_bytes + remaining_bytes)]);
-                let expected_zeros = &message_chunk[mbe.other_reserved_bytes + remaining_bytes..];
-                if expected_zeros != vec![0u8; G::ENCODING_SIZE - mbe.other_reserved_bytes - remaining_bytes] {
-                    println!("padding is not done with zeros in point {i}: {:?}", expected_zeros);
-                    return None; // The padding was not done with zeros.
+                if current != G::identity() {
+                    println!("padding is not done with the neutral element: {:?}", current);
+                    return None;
                 }
-                for m in &encoded_message[i + 1..] {
-                    if m != &G::identity() {
-                        println!("padding is not done with the neutral element: {:?}", m);
-                        return None; // The padding was not done with the neutral element.
-                    }
-                }
-                return Some(value);
             }
         }
-        assert!(false); // Encoded size does not match the number of chunks.
-        None
+
+        assert!(value.len() >= message_size);
+        let (_, padding) = value.split_at(message_size);
+        if padding != vec![0u8; padding.len()] {
+            println!("padding is not done with zeros: {:?}", padding);
+            return None;
+        }
+
+        value.truncate(message_size);
+        Some(value)
     }
 
     // We encode as follows:
