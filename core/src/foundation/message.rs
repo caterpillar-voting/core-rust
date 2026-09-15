@@ -51,40 +51,15 @@ impl<G: Group> MessageEncoder<G> {
             return None;
         }
 
-        // Handle the first chunk of the message.
-        let first_chunk = if message.len() <= mbe.first_available_bytes { message } else { &message[..mbe.first_available_bytes] };
         let prefix_template = (message.len() << mbe.first_counter_bits) as u32;
-        let mut encoded_value: Option<G::Point> = None;
-        for counter in 0..(1 << mbe.first_counter_bits) {
-            let prefix = prefix_template | counter;
-            let prefix_bytes = prefix.to_le_bytes(); // appending 0s does not change the value for little-endian.
-            let mut encoded_value_bytes = vec![0u8; G::ENCODING_SIZE];
-            encoded_value_bytes[..mbe.first_reserved_bytes].copy_from_slice(&prefix_bytes[..mbe.first_reserved_bytes]);
-            encoded_value_bytes[mbe.first_reserved_bytes..(mbe.first_reserved_bytes + first_chunk.len())].copy_from_slice(first_chunk);
-            encoded_value = G::try_encode(encoded_value_bytes.as_slice());
-            if encoded_value.is_some() {
-                encoded_values.push(encoded_value.unwrap());
-                break;
-            }
-        }
-        assert!(encoded_value.is_some()); // This should never occur, or something is wrong with our likelihood computation.
+        if message.len() <= mbe.first_available_bytes {
+            encoded_values.push(self.encode_chunk(message, mbe.first_reserved_bytes, prefix_template, mbe.first_counter_bits));
+        } else {
+            let first_chunk =  &message[..mbe.first_available_bytes];
+            encoded_values.push(self.encode_chunk(first_chunk, mbe.first_reserved_bytes, prefix_template, mbe.first_counter_bits));
 
-        if message.len() > mbe.first_available_bytes {
-            // Handle the remaining chunks of the message.
             for chunk in message[mbe.first_available_bytes..].chunks(mbe.other_available_bytes) {
-                encoded_value = None;
-                for counter in 0..(1u32 << mbe.other_counter_bits) {
-                    let prefix_bytes = counter.to_le_bytes(); // appending 0s does not change the value for little-endian.
-                    let mut encoded_value_bytes = vec![0u8; G::ENCODING_SIZE];
-                    encoded_value_bytes[..mbe.other_reserved_bytes].copy_from_slice(&prefix_bytes[..mbe.other_reserved_bytes]);
-                    encoded_value_bytes[mbe.other_reserved_bytes..(mbe.other_reserved_bytes + chunk.len())].copy_from_slice(chunk);
-                    encoded_value = G::try_encode(encoded_value_bytes.as_slice());
-                    if encoded_value.is_some() {
-                        encoded_values.push(encoded_value.unwrap());
-                        break;
-                    }
-                }
-                assert!(encoded_value.is_some()); // This should never occur, or something is wrong with our likelihood computation.
+                encoded_values.push(self.encode_chunk(chunk, mbe.other_reserved_bytes, prefix_template, mbe.other_counter_bits));
             }
         }
 
@@ -97,6 +72,25 @@ impl<G: Group> MessageEncoder<G> {
             Some(encoded_values)
         }
     }
+
+    fn encode_chunk(&self, chunk: &[u8], prefix_length: usize, prefix_template: u32, counter_bits: u32) -> G::Point {
+        let mut encoded_value_bytes = vec![0u8; G::ENCODING_SIZE];
+        encoded_value_bytes[prefix_length..(prefix_length + chunk.len())].copy_from_slice(chunk);
+
+        let mut encoded_value: Option<G::Point>;
+        for counter in 0..(1 << counter_bits) {
+            let prefix = prefix_template | counter;
+            let prefix_bytes = prefix.to_le_bytes(); // appending 0s does not change the value for little-endian.
+            encoded_value_bytes[..prefix_length].copy_from_slice(&prefix_bytes[..prefix_length]);
+            encoded_value = G::try_encode(encoded_value_bytes.as_slice());
+            if encoded_value.is_some() {
+                return encoded_value.unwrap();
+            }
+        }
+
+        panic!("The probability of not finding a valid encoding is negligible"); // if this ever occurs, something is wrong with our likelihood computation
+    }
+
     pub fn decode(&self, encoded_message: &Vec<G::Point>) -> Option<Vec<u8>> {
         let mbe = self.get_byte_encoding();
         let mut value = vec![];
