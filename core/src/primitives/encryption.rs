@@ -38,6 +38,7 @@ impl<G: Group> Default for Encryption<G> {
 
 impl<G: Group> Encryption<G> {
     pub fn new(max_message_length: usize) -> Self {
+        // FIXME: g0 should not be reused
         let g0 = G::independent_generators(1, b"HTDH2ZKP")[0];
         let encoder = MessageEncoder::<G>::default();
         let n = MessageEncoder::<G>::number_of_points_from_message_length(max_message_length);
