@@ -33,7 +33,7 @@ impl<G: Group> ElGamal<G> {
         assert_eq!(m.len(), self.n);
         let alpha = G::basepoint() * r;
         let c = iter::once(alpha);
-        c.chain(m.into_iter().zip(pk).map(|(m, pk)| *pk * r + m)).collect::<Vec<_>>()
+        c.chain(m.iter().zip(pk).map(|(m, pk)| *pk * r + m)).collect::<Vec<_>>()
     }
 
     pub fn decrypt(&self, sk: &[G::Scalar], ciphertext: &[G::Point]) -> Vec<G::Point> {
@@ -63,7 +63,7 @@ impl<G: Group> ElGamal<G> {
         assert_eq!(beta.len(), self.n);
 
         let c = iter::once(G::basepoint() * r + alpha);
-        c.chain(beta.into_iter().zip(pk).map(|(beta, pk)| *pk * r + beta)).collect::<Vec<_>>()
+        c.chain(beta.iter().zip(pk).map(|(beta, pk)| *pk * r + beta)).collect::<Vec<_>>()
     }
 }
 

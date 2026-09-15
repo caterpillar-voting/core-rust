@@ -77,15 +77,15 @@ impl<G: Group> MessageEncoder<G> {
             let prefix_bytes = prefix.to_le_bytes(); // appending 0s does not change the value for little-endian.
             encoded_value_bytes[..prefix_length].copy_from_slice(&prefix_bytes[..prefix_length]);
             encoded_value = G::try_encode(encoded_value_bytes.as_slice());
-            if encoded_value.is_some() {
-                return encoded_value.unwrap();
+            if let Some(encoded_value_inner) = encoded_value {
+                return encoded_value_inner;
             }
         }
 
         panic!("The probability of not finding a valid encoding is negligible"); // if this ever occurs, something is wrong with our likelihood computation
     }
 
-    pub fn decode(&self, encoded_message: &Vec<G::Point>) -> Option<Vec<u8>> {
+    pub fn decode(&self, encoded_message: &[G::Point]) -> Option<Vec<u8>> {
         let mbe = self.get_byte_encoding();
         let mut value = vec![];
 
@@ -101,15 +101,14 @@ impl<G: Group> MessageEncoder<G> {
         value.extend_from_slice(&message_chunk[mbe.first_reserved_bytes..]);
 
         // Extract other chunks, or check for padding chunks
-        for i in 1..encoded_message.len() {
-            let current = encoded_message[i];
+        for current in encoded_message.iter().skip(1) {
             if value.len() < message_size {
-                let message_chunk = G::decode(&current);
+                let message_chunk = G::decode(current);
                 assert_eq!(message_chunk.len(), mbe.other_reserved_bytes + mbe.other_available_bytes);
 
                 value.extend_from_slice(&message_chunk[mbe.other_reserved_bytes..]);
             } else {
-                if current != G::identity() {
+                if current != &G::identity() {
                     println!("padding is not done with the neutral element: {:?}", current);
                     return None;
                 }
@@ -117,7 +116,7 @@ impl<G: Group> MessageEncoder<G> {
         }
 
         // Error if too small
-        if (value.len() < message_size) {
+        if value.len() < message_size {
             println!("insufficient bytes recovered: {:?} of {:?} recovered.", value.len(), message_size);
             return None;
         }

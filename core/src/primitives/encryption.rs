@@ -75,7 +75,7 @@ impl<G: Group> Encryption<G> {
             return None;
         }
 
-        let message = self.el_gamal.decrypt(&*secret_key.0, uv);
+        let message = self.el_gamal.decrypt(&secret_key.0, uv);
         self.encoder.decode(&message)
     }
 }
