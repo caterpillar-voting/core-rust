@@ -20,6 +20,7 @@ impl<G: Group> Default for MessageEncoder<G> {
 }
 
 struct MessageByteEncoding {
+    encoding_size: usize,
     first_counter_bits: u32,
     first_message_size_bits: u32,
     first_reserved_bytes: usize,
@@ -30,16 +31,13 @@ struct MessageByteEncoding {
 }
 
 impl<G: Group> MessageEncoder<G> {
-    const MIN_COUNTER_BITS: u32 = 7; // how many bits are reserved for the counter
-    const MAX_MESSAGE_LENGTH_BITS: u32 = 13; // how many bits are reserved for the message length; we set to 8k, i.e., 13 bits for now.
+    const COUNTER_BITS: u32 = 7; // how many bits are reserved for the counter
+    pub const MESSAGE_LENGTH_BITS: u32 = 13; // how many bits are reserved for the message length; we set to 8k, i.e., 13 bits for now.
     pub fn number_of_points_from_message_length(&self, message_length: usize) -> usize {
         let mbe = self.get_byte_encoding();
         if message_length <= mbe.first_available_bytes {
             return 1;
         }
-
-        // TODO: should we return None if insufficient bits to measure size of message?
-        // if yet, can refactor get_byte_encoding to also return Option<>, as anyways returned Option<usize> here
 
         let remaining_message_length = message_length - mbe.first_available_bytes;
         1 + remaining_message_length.div_ceil(mbe.other_available_bytes)
@@ -175,7 +173,7 @@ impl<G: Group> MessageEncoder<G> {
     // In that case we pad with the neutral element of G.
     fn get_byte_encoding(&self) -> MessageByteEncoding
     {
-        // TODO: should we sacrifice one bit of MESSAGE_LENGTH_BITS to denote encoding (i.e., fixed bit 0)
+        // TODO: sacrifice one bit of MESSAGE_LENGTH_BITS to denote encoding (i.e., fixed bit 0)?
         // this would likely enable us a clean upgrade path when we change the encoding
 
         // to make ilog2 computation well-defined
@@ -188,21 +186,23 @@ impl<G: Group> MessageEncoder<G> {
         // - for ristretto, the ENCODING_LIKELIHOOD is 16, which results in counter_bits=11.
         // - hence 2048 draws are made, so the probability of non-success is (15/16)^2048 = 2^-190. this is negligible.
         // - setting MAX_MESSAGE_LENGTH_BITS to 13, we get first_reserved_bits=13+7+4=24, which fits nicely in 3 bytes.
-        let min_counter_bits = Self::MIN_COUNTER_BITS + G::ENCODING_LIKELIHOOD.ilog2();
+        let encoding_size = G::ENCODING_SIZE;
+        let adjusted_counter_bits = Self::COUNTER_BITS + G::ENCODING_LIKELIHOOD.ilog2();
 
         // first chunk: reserved bits are for the counter and the length of the message.
-        let first_reserved_bytes = (Self::MAX_MESSAGE_LENGTH_BITS + min_counter_bits).div_ceil(8).try_into().unwrap();
+        let first_reserved_bytes = (Self::MESSAGE_LENGTH_BITS + adjusted_counter_bits).div_ceil(8).try_into().unwrap();
         assert!(first_reserved_bytes <= 4); // must fit in a u32.
-        let first_available_bytes = G::ENCODING_SIZE - first_reserved_bytes;
-        let first_counter_bits = (first_reserved_bytes * 8) as u32 - Self::MAX_MESSAGE_LENGTH_BITS;
+        let first_available_bytes = encoding_size - first_reserved_bytes;
+        let first_counter_bits = (first_reserved_bytes * 8) as u32 - Self::MESSAGE_LENGTH_BITS;
         // other chunks: reserved bits are just for the counter.
-        let other_reserved_bytes = min_counter_bits.div_ceil(8).try_into().unwrap();
-        let other_available_bytes = G::ENCODING_SIZE - other_reserved_bytes;
+        let other_reserved_bytes = adjusted_counter_bits.div_ceil(8).try_into().unwrap();
+        let other_available_bytes = encoding_size - other_reserved_bytes;
         let other_counter_bits = (other_reserved_bytes * 8) as u32;
 
         MessageByteEncoding {
+            encoding_size,
             first_counter_bits,
-            first_message_size_bits: Self::MAX_MESSAGE_LENGTH_BITS,
+            first_message_size_bits: Self::MESSAGE_LENGTH_BITS,
             first_reserved_bytes,
             first_available_bytes,
             other_counter_bits,
@@ -258,18 +258,14 @@ mod tests {
         for size in [1, 2, 28, 29, 30, 31, 32, 1000, 5000] {
             let message = vec![1u8; size];
             let encoded = encoder.encode(&message, encoder.number_of_points_from_message_length(size));
-            assert!(encoded.is_some());
-
-            let recovered_value = encoder.decode(&encoded.unwrap());
+            let recovered_value = encoder.decode(&encoded);
             assert_eq!(Some(message), recovered_value);
         }
         // test with fixed length
         for size in [1, 2, 28, 29, 30, 31, 32, 40] {
             let message = vec![1u8; size];
             let encoded = encoder.encode(&message, 5);
-            assert!(encoded.is_some());
-
-            let recovered_value = encoder.decode(&encoded.unwrap());
+            let recovered_value = encoder.decode(&encoded);
             assert_eq!(Some(message), recovered_value);
         }
     }

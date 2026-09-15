@@ -53,7 +53,7 @@ impl<G: Group> Encryption<G> {
     }
 
     pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, context: &Context, rng: &mut R, message: &[u8]) -> Option<Ciphertext<G>> {
-        let encoded_message = self.encoder.encode(message, self.el_gamal.n)?;
+        let encoded_message = self.encoder.encode(message, self.el_gamal.n);
         let randomness = G::scalar_random(rng);
         let uv = self.el_gamal.encrypt(public_key, &randomness, encoded_message.as_slice());
 
