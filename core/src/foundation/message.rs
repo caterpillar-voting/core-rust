@@ -100,7 +100,7 @@ impl<G: Group> MessageEncoder<G> {
         assert_eq!(message_chunk.len(), mbe.first_reserved_bytes + mbe.first_available_bytes);
         value.extend_from_slice(&message_chunk[mbe.first_reserved_bytes..]);
 
-        // Extract other chunks
+        // Extract other chunks, or check for padding chunks
         for i in 1..encoded_message.len() {
             let current = encoded_message[i];
             if value.len() < message_size {
@@ -116,6 +116,13 @@ impl<G: Group> MessageEncoder<G> {
             }
         }
 
+        // Error if too small
+        if (value.len() < message_size) {
+            println!("insufficient bytes recovered: {:?} of {:?} recovered.", value.len(), message_size);
+            return None;
+        }
+
+        // Check for padding
         assert!(value.len() >= message_size);
         let (_, padding) = value.split_at(message_size);
         if padding != vec![0u8; padding.len()] {
