@@ -19,16 +19,138 @@ impl<G: Group> Default for MessageEncoder<G> {
     }
 }
 
+struct MessageByteEncoding {
+    first_counter_bits: u32,
+    first_message_size_bits: u32,
+    first_reserved_bytes: usize,
+    first_available_bytes: usize,
+    other_counter_bits: u32,
+    other_reserved_bytes: usize,
+    other_available_bytes: usize,
+}
+
 impl<G: Group> MessageEncoder<G> {
     const MIN_COUNTER_BITS: u32 = 7; // how many bits are reserved for the counter
     const MAX_MESSAGE_LENGTH_BITS: u32 = 13; // how many bits are reserved for the message length; we set to 8k, i.e., 13 bits for now.
-    pub fn number_of_points_from_message_length(message_length: usize) -> usize {
-        // Copy what is used in encode().
-        let size_bits = G::ENCODING_SIZE.ilog2();
-        let min_counter_bits = Self::MIN_COUNTER_BITS + G::ENCODING_LIKELIHOOD.ilog2();
-        let reserved_bytes: usize = (size_bits + min_counter_bits).div_ceil(8).try_into().unwrap();
-        let available_bytes = G::ENCODING_SIZE - reserved_bytes;
-        message_length.div_ceil(available_bytes)
+    pub fn number_of_points_from_message_length(&self, message_length: usize) -> usize {
+        let mbe = self.get_byte_encoding();
+        if message_length <= mbe.first_available_bytes {
+            return 1;
+        }
+
+        let remaining_message_length = message_length - mbe.first_available_bytes;
+        1 + remaining_message_length.div_ceil(mbe.other_available_bytes)
+    }
+
+    pub fn encode(&self, message: &[u8], fixed_length: usize) -> Option<Vec<G::Point>> {
+        let mut encoded_values: Vec<G::Point> = vec![];
+
+        let mbe = self.get_byte_encoding();
+        if message.len() > 1 << mbe.first_message_size_bits {
+            // message too long.
+            return None;
+        }
+
+        // Handle the first chunk of the message.
+        let first_chunk = if message.len() <= mbe.first_available_bytes { message } else { &message[..mbe.first_available_bytes] };
+        let prefix_template = (message.len() << mbe.first_counter_bits) as u32;
+        let mut encoded_value: Option<G::Point> = None;
+        for counter in 0..(1 << mbe.first_counter_bits) {
+            let prefix = prefix_template | counter;
+            let prefix_bytes = prefix.to_le_bytes(); // appending 0s does not change the value for little-endian.
+            let mut encoded_value_bytes = vec![0u8; G::ENCODING_SIZE];
+            encoded_value_bytes[..mbe.first_reserved_bytes].copy_from_slice(&prefix_bytes[..mbe.first_reserved_bytes]);
+            encoded_value_bytes[mbe.first_reserved_bytes..(mbe.first_reserved_bytes + first_chunk.len())].copy_from_slice(first_chunk);
+            encoded_value = G::try_encode(encoded_value_bytes.as_slice());
+            if encoded_value.is_some() {
+                encoded_values.push(encoded_value.unwrap());
+                break;
+            }
+        }
+        assert!(encoded_value.is_some()); // This should never occur, or something is wrong with our likelihood computation.
+
+        if message.len() > mbe.first_available_bytes {
+            // Handle the remaining chunks of the message.
+            for chunk in message[mbe.first_available_bytes..].chunks(mbe.other_available_bytes) {
+                encoded_value = None;
+                for counter in 0..(1u32 << mbe.other_counter_bits) {
+                    let prefix_bytes = counter.to_le_bytes(); // appending 0s does not change the value for little-endian.
+                    let mut encoded_value_bytes = vec![0u8; G::ENCODING_SIZE];
+                    encoded_value_bytes[..mbe.other_reserved_bytes].copy_from_slice(&prefix_bytes[..mbe.other_reserved_bytes]);
+                    encoded_value_bytes[mbe.other_reserved_bytes..(mbe.other_reserved_bytes + chunk.len())].copy_from_slice(chunk);
+                    encoded_value = G::try_encode(encoded_value_bytes.as_slice());
+                    if encoded_value.is_some() {
+                        encoded_values.push(encoded_value.unwrap());
+                        break;
+                    }
+                }
+                assert!(encoded_value.is_some()); // This should never occur, or something is wrong with our likelihood computation.
+            }
+        }
+
+        if encoded_values.len() > fixed_length {
+            // TODO: do we want to calculate this at the start?
+            None // message too long for the given fixed length.
+        } else {
+            let l = fixed_length - encoded_values.len();
+            encoded_values.extend_from_slice(&vec![G::identity(); l]);
+            Some(encoded_values)
+        }
+    }
+    pub fn decode(&self, encoded_message: &Vec<G::Point>) -> Option<Vec<u8>> {
+        let mbe = self.get_byte_encoding();
+        let mut value = vec![];
+
+        // Handle the first chunk
+        let message_chunk = G::decode(&encoded_message[0]);
+        let mut prefix_bytes = message_chunk[..mbe.first_reserved_bytes].to_vec();
+        prefix_bytes.resize(4, 0u8);
+        let prefix: u32 = u32::from_le_bytes(prefix_bytes.as_slice().try_into().unwrap());
+        let message_length = (prefix >> mbe.first_counter_bits) as usize;
+        if message_length > mbe.first_available_bytes {
+            value.extend_from_slice(&message_chunk[mbe.first_reserved_bytes..]);
+        } else {
+            value.extend_from_slice(&message_chunk[mbe.first_reserved_bytes..(mbe.first_reserved_bytes + message_length)]);
+            let expected_zeros = &message_chunk[mbe.first_reserved_bytes + message_length..];
+            if expected_zeros != vec![0u8; G::ENCODING_SIZE - mbe.first_reserved_bytes - message_length] {
+                println!("padding is not done with zeros: {:?}", expected_zeros);
+                return None; // The padding was not done with zeros.
+            }
+            for m in &encoded_message[1..] {
+                if m != &G::identity() {
+                    println!("padding is not done with the neutral element: {:?}", m);
+                    return None; // The padding was not done with the neutral element.
+                }
+            }
+            return Some(value);
+        }
+        let mut remaining_bytes = message_length - mbe.first_available_bytes;
+        // Handle the remaining chunks
+        for i in 1..encoded_message.len() {
+            let chunk = &encoded_message[i];
+            let message_chunk = G::decode(chunk);
+
+            if remaining_bytes > mbe.other_available_bytes {
+                value.extend_from_slice(&message_chunk[mbe.other_reserved_bytes..]);
+                remaining_bytes -= mbe.other_available_bytes;
+            } else {
+                value.extend_from_slice(&message_chunk[mbe.other_reserved_bytes..(mbe.other_reserved_bytes + remaining_bytes)]);
+                let expected_zeros = &message_chunk[mbe.other_reserved_bytes + remaining_bytes..];
+                if expected_zeros != vec![0u8; G::ENCODING_SIZE - mbe.other_reserved_bytes - remaining_bytes] {
+                    println!("padding is not done with zeros in point {i}: {:?}", expected_zeros);
+                    return None; // The padding was not done with zeros.
+                }
+                for m in &encoded_message[i + 1..] {
+                    if m != &G::identity() {
+                        println!("padding is not done with the neutral element: {:?}", m);
+                        return None; // The padding was not done with the neutral element.
+                    }
+                }
+                return Some(value);
+            }
+        }
+        assert!(false); // Encoded size does not match the number of chunks.
+        None
     }
 
     // We encode as follows:
@@ -54,8 +176,8 @@ impl<G: Group> MessageEncoder<G> {
     //
     // It is possible to enforce a fixed number of points for the encoding, in order to hide the length after encryption.
     // In that case we pad with the neutral element of G.
-
-    pub fn encode(&self, message: &[u8], fixed_length: Option<usize>) -> Option<Vec<G::Point>> {
+    fn get_byte_encoding(&self) -> MessageByteEncoding
+    {
         // to make ilog2 computation well-defined
         assert!(G::ENCODING_SIZE.is_power_of_two());
         assert!(G::ENCODING_LIKELIHOOD.is_power_of_two());
@@ -69,139 +191,24 @@ impl<G: Group> MessageEncoder<G> {
         let min_counter_bits = Self::MIN_COUNTER_BITS + G::ENCODING_LIKELIHOOD.ilog2();
 
         // first chunk: reserved bits are for the counter and the length of the message.
-        let first_reserved_bytes = (Self::MAX_MESSAGE_LENGTH_BITS + min_counter_bits).div_ceil(8).try_into().ok()?;
+        let first_reserved_bytes = (Self::MAX_MESSAGE_LENGTH_BITS + min_counter_bits).div_ceil(8).try_into().unwrap();
         assert!(first_reserved_bytes <= 4); // must fit in a u32.
         let first_available_bytes = G::ENCODING_SIZE - first_reserved_bytes;
-        let first_counter_bits: u32 = (first_reserved_bytes * 8) as u32 - Self::MAX_MESSAGE_LENGTH_BITS;
+        let first_counter_bits = (first_reserved_bytes * 8) as u32 - Self::MAX_MESSAGE_LENGTH_BITS;
         // other chunks: reserved bits are just for the counter.
-        let other_reserved_bytes = min_counter_bits.div_ceil(8).try_into().ok()?;
+        let other_reserved_bytes = min_counter_bits.div_ceil(8).try_into().unwrap();
         let other_available_bytes = G::ENCODING_SIZE - other_reserved_bytes;
-        let other_counter_bits: u32 = (other_reserved_bytes * 8) as u32;
+        let other_counter_bits = (other_reserved_bytes * 8) as u32;
 
-        let mut encoded_values: Vec<G::Point> = vec![];
-
-        if message.len() > 1 << Self::MAX_MESSAGE_LENGTH_BITS {
-            // message too long.
-            return None;
+        MessageByteEncoding {
+            first_counter_bits,
+            first_message_size_bits: Self::MAX_MESSAGE_LENGTH_BITS,
+            first_reserved_bytes,
+            first_available_bytes,
+            other_counter_bits,
+            other_reserved_bytes,
+            other_available_bytes,
         }
-
-        // Handle the first chunk of the message.
-        let first_chunk = if message.len() <= first_available_bytes { message } else { &message[..first_available_bytes] };
-        let prefix_template = (message.len() << first_counter_bits) as u32;
-        let mut encoded_value: Option<G::Point> = None;
-        for counter in 0..(1 << first_counter_bits) {
-            let prefix = prefix_template | counter;
-            let prefix_bytes = prefix.to_le_bytes(); // appending 0s does not change the value for little-endian.
-            for i in first_reserved_bytes..prefix_bytes.len() {
-                assert_eq!(prefix_bytes[i], 0u8);
-            }
-            let mut encoded_value_bytes = vec![0u8; G::ENCODING_SIZE];
-            encoded_value_bytes[..first_reserved_bytes].copy_from_slice(&prefix_bytes[..first_reserved_bytes]);
-            encoded_value_bytes[first_reserved_bytes..(first_reserved_bytes + first_chunk.len())].copy_from_slice(first_chunk);
-            encoded_value = G::try_encode(encoded_value_bytes.as_slice());
-            if encoded_value.is_some() {
-                encoded_values.push(encoded_value.unwrap());
-                break;
-            }
-        }
-        assert!(encoded_value.is_some()); // This should never occur, or something is wrong with our likelihood computation.
-
-        if message.len() > first_available_bytes {
-            // Handle the remaining chunks of the message.
-            for chunk in message[first_available_bytes..].chunks(other_available_bytes) {
-                encoded_value = None;
-                for counter in 0..(1u32 << other_counter_bits) {
-                    let prefix_bytes = counter.to_le_bytes(); // appending 0s does not change the value for little-endian.
-                    for i in other_reserved_bytes..prefix_bytes.len() {
-                        assert_eq!(prefix_bytes[i], 0u8);
-                    }
-                    let mut encoded_value_bytes = vec![0u8; G::ENCODING_SIZE];
-                    encoded_value_bytes[..other_reserved_bytes].copy_from_slice(&prefix_bytes[..other_reserved_bytes]);
-                    encoded_value_bytes[other_reserved_bytes..(other_reserved_bytes + chunk.len())].copy_from_slice(chunk);
-                    encoded_value = G::try_encode(encoded_value_bytes.as_slice());
-                    if encoded_value.is_some() {
-                        encoded_values.push(encoded_value.unwrap());
-                        break;
-                    }
-                }
-                assert!(encoded_value.is_some()); // This should never occur, or something is wrong with our likelihood computation.
-            }
-        }
-        if fixed_length.is_some() && encoded_values.len() != fixed_length.unwrap() {
-            if encoded_values.len() > fixed_length.unwrap() {
-                return None; // message too long for the given fixed length.
-            } else {
-                let l = fixed_length.unwrap() - encoded_values.len();
-                encoded_values.extend_from_slice(&vec![G::identity(); l]);
-                return Some(encoded_values);
-            }
-        } else {
-            Some(encoded_values)
-        }
-    }
-    pub fn decode(&self, encoded_message: &Vec<G::Point>) -> Option<Vec<u8>> {
-        // See encode() for comments about these constants.
-        assert!(G::ENCODING_SIZE.is_power_of_two());
-        assert!(G::ENCODING_LIKELIHOOD.is_power_of_two());
-        let min_counter_bits = Self::MIN_COUNTER_BITS + G::ENCODING_LIKELIHOOD.ilog2();
-        let first_reserved_bytes = (Self::MAX_MESSAGE_LENGTH_BITS + min_counter_bits).div_ceil(8).try_into().ok()?;
-        let first_available_bytes = G::ENCODING_SIZE - first_reserved_bytes;
-        let first_counter_bits: u32 = (first_reserved_bytes * 8) as u32 - Self::MAX_MESSAGE_LENGTH_BITS;
-        let other_reserved_bytes = min_counter_bits.div_ceil(8).try_into().ok()?;
-        let other_available_bytes = G::ENCODING_SIZE - other_reserved_bytes;
-
-        let mut value = vec![];
-
-        // Handle the first chunk
-        let message_chunk = G::decode(&encoded_message[0]);
-        let mut prefix_bytes = message_chunk[..first_reserved_bytes].to_vec();
-        prefix_bytes.resize(4, 0u8);
-        let prefix: u32 = u32::from_le_bytes(prefix_bytes.as_slice().try_into().unwrap());
-        let message_length = (prefix >> first_counter_bits) as usize;
-        if message_length > first_available_bytes {
-            value.extend_from_slice(&message_chunk[first_reserved_bytes..]);
-        } else {
-            value.extend_from_slice(&message_chunk[first_reserved_bytes..(first_reserved_bytes + message_length)]);
-            let expected_zeros = &message_chunk[first_reserved_bytes + message_length..];
-            if expected_zeros != vec![0u8; G::ENCODING_SIZE - first_reserved_bytes - message_length] {
-                println!("padding is not done with zeros: {:?}", expected_zeros);
-                return None; // The padding was not done with zeros.
-            }
-            for m in &encoded_message[1..] {
-                if m != &G::identity() {
-                    println!("padding is not done with the neutral element: {:?}", m);
-                    return None; // The padding was not done with the neutral element.
-                }
-            }
-            return Some(value);
-        }
-        let mut remaining_bytes = message_length - first_available_bytes;
-        // Handle the remaining chunks
-        for i in 1..encoded_message.len() {
-            let chunk = &encoded_message[i];
-            let message_chunk = G::decode(chunk);
-
-            if remaining_bytes > other_available_bytes {
-                value.extend_from_slice(&message_chunk[other_reserved_bytes..]);
-                remaining_bytes -= other_available_bytes;
-            } else {
-                value.extend_from_slice(&message_chunk[other_reserved_bytes..(other_reserved_bytes + remaining_bytes)]);
-                let expected_zeros = &message_chunk[other_reserved_bytes + remaining_bytes..];
-                if expected_zeros != vec![0u8; G::ENCODING_SIZE - other_reserved_bytes - remaining_bytes] {
-                    println!("padding is not done with zeros in point {i}: {:?}", expected_zeros);
-                    return None; // The padding was not done with zeros.
-                }
-                for m in &encoded_message[i + 1..] {
-                    if m != &G::identity() {
-                        println!("padding is not done with the neutral element: {:?}", m);
-                        return None; // The padding was not done with the neutral element.
-                    }
-                }
-                return Some(value);
-            }
-        }
-        assert!(false); // Encoded size does not match the number of chunks.
-        None
     }
 }
 
@@ -250,7 +257,7 @@ mod tests {
         // messages of various sizes
         for size in [1, 2, 28, 29, 30, 31, 32, 1000, 5000] {
             let message = vec![1u8; size];
-            let encoded = encoder.encode(&message, None);
+            let encoded = encoder.encode(&message, encoder.number_of_points_from_message_length(size));
             assert!(encoded.is_some());
 
             let recovered_value = encoder.decode(&encoded.unwrap());
@@ -259,7 +266,7 @@ mod tests {
         // test with fixed length
         for size in [1, 2, 28, 29, 30, 31, 32, 40] {
             let message = vec![1u8; size];
-            let encoded = encoder.encode(&message, Some(5));
+            let encoded = encoder.encode(&message, 5);
             assert!(encoded.is_some());
 
             let recovered_value = encoder.decode(&encoded.unwrap());

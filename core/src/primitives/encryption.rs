@@ -41,7 +41,7 @@ impl<G: Group> Encryption<G> {
         // FIXME: g0 should not be reused
         let g0 = G::independent_generators(1, b"HTDH2ZKP")[0];
         let encoder = MessageEncoder::<G>::default();
-        let n = MessageEncoder::<G>::number_of_points_from_message_length(max_message_length);
+        let n = encoder.number_of_points_from_message_length(max_message_length);
         let el_gamal = ElGamal::<G>::new(n);
         Self { el_gamal, encoder, g0 }
     }
@@ -53,7 +53,7 @@ impl<G: Group> Encryption<G> {
     }
 
     pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, context: &Context, rng: &mut R, message: &[u8]) -> Option<Ciphertext<G>> {
-        let encoded_message = self.encoder.encode(message, Some(self.el_gamal.n))?;
+        let encoded_message = self.encoder.encode(message, self.el_gamal.n)?;
         let randomness = G::scalar_random(rng);
         let uv = self.el_gamal.encrypt(public_key, &randomness, encoded_message.as_slice());
 
