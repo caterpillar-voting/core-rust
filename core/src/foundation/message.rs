@@ -42,7 +42,7 @@ impl<G: Group> MessageEncoder<G> {
         1 + remaining_message_length.div_ceil(mbe.other_available_bytes)
     }
 
-    pub fn encode(&self, message: &[u8], fixed_length: usize) -> Option<Vec<G::Point>> {
+    pub fn encode(&self, message: &[u8], number_of_points: usize) -> Option<Vec<G::Point>> {
         let mut encoded_values: Vec<G::Point> = vec![];
 
         let mbe = self.get_byte_encoding();
@@ -63,11 +63,11 @@ impl<G: Group> MessageEncoder<G> {
             }
         }
 
-        if encoded_values.len() > fixed_length {
-            // TODO: do we want to calculate this at the start?
+        if encoded_values.len() > number_of_points {
+            // TODO: Formulate this as assert? This would be a wrong usage of the API.
             None // message too long for the given fixed length.
         } else {
-            let l = fixed_length - encoded_values.len();
+            let l = number_of_points - encoded_values.len();
             encoded_values.extend_from_slice(&vec![G::identity(); l]);
             Some(encoded_values)
         }
