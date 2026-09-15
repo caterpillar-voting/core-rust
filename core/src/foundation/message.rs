@@ -43,39 +43,32 @@ impl<G: Group> MessageEncoder<G> {
         1 + remaining_message_length.div_ceil(mbe.other_available_bytes)
     }
 
-    pub fn encode(&self, message: &[u8], number_of_points: usize) -> Option<Vec<G::Point>> {
+    pub fn encode(&self, message: &[u8], number_of_points: usize) -> Vec<G::Point> {
         let mut encoded_values: Vec<G::Point> = vec![];
 
         let mbe = self.get_byte_encoding();
-        if message.len() > 1 << mbe.first_message_size_bits {
-            // message too long.
-            return None;
-        }
+        assert!(number_of_points <= 1 << mbe.first_message_size_bits);
 
         let prefix_template = (message.len() << mbe.first_counter_bits) as u32;
         if message.len() <= mbe.first_available_bytes {
-            encoded_values.push(self.encode_chunk(message, mbe.first_reserved_bytes, prefix_template, mbe.first_counter_bits));
+            encoded_values.push(self.encode_chunk(message, mbe.encoding_size, mbe.first_reserved_bytes, prefix_template, mbe.first_counter_bits));
         } else {
             let first_chunk =  &message[..mbe.first_available_bytes];
-            encoded_values.push(self.encode_chunk(first_chunk, mbe.first_reserved_bytes, prefix_template, mbe.first_counter_bits));
+            encoded_values.push(self.encode_chunk(first_chunk, mbe.encoding_size, mbe.first_reserved_bytes, prefix_template, mbe.first_counter_bits));
 
             for chunk in message[mbe.first_available_bytes..].chunks(mbe.other_available_bytes) {
-                encoded_values.push(self.encode_chunk(chunk, mbe.other_reserved_bytes, prefix_template, mbe.other_counter_bits));
+                encoded_values.push(self.encode_chunk(chunk, mbe.encoding_size, mbe.other_reserved_bytes, prefix_template, mbe.other_counter_bits));
             }
         }
 
-        if encoded_values.len() > number_of_points {
-            // TODO: Formulate this as assert? This would be a wrong usage of the API.
-            None // message too long for the given fixed length.
-        } else {
-            let l = number_of_points - encoded_values.len();
-            encoded_values.extend_from_slice(&vec![G::identity(); l]);
-            Some(encoded_values)
-        }
+        assert!(encoded_values.len() <= number_of_points);
+        let l = number_of_points - encoded_values.len();
+        encoded_values.extend_from_slice(&vec![G::identity(); l]);
+        encoded_values
     }
 
-    fn encode_chunk(&self, chunk: &[u8], prefix_length: usize, prefix_template: u32, counter_bits: u32) -> G::Point {
-        let mut encoded_value_bytes = vec![0u8; G::ENCODING_SIZE];
+    fn encode_chunk(&self, chunk: &[u8], encoding_size: usize, prefix_length: usize, prefix_template: u32, counter_bits: u32) -> G::Point {
+        let mut encoded_value_bytes = vec![0u8; encoding_size];
         encoded_value_bytes[prefix_length..(prefix_length + chunk.len())].copy_from_slice(chunk);
 
         let mut encoded_value: Option<G::Point>;
