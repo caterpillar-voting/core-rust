@@ -86,14 +86,14 @@ impl<G: Group> ExponentialElGamal<G> {
         self.0.encrypt(pk, r, &m_point)
     }
 
-    pub fn decrypt(&self, sk: &[G::Scalar], ciphertext: &[G::Point], decoder: &dyn DiscreteLog<G>) -> Vec<Option<G::Scalar>> {
+    pub fn decrypt(&self, sk: &[G::Scalar], ciphertext: &[G::Point], decoder: &dyn DiscreteLog<G>) -> Result<Vec<G::Scalar>, &'static str> {
         let m_point = self.0.decrypt(sk, ciphertext);
-        m_point.iter().map(|m| decoder.log(m)).collect::<Vec<Option<_>>>()
+        m_point.iter().map(|m| decoder.log(m)).collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn decrypt_randomness(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &[G::Point], decoder: &dyn DiscreteLog<G>) -> Vec<Option<G::Scalar>> {
+    pub fn decrypt_randomness(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &[G::Point], decoder: &dyn DiscreteLog<G>) -> Result<Vec<G::Scalar>, &'static str> {
         let m_point = self.0.decrypt_randomness(pk, r, ciphertext);
-        m_point.iter().map(|m| decoder.log(m)).collect::<Vec<Option<_>>>()
+        m_point.iter().map(|m| decoder.log(m)).collect::<Result<Vec<_>, _>>()
     }
 }
 
@@ -171,11 +171,11 @@ mod tests {
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
         let m_decoder = PrecomputedDiscreteLog::new(range);
-        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_decoder);
-        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_decoder);
+        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_decoder).unwrap();
+        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_decoder).unwrap();
         for i in 0..exponential_el_gamal.0.n {
-            assert_eq!(m_decrypted[i], Some(m[i]));
-            assert_eq!(m_decrypted_randomness[i], Some(m[i]));
+            assert_eq!(m_decrypted[i], m[i]);
+            assert_eq!(m_decrypted_randomness[i], m[i]);
         }
     }
 
@@ -190,13 +190,13 @@ mod tests {
         let ciphertext_2 = exponential_el_gamal.0.reencrypt(&pk, &r_2, &ciphertext);
 
         let m_decoder = PrecomputedDiscreteLog::new(range);
-        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_decoder);
+        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_decoder).unwrap();
         let r_combined = r + &r_2;
-        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_decoder);
+        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_decoder).unwrap();
 
         for i in 0..exponential_el_gamal.0.n {
-            assert_eq!(m_decrypted[i], Some(m[i]));
-            assert_eq!(m_decrypted_randomness[i], Some(m[i]));
+            assert_eq!(m_decrypted[i], m[i]);
+            assert_eq!(m_decrypted_randomness[i], m[i]);
         }
     }
 }

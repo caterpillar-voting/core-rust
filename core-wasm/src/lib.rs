@@ -90,7 +90,7 @@ impl WasmEncryption {
     pub fn encrypt(&self, public_key: &WasmPublicKey, context: &WasmContext, message: &WasmMessage) -> WasmCiphertext {
         let mut rng = OsRng;
 
-        WasmCiphertext(self.0.encrypt(&public_key.0, &context.0, &mut rng, &message.0).unwrap())
+        WasmCiphertext(self.0.encrypt(&public_key.0, &context.0, &mut rng, &message.0))
         // FIXME: how do we handle errors in wasm?
     }
 

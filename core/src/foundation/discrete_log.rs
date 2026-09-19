@@ -1,7 +1,7 @@
 use crate::foundation::group::Group;
 
 pub trait DiscreteLog<G: Group> {
-    fn log(&self, point: &G::Point) -> Option<G::Scalar>;
+    fn log(&self, point: &G::Point) -> Result<G::Scalar, &'static str>;
 }
 
 pub struct BruteForceDiscreteLog<G: Group> {
@@ -22,15 +22,15 @@ impl<G: Group> BruteForceDiscreteLog<G> {
 }
 
 impl<G: Group> DiscreteLog<G> for BruteForceDiscreteLog<G> {
-    fn log(&self, point: &G::Point) -> Option<G::Scalar> {
+    fn log(&self, point: &G::Point) -> Result<G::Scalar, &'static str> {
         let mut current = self.start;
         loop {
             if G::basepoint() * &current == *point {
-                return Some(current);
+                return Ok(current);
             }
 
             if self.end.is_some() && current == self.end.unwrap() {
-                return None;
+                return Err("Point not found in range");
             }
 
             current = current + &G::Scalar::from(1);
@@ -66,8 +66,12 @@ impl<G: Group> PrecomputedDiscreteLog<G> {
 }
 
 impl<G: Group> DiscreteLog<G> for PrecomputedDiscreteLog<G> {
-    fn log(&self, point: &G::Point) -> Option<G::Scalar> {
-        self.table.iter().position(|candidate| candidate == point).map(|index| self.range.0 + &G::Scalar::from(index as u64))
+    fn log(&self, point: &G::Point) -> Result<G::Scalar, &'static str> {
+        self.table
+            .iter()
+            .position(|candidate| candidate == point)
+            .map(|index| self.range.0 + &G::Scalar::from(index as u64))
+            .ok_or("Point not found in range")
     }
 }
 
@@ -88,16 +92,16 @@ mod tests {
         let dlog = BruteForceDiscreteLog::<G>::new(start, Some(end));
 
         let expected_start = Scalar::from(0u64);
-        assert_eq!(dlog.log(&(g * &expected_start)), Some(expected_start));
+        assert_eq!(dlog.log(&(g * &expected_start)), Ok(expected_start));
 
         let expected_end = Scalar::from(3u64);
-        assert_eq!(dlog.log(&(g * &expected_end)), Some(expected_end));
+        assert_eq!(dlog.log(&(g * &expected_end)), Ok(expected_end));
 
         let expected_middle = Scalar::from(2u64);
-        assert_eq!(dlog.log(&(g * &expected_middle)), Some(expected_middle));
+        assert_eq!(dlog.log(&(g * &expected_middle)), Ok(expected_middle));
 
         let out_of_range = Scalar::from(4u64);
-        assert_eq!(dlog.log(&(g * &out_of_range)), None);
+        assert_eq!(dlog.log(&(g * &out_of_range)), Err("Point not found in range"));
     }
 
     #[test]
@@ -108,15 +112,15 @@ mod tests {
         let dlog = PrecomputedDiscreteLog::<G>::new(range);
 
         let expected_start = Scalar::from(0u64);
-        assert_eq!(dlog.log(&(g * &expected_start)), Some(expected_start));
+        assert_eq!(dlog.log(&(g * &expected_start)), Ok(expected_start));
 
         let expected_end = Scalar::from(3u64);
-        assert_eq!(dlog.log(&(g * &expected_end)), Some(expected_end));
+        assert_eq!(dlog.log(&(g * &expected_end)), Ok(expected_end));
 
         let expected_middle = Scalar::from(2u64);
-        assert_eq!(dlog.log(&(g * &expected_middle)), Some(expected_middle));
+        assert_eq!(dlog.log(&(g * &expected_middle)), Ok(expected_middle));
 
         let out_of_range = Scalar::from(4u64);
-        assert_eq!(dlog.log(&(g * &out_of_range)), None);
+        assert_eq!(dlog.log(&(g * &out_of_range)), Err("Point not found in range"));
     }
 }

@@ -85,7 +85,7 @@ impl<G: Group> MessageEncoder<G> {
         panic!("The probability of not finding a valid encoding is negligible"); // if this ever occurs, something is wrong with our likelihood computation
     }
 
-    pub fn decode(&self, encoded_message: &[G::Point]) -> Option<Vec<u8>> {
+    pub fn decode(&self, encoded_message: &[G::Point]) -> Result<Vec<u8>, &'static str> {
         let mbe = self.get_byte_encoding();
         let mut value = vec![];
 
@@ -93,7 +93,7 @@ impl<G: Group> MessageEncoder<G> {
         let message_chunk = G::decode(&encoded_message[0]);
         let mut prefix_bytes = message_chunk[..mbe.first_reserved_bytes].to_vec();
         prefix_bytes.resize(4, 0u8);
-        let prefix: u32 = u32::from_le_bytes(prefix_bytes.as_slice().try_into().ok()?);
+        let prefix: u32 = u32::from_le_bytes(prefix_bytes.as_slice().try_into().unwrap());
         let message_size = (prefix >> mbe.first_counter_bits) as usize;
 
         // Extract first chunk
@@ -109,28 +109,25 @@ impl<G: Group> MessageEncoder<G> {
                 value.extend_from_slice(&message_chunk[mbe.other_reserved_bytes..]);
             } else {
                 if current != &G::identity() {
-                    println!("padding is not done with the neutral element: {:?}", current);
-                    return None;
+                    return Err("padding is not done with the neutral element");
                 }
             }
         }
 
         // Error if too small
         if value.len() < message_size {
-            println!("insufficient bytes recovered: {:?} of {:?} recovered.", value.len(), message_size);
-            return None;
+            return Err("insufficient bytes recovered.");
         }
 
         // Check for padding
         assert!(value.len() >= message_size);
         let (_, padding) = value.split_at(message_size);
         if padding != vec![0u8; padding.len()] {
-            println!("padding is not done with zeros: {:?}", padding);
-            return None;
+            return Err("padding is not done with zeros");
         }
 
         value.truncate(message_size);
-        Some(value)
+        Ok(value)
     }
 
     // We encode as follows:
@@ -206,7 +203,8 @@ impl<G: Group + 'static> ScalarMessageEncoder<G> {
     pub fn encode(&self, value: &G::Scalar) -> EncodedMessage<G> {
         G::basepoint() * value
     }
-    pub fn decode(&self, value: &EncodedMessage<G>) -> Option<G::Scalar> {
+
+    pub fn decode(&self, value: &EncodedMessage<G>) -> Result<G::Scalar, &'static str> {
         self.decoder.log(value)
     }
 }
@@ -229,7 +227,7 @@ mod tests {
         let encoded = encoder.encode(&value);
         let recovered_value = encoder.decode(&encoded);
 
-        assert_eq!(Some(value), recovered_value);
+        assert_eq!(Ok(value), recovered_value);
     }
 
     #[test]
@@ -240,14 +238,14 @@ mod tests {
             let message = vec![1u8; size];
             let encoded = encoder.encode(&message, encoder.number_of_points_from_message_length(size));
             let recovered_value = encoder.decode(&encoded);
-            assert_eq!(Some(message), recovered_value);
+            assert_eq!(Ok(message), recovered_value);
         }
         // test with fixed length
         for size in [1, 2, 28, 29, 30, 31, 32, 40] {
             let message = vec![1u8; size];
             let encoded = encoder.encode(&message, 5);
             let recovered_value = encoder.decode(&encoded);
-            assert_eq!(Some(message), recovered_value);
+            assert_eq!(Ok(message), recovered_value);
         }
     }
 

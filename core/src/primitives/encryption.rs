@@ -52,7 +52,7 @@ impl<G: Group> Encryption<G> {
         (SecretKey(secret_key), public_key)
     }
 
-    pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, context: &Context, rng: &mut R, message: &[u8]) -> Option<Ciphertext<G>> {
+    pub fn encrypt<R: RngCore + CryptoRng>(&self, public_key: &PublicKey<G>, context: &Context, rng: &mut R, message: &[u8]) -> Ciphertext<G> {
         let encoded_message = self.encoder.encode(message, self.el_gamal.n);
         let randomness = G::scalar_random(rng);
         let uv = self.el_gamal.encrypt(public_key, &randomness, encoded_message.as_slice());
@@ -64,15 +64,15 @@ impl<G: Group> Encryption<G> {
         // the randomness could be misunderstood and stored together with the ciphertext, even in cases where it is not needed (e.g., no decryption using the randomness)
         // this deliberate choice also leads to not providing the method to decrypt using the randomness.
 
-        Some((uv, proof))
+        (uv, proof)
     }
 
-    pub fn decrypt(&self, context: &Context, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> Option<Vec<u8>> {
+    pub fn decrypt(&self, context: &Context, secret_key: &SecretKey<G>, ciphertext: &Ciphertext<G>) -> Result<Vec<u8>, &'static str> {
         let (uv, proof) = ciphertext;
 
         let zkp = ZKPHTDH2::<G>::default();
         if !zkp.verify(&self.g0, uv, &proof.0, &proof.1, &proof.2, context) {
-            return None;
+            return Err("HTDH2 verification fails");
         }
 
         let message = self.el_gamal.decrypt(&secret_key.0, uv);
@@ -99,18 +99,18 @@ mod tests {
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
         let ctx = "test_encrypt".as_bytes().to_vec();
         let message = "Hello World!".as_bytes().to_vec();
-        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message).unwrap();
+        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message);
         let message_recovered = encryption.decrypt(&ctx, &secret_key, &ciphertext);
-        assert_eq!(message_recovered, Some(message));
+        assert_eq!(message_recovered, Ok(message));
 
         // Long message.
         let encryption = Encryption::<G>::new(1000);
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
         let message = "Hello World!".repeat(50).as_bytes().to_vec();
         assert!(message.len() <= 1000);
-        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message).unwrap();
+        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message);
         let message_recovered = encryption.decrypt(&ctx, &secret_key, &ciphertext);
 
-        assert_eq!(message_recovered, Some(message));
+        assert_eq!(message_recovered, Ok(message));
     }
 }

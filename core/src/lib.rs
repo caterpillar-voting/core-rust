@@ -37,10 +37,10 @@ mod tests {
 
         let ctx = "test_encrypt".as_bytes().to_vec();
         let message = "Hello World!".as_bytes().to_vec();
-        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message).unwrap();
+        let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message);
         let message_recovered = encryption.decrypt(&ctx, &secret_key, &ciphertext);
 
-        assert_eq!(message_recovered, Some(message));
+        assert_eq!(message_recovered, Ok(message));
     }
 
     #[test]
@@ -56,8 +56,8 @@ mod tests {
         let ciphertext_aggregated = [ciphertext_reencrypted[0] + &ciphertext[0], ciphertext_reencrypted[1] + &ciphertext[1]];
 
         let message_decoder = BruteForceDiscreteLog::<G>::new(Scalar::from(2u64), None);
-        let decoded = el_gamal.decrypt(&secret_key, &ciphertext_aggregated, &message_decoder);
+        let decoded = el_gamal.decrypt(&secret_key, &ciphertext_aggregated, &message_decoder).unwrap();
 
-        assert_eq!(decoded[0], Some(Scalar::from(2u64)));
+        assert_eq!(decoded[0], Scalar::from(2u64));
     }
 }
