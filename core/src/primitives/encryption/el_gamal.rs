@@ -1,56 +1,69 @@
 use crate::foundation::discrete_log::DiscreteLog;
 use crate::foundation::group::Group;
 use rand_core::{CryptoRng, RngCore};
+use std::iter;
 use std::marker::PhantomData;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ElGamal<G: Group> {
     _marker: PhantomData<G>,
+    pub(crate) n: usize, // Multi-recipient ElGamal, with n messages
 }
 
 impl<G: Group> Default for ElGamal<G> {
     fn default() -> Self {
-        Self { _marker: Default::default() }
+        Self { _marker: Default::default(), n: 1 }
     }
 }
 
 impl<G: Group> ElGamal<G> {
-    pub fn keygen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (G::Scalar, G::Point) {
-        let sk = G::scalar_random(rng);
-        let pk = G::basepoint() * &sk;
+    pub fn new(n: usize) -> Self {
+        Self { _marker: Default::default(), n }
+    }
+
+    pub fn keygen<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (Vec<G::Scalar>, Vec<G::Point>) {
+        let sk = (0..self.n).map(|_| G::scalar_random(rng)).collect::<Vec<_>>();
+        let pk = (0..self.n).map(|i| G::basepoint() * &sk[i]).collect::<Vec<_>>();
 
         (sk, pk)
     }
 
-    pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Point) -> (G::Point, G::Point) {
+    pub fn encrypt(&self, pk: &[G::Point], r: &G::Scalar, m: &[G::Point]) -> Vec<G::Point> {
+        assert_eq!(pk.len(), self.n);
+        assert_eq!(m.len(), self.n);
         let alpha = G::basepoint() * r;
-        let beta = *pk * r + m;
-
-        (alpha, beta)
+        let c = iter::once(alpha);
+        c.chain(m.iter().zip(pk).map(|(m, pk)| *pk * r + m)).collect::<Vec<_>>()
     }
 
-    pub fn decrypt(&self, sk: &G::Scalar, ciphertext: &(G::Point, G::Point)) -> G::Point {
-        let (alpha, beta) = ciphertext;
+    pub fn decrypt(&self, sk: &[G::Scalar], ciphertext: &[G::Point]) -> Vec<G::Point> {
+        let alpha = &ciphertext[0];
+        let beta = &ciphertext[1..];
+        assert_eq!(sk.len(), self.n);
+        assert_eq!(beta.len(), self.n);
 
-        *beta - &(*alpha * sk)
+        (0..self.n).map(|i| beta[i] - &(*alpha * &sk[i])).collect::<Vec<_>>()
     }
 
-    pub fn decrypt_randomness(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point)) -> G::Point {
-        // we explicitly do not check here whether g^r = alpha, as this is expensive
+    pub fn decrypt_randomness(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &[G::Point]) -> Vec<G::Point> {
+        let _alpha = &ciphertext[0];
+        let beta = &ciphertext[1..];
+        assert_eq!(pk.len(), self.n);
+        assert_eq!(beta.len(), self.n);
+        // In production, we explicitly do not check here whether g^r = alpha, as this is expensive
+        debug_assert!(*_alpha == G::basepoint() * r);
 
-        let (_, beta) = ciphertext;
-        let hiding_factor = *pk * r;
-
-        *beta - &hiding_factor
+        (0..self.n).map(|i| beta[i] - &(pk[i] * r)).collect::<Vec<_>>()
     }
 
-    pub fn reencrypt(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point)) -> (G::Point, G::Point) {
-        let (alpha, beta) = ciphertext;
+    pub fn reencrypt(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &[G::Point]) -> Vec<G::Point> {
+        let alpha = &ciphertext[0];
+        let beta = &ciphertext[1..];
+        assert_eq!(pk.len(), self.n);
+        assert_eq!(beta.len(), self.n);
 
-        let alpha = G::basepoint() * r + alpha;
-        let beta = *pk * r + beta;
-
-        (alpha, beta)
+        let c = iter::once(G::basepoint() * r + alpha);
+        c.chain(beta.iter().zip(pk).map(|(beta, pk)| *pk * r + beta)).collect::<Vec<_>>()
     }
 }
 
@@ -68,34 +81,31 @@ impl<G: Group> ExponentialElGamal<G> {
         Self(el_gamal)
     }
 
-    pub fn encrypt(&self, pk: &G::Point, r: &G::Scalar, m: &G::Scalar) -> (G::Point, G::Point) {
-        let m_point = G::basepoint() * m;
+    pub fn encrypt(&self, pk: &[G::Point], r: &G::Scalar, m: &[G::Scalar]) -> Vec<G::Point> {
+        let m_point = m.iter().map(|mi| G::basepoint() * mi).collect::<Vec<_>>();
         self.0.encrypt(pk, r, &m_point)
     }
 
-    pub fn decrypt(&self, sk: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
+    pub fn decrypt(&self, sk: &[G::Scalar], ciphertext: &[G::Point], decoder: &dyn DiscreteLog<G>) -> Result<Vec<G::Scalar>, &'static str> {
         let m_point = self.0.decrypt(sk, ciphertext);
-
-        decoder.log(&m_point)
+        m_point.iter().map(|m| decoder.log(m)).collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn decrypt_randomness(&self, pk: &G::Point, r: &G::Scalar, ciphertext: &(G::Point, G::Point), decoder: &dyn DiscreteLog<G>) -> Option<G::Scalar> {
+    pub fn decrypt_randomness(&self, pk: &[G::Point], r: &G::Scalar, ciphertext: &[G::Point], decoder: &dyn DiscreteLog<G>) -> Result<Vec<G::Scalar>, &'static str> {
         let m_point = self.0.decrypt_randomness(pk, r, ciphertext);
-
-        decoder.log(&m_point)
+        m_point.iter().map(|m| decoder.log(m)).collect::<Result<Vec<_>, _>>()
     }
-
-    // we explicitly do not repeat the methods that remain the same towards ElGamal (e.g., key generation, renecryption)
 }
 
 // region: --- Tests
 
 #[cfg(test)]
 mod tests {
-    use crate::foundation::discrete_log::BruteForceDiscreteLog;
+    use crate::foundation::discrete_log::PrecomputedDiscreteLog;
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::_test_utils::{new_el_gamal_sample, new_exponential_el_gamal_sample};
+    use crate::primitives::encryption::el_gamal::ElGamal;
     use rand::thread_rng;
 
     type G = RistrettoGroup;
@@ -132,36 +142,62 @@ mod tests {
     }
 
     #[test]
+    fn multi_encrypt_decrypt_reencrypt() {
+        let mut rng = thread_rng();
+        let n = 5;
+        let el_gamal = ElGamal::<G>::new(n);
+        let (sk, pk) = el_gamal.keygen(&mut rng);
+        let m = (0..n).map(|_| G::point_random(&mut rng)).collect::<Vec<_>>();
+        let r = G::scalar_random(&mut rng);
+        let ciphertext = el_gamal.encrypt(&pk, &r, &m);
+        let m_decrypted = el_gamal.decrypt(&sk, &ciphertext);
+        let m_decrypted_randomness = el_gamal.decrypt_randomness(&pk, &r, &ciphertext);
+        assert_eq!(m_decrypted, m);
+        assert_eq!(m_decrypted_randomness, m);
+
+        let r2 = G::scalar_random(&mut rng);
+        let ciphertext2 = el_gamal.reencrypt(&pk, &r2, &ciphertext);
+        let m_decrypted2 = el_gamal.decrypt(&sk, &ciphertext2);
+        let r_combined = r + &r2;
+        let m_decrypted_randomness2 = el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext2);
+        assert_eq!(m_decrypted2, m);
+        assert_eq!(m_decrypted_randomness2, m);
+    }
+
+    #[test]
     fn exponential_encrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let (exponential_el_gamal, sk, pk, r, m) = new_exponential_el_gamal_sample(&mut rng);
+        let (exponential_el_gamal, sk, pk, r, m, range) = new_exponential_el_gamal_sample(&mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
-        let m_decoder = BruteForceDiscreteLog::new(m, None);
-        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_decoder);
-        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_decoder);
-
-        assert_eq!(m_decrypted, Some(m));
-        assert_eq!(m_decrypted_randomness, Some(m));
+        let m_decoder = PrecomputedDiscreteLog::new(range);
+        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext, &m_decoder).unwrap();
+        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r, &ciphertext, &m_decoder).unwrap();
+        for i in 0..exponential_el_gamal.0.n {
+            assert_eq!(m_decrypted[i], m[i]);
+            assert_eq!(m_decrypted_randomness[i], m[i]);
+        }
     }
 
     #[test]
     fn exponential_encrypt_reencrypt_and_decrypt() {
         let mut rng = thread_rng();
-        let (exponential_el_gamal, sk, pk, r, m) = new_exponential_el_gamal_sample(&mut rng);
+        let (exponential_el_gamal, sk, pk, r, m, range) = new_exponential_el_gamal_sample(&mut rng);
 
         let ciphertext = exponential_el_gamal.encrypt(&pk, &r, &m);
 
         let r_2 = G::scalar_random(&mut rng);
         let ciphertext_2 = exponential_el_gamal.0.reencrypt(&pk, &r_2, &ciphertext);
 
-        let m_decoder = BruteForceDiscreteLog::new(m, None);
-        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_decoder);
+        let m_decoder = PrecomputedDiscreteLog::new(range);
+        let m_decrypted = exponential_el_gamal.decrypt(&sk, &ciphertext_2, &m_decoder).unwrap();
         let r_combined = r + &r_2;
-        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_decoder);
+        let m_decrypted_randomness = exponential_el_gamal.decrypt_randomness(&pk, &r_combined, &ciphertext_2, &m_decoder).unwrap();
 
-        assert_eq!(m_decrypted, Some(m));
-        assert_eq!(m_decrypted_randomness, Some(m));
+        for i in 0..exponential_el_gamal.0.n {
+            assert_eq!(m_decrypted[i], m[i]);
+            assert_eq!(m_decrypted_randomness[i], m[i]);
+        }
     }
 }
 

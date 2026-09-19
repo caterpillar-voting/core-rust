@@ -128,8 +128,8 @@ impl Group for RistrettoGroup {
     }
 
     const ENCODING_SIZE: usize = 32;
-    /// Set to 8 as ristretto builds upon curve25519 which has cofactor 8. We ignore the small (<30) number of additionally invalid points in this estimation (8 points of low order, 19 non-canonical encoding points).
-    const ENCODING_LIKELIHOOD: u8 = 8;
+    /// Each point in the group has a unique 32-byte representation. The number of points is close to 2^252. Therefore, the probability of being a valid representation is the quotient, i.e. very close to 2^4.
+    const ENCODING_LIKELIHOOD: u8 = 16;
     fn try_encode(payload: &[u8]) -> Option<Self::Point> {
         CompressedRistretto::from_slice(payload).ok()?.decompress().map(RistrettoPoint)
     }

@@ -31,16 +31,16 @@ mod tests {
     #[test]
     fn encryption() {
         let mut rng = thread_rng();
-        let message = G::point_random(&mut rng);
 
         let encryption = Encryption::<G>::default();
         let (secret_key, public_key) = encryption.key_gen(&mut rng);
 
         let ctx = "test_encrypt".as_bytes().to_vec();
+        let message = "Hello World!".as_bytes().to_vec();
         let ciphertext = encryption.encrypt(&public_key, &ctx, &mut rng, &message);
         let message_recovered = encryption.decrypt(&ctx, &secret_key, &ciphertext);
 
-        assert_eq!(message_recovered, Some(message));
+        assert_eq!(message_recovered, Ok(message));
     }
 
     #[test]
@@ -48,16 +48,16 @@ mod tests {
         let mut rng = thread_rng();
         let message = Scalar::from(1u64);
 
-        let el_gamal = ExponentialElGamal::default();
+        let el_gamal = ExponentialElGamal::<G>::default();
         let (secret_key, public_key) = el_gamal.0.keygen(&mut rng);
 
-        let ciphertext = el_gamal.encrypt(&public_key, &G::scalar_random(&mut rng), &message);
+        let ciphertext = el_gamal.encrypt(&public_key, &G::scalar_random(&mut rng), &[message]);
         let ciphertext_reencrypted = el_gamal.0.reencrypt(&public_key, &G::scalar_random(&mut rng), &ciphertext);
-        let ciphertext_aggregated = (ciphertext_reencrypted.0 + &ciphertext.0, ciphertext_reencrypted.1 + &ciphertext.1);
+        let ciphertext_aggregated = [ciphertext_reencrypted[0] + &ciphertext[0], ciphertext_reencrypted[1] + &ciphertext[1]];
 
         let message_decoder = BruteForceDiscreteLog::<G>::new(Scalar::from(2u64), None);
-        let decoded = el_gamal.decrypt(&secret_key, &ciphertext_aggregated, &message_decoder);
+        let decoded = el_gamal.decrypt(&secret_key, &ciphertext_aggregated, &message_decoder).unwrap();
 
-        assert_eq!(decoded, Some(Scalar::from(2u64)));
+        assert_eq!(decoded[0], Scalar::from(2u64));
     }
 }
