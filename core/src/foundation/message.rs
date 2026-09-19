@@ -157,9 +157,6 @@ impl<G: Group> MessageEncoder<G> {
     // It is possible to enforce a fixed number of points for the encoding, in order to hide the length after encryption.
     // In that case we pad with the neutral element of G.
     fn get_byte_encoding(&self) -> MessageByteEncoding {
-        // TODO: sacrifice one bit of MESSAGE_LENGTH_BITS to denote encoding (i.e., fixed bit 0)?
-        // this would likely enable us a clean upgrade path when we change the encoding
-
         // to make ilog2 computation well-defined
         assert!(G::ENCODING_SIZE.is_power_of_two());
         assert!(G::ENCODING_LIKELIHOOD.is_power_of_two());
