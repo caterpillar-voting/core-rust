@@ -23,24 +23,28 @@ impl<G: Group> ZKPHTDH2<G> {
         Self { get_challenge }
     }
 
-    pub fn prove<R: RngCore + CryptoRng>(&self, g0: &G::Point, ue: &(G::Point, G::Point), r: &G::Scalar, ctx: &[u8], rng: &mut R) -> (G::Point, G::Scalar, G::Scalar) {
+    pub fn prove<R: RngCore + CryptoRng>(&self, g0: &G::Point, ue: &[G::Point], r: &G::Scalar, ctx: &[u8], rng: &mut R) -> (G::Point, G::Scalar, G::Scalar) {
         let s = G::scalar_random(rng);
         let u0 = *g0 * r;
 
         let w = G::basepoint() * &s;
         let w0 = *g0 * &s;
 
-        let c = (self.get_challenge)(&[ue.0, ue.1, w, u0, w0], ctx);
+        let mut to_hash = ue.to_vec();
+        to_hash.extend_from_slice(&[w, u0, w0]);
+        let c = (self.get_challenge)(&to_hash, ctx);
         let f = s + &(*r * &c);
 
         (u0, c, f)
     }
 
-    pub fn verify(&self, g0: &G::Point, ue: &(G::Point, G::Point), u0: &G::Point, c: &G::Scalar, f: &G::Scalar, ctx: &[u8]) -> bool {
-        let w = G::basepoint() * f - &(ue.0 * c);
+    pub fn verify(&self, g0: &G::Point, ue: &[G::Point], u0: &G::Point, c: &G::Scalar, f: &G::Scalar, ctx: &[u8]) -> bool {
+        let w = G::basepoint() * f - &(ue[0] * c);
         let w0 = *g0 * f - &(*u0 * c);
 
-        let c_dash = (self.get_challenge)(&[ue.0, ue.1, w, *u0, w0], ctx);
+        let mut to_hash = ue.to_vec();
+        to_hash.extend_from_slice(&[w, *u0, w0]);
+        let c_dash = (self.get_challenge)(&to_hash, ctx);
 
         *c == c_dash
     }

@@ -136,7 +136,7 @@ Points of interest:
 primitives:
 - refactor randomness crates or document justification
 - add commitment that uses hash; possibly as default hash (but is wrapper useful?); possibly remove high-level hash altogether
-- generalize HTDH2 to multi-recipient ElGamal, default() uses recipient = 1, new() takes #message_bytes
+- do not reuse g0 of HTDH2
 - refactor documentation to reflect the newest state
 
 protocols:
