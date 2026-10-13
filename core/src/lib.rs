@@ -2,6 +2,7 @@ extern crate core;
 
 pub mod foundation;
 pub mod primitives;
+pub mod protocols;
 
 #[cfg(test)]
 mod tests {
