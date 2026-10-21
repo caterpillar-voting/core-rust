@@ -1,5 +1,8 @@
 // Implementation of the FROST DKG. See Eprint 2020/852.
-// Participants are numbered from 1 to n (WARNING: does not start from 0 !)
+// Participants are numbered from 0 to n-1 (WARNING: the "value" at which we evaluate the polynomials is k+1, where k is the participant number. Evaluation at 0 is reserved for the global public key.)
+
+// TODO: during step 1, we do l zkps, where l is the width of the multi-ElGamal. We could perhaps have a global dedicated zkp that is cheaper.
+// FIXME: add asserts for lengths of vectors.
 
 use crate::foundation::group::Group;
 use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
@@ -73,6 +76,7 @@ impl<G: Group> DKGProtocol<G> {
     }
 
     // Each participant/trustee generates its polynomial, commits to it, and add a zkp.
+    // The parameter 'trustee' is the id of the trustee, i.e. an integer from 0 to n-1.
     pub fn step_1<R: RngCore + CryptoRng>(&self, trustee: usize, rng: &mut R) -> (DKGStateStep1<G>, DKGOutMessageStep1<G>) {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
