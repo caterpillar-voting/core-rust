@@ -5,6 +5,7 @@
 // FIXME: add asserts for lengths of vectors.
 
 use crate::foundation::group::Group;
+use crate::primitives::zkp::correct_exp::ZKPCorrectExp;
 use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
@@ -52,6 +53,14 @@ pub struct DKGOutMessageStep3<G: Group> {
     _marker: PhantomData<G>,
 }
 
+pub struct DKGFinalData<G: Group> {
+    l: usize,               // width of the multi-ElGamal
+    n: usize,               // number of participants
+    t: usize,               // threshold (at least t participants are required to decrypt)
+    pk: Vec<Vec<G::Point>>, // public key of each trustee. len(pk) = n, len(pk[i]) = l.
+    gpk: Vec<G::Point>,     // global public key.
+}
+
 // Horner scheme for polynomial evaluation.
 fn pol_eval<G: Group>(pol: &[G::Scalar], x: &G::Scalar) -> G::Scalar {
     let t = pol.len();
@@ -60,6 +69,31 @@ fn pol_eval<G: Group>(pol: &[G::Scalar], x: &G::Scalar) -> G::Scalar {
         res = res * &x + &pol[i];
     }
     res
+}
+
+// Lagrange coefficients
+fn lagrange_coeff<G: Group>(abscissae: &[G::Scalar]) -> Vec<G::Scalar> {
+    let n = abscissae.len();
+    for &x in abscissae {
+        assert!(x != G::Scalar::from(0u64));
+    }
+    (0..n)
+        .map(|i| {
+            let mut denom = G::Scalar::from(1u64);
+            let mut num = G::Scalar::from(1u64);
+            for j in 0..n {
+                if i == j {
+                    continue;
+                }
+                assert!(abscissae[i] != abscissae[j]);
+                denom = denom * &(abscissae[j] - &abscissae[i]);
+                num = num * &G::Scalar::from(j as u64);
+            }
+            assert!(denom != G::Scalar::from(0u64));
+            denom = G::scalar_inverse(&denom).unwrap();
+            num * &denom
+        })
+        .collect::<Vec<_>>()
 }
 
 impl<G: Group> DKGProtocol<G> {
@@ -167,4 +201,56 @@ impl<G: Group> DKGProtocol<G> {
             .collect::<Vec<_>>();
         (DKGStateStep3 { sk, pk, gpk }, DKGOutMessageStep3 { _marker: Default::default() })
     }
+}
+
+pub struct PartialDecryption<G: Group> {
+    trustee: usize,
+    part_dec: Vec<G::Point>,
+    zkps: Vec<(G::Scalar, G::Scalar)>,
+}
+
+pub fn partial_decrypt<G: Group, R: RngCore + CryptoRng>(
+    sk: &Vec<G::Scalar>,
+    trustee: usize,
+    pk_data: &DKGFinalData<G>,
+    c: &[G::Point],
+    ctx: &[u8],
+    rng: &mut R,
+) -> Vec<(G::Point, (G::Scalar, G::Scalar))> {
+    let l = pk_data.l;
+    let n = pk_data.n;
+    let t = pk_data.t;
+    let zkp = ZKPCorrectExp::<G>::default();
+    (0..l)
+        .map(|i| {
+            let d = c[0] * &sk[i];
+            let pi = zkp.prove(&pk_data.pk[trustee][i], &c[0], &d, &sk[i], &ctx, rng); // FIXME: context should be bound to i and l.
+            (d, pi)
+        })
+        .collect::<Vec<_>>()
+}
+
+pub fn collect_partial_dec<G: Group>(pk_data: &DKGFinalData<G>, c: &[G::Point], partial_dec: &[PartialDecryption<G>], ctx: &[u8]) -> Vec<G::Point> {
+    let l = pk_data.l;
+    let t = pk_data.t;
+    assert!(partial_dec.len() >= t);
+    let zkp = ZKPCorrectExp::<G>::default();
+    let trustees = partial_dec.iter().map(|p| G::Scalar::from((1 + p.trustee) as u64)).collect::<Vec<_>>();
+    let lagrange_coeff = lagrange_coeff::<G>(&trustees);
+    for p in partial_dec {
+        for i in 0..l {
+            let d = p.part_dec[i];
+            let pi = p.zkps[i];
+            assert!(zkp.verify(&pk_data.pk[p.trustee][i], &c[0], &d, &pi.0, &pi.1, &ctx));
+        }
+    }
+    (0..l)
+        .map(|i| {
+            let mut d = G::identity();
+            for j in 0..partial_dec.len() {
+                d = d + &(partial_dec[j].part_dec[i] * &lagrange_coeff[j]);
+            }
+            c[i + 1] - &d
+        })
+        .collect::<Vec<_>>()
 }
