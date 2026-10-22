@@ -2,7 +2,7 @@ use super::_shared::independent_generators_default;
 use crate::foundation::group::ByteNormalize;
 use crate::foundation::group::Group;
 use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
-use crypto_bigint::{Encoding, U256, U4096, const_monty_params, modular::ConstMontyForm};
+use crypto_bigint::{Encoding, U256, U4096, const_monty_params, modular::ConstMontyForm, Zero};
 use rand_core::{CryptoRng, RngCore};
 use sha3::{
     Shake128,
@@ -270,6 +270,12 @@ impl Group for ElectionGuardGroup {
         let mut uniform_bytes = [0u8; 64];
         rng.try_fill_bytes(&mut uniform_bytes).unwrap();
         Self::hash_to_scalar(&uniform_bytes)
+    }
+
+    fn scalar_inverse(scalar: &Self::Scalar) -> Option<Self::Scalar> {
+        if scalar.0.is_zero().into() { return None }
+        let x= scalar.0.invert().unwrap();
+        Some(ZqElement(x))
     }
 }
 

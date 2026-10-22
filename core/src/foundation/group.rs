@@ -64,4 +64,7 @@ pub trait Group {
 
     /// Generate a random scalar.
     fn scalar_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self::Scalar;
+
+    /// Inversion of a scalar, failing if the scalar is zero.
+    fn scalar_inverse(scalar: &Self::Scalar) -> Option<Self::Scalar>;
 }

@@ -15,6 +15,7 @@ use curve25519_dalek::{
 use rand_core::{CryptoRng, RngCore};
 use sha3::Sha3_512;
 use zeroize::Zeroize;
+use crate::foundation;
 
 #[derive(Clone, Default)]
 pub struct RistrettoGroup(());
@@ -149,6 +150,11 @@ impl Group for RistrettoGroup {
         let mut uniform_bytes = [0u8; 64];
         rng.try_fill_bytes(&mut uniform_bytes).unwrap();
         RistrettoScalar(RistrettoScalarRaw::from_bytes_mod_order_wide(&uniform_bytes))
+    }
+
+    fn scalar_inverse(scalar: &Self::Scalar) -> Option<Self::Scalar> {
+        if scalar == &Self::Scalar::from(0u64) { return None }
+        Some(RistrettoScalar(scalar.0.invert()))
     }
 }
 
