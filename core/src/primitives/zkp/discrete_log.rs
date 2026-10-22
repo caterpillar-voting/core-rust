@@ -2,6 +2,9 @@ use crate::foundation::group::Group;
 use crate::primitives::zkp::get_challenge::{GetChallenge, get_challenge_default};
 use rand_core::{CryptoRng, RngCore};
 
+// ZKP of knowledge of a discrete logarithm.
+// Public data is h, secret data is x such that h = g^x.
+
 pub struct ZKPDiscreteLog<G: Group> {
     get_challenge: GetChallenge<G>,
 }

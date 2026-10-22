@@ -9,6 +9,7 @@ You can explore these implementations in the git history.
 */
 pub mod get_challenge;
 pub mod htdh2;
+pub mod correct_exp;
 
 #[cfg(test)]
 mod tests {
