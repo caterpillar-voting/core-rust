@@ -2,6 +2,7 @@
 //!
 //! [`ristretto`]: https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/index.html
 
+use crate::foundation;
 use crate::foundation::group::_shared::independent_generators_default;
 use crate::foundation::group::ByteNormalize;
 use crate::foundation::group::Group;
@@ -15,7 +16,6 @@ use curve25519_dalek::{
 use rand_core::{CryptoRng, RngCore};
 use sha3::Sha3_512;
 use zeroize::Zeroize;
-use crate::foundation;
 
 #[derive(Clone, Default)]
 pub struct RistrettoGroup(());
@@ -153,7 +153,9 @@ impl Group for RistrettoGroup {
     }
 
     fn scalar_inverse(scalar: &Self::Scalar) -> Option<Self::Scalar> {
-        if scalar == &Self::Scalar::from(0u64) { return None }
+        if scalar == &Self::Scalar::from(0u64) {
+            return None;
+        }
         Some(RistrettoScalar(scalar.0.invert()))
     }
 }

@@ -2,9 +2,9 @@
 // Public data is X, h, hx.
 // Secret data is x such that X = g^x and hx = g^x.
 
-use rand_core::{CryptoRng, RngCore};
 use crate::foundation::group::Group;
-use crate::primitives::zkp::get_challenge::{get_challenge_default, GetChallenge};
+use crate::primitives::zkp::get_challenge::{GetChallenge, get_challenge_default};
+use rand_core::{CryptoRng, RngCore};
 
 pub struct ZKPCorrectExp<G: Group> {
     get_challenge: GetChallenge<G>,
@@ -45,7 +45,6 @@ mod tests {
     use crate::primitives::zkp::correct_exp::ZKPCorrectExp;
 
     type G = RistrettoGroup;
-
 
     #[test]
     pub fn prove_verify() {

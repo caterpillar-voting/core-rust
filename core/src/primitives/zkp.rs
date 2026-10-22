@@ -1,3 +1,4 @@
+pub mod correct_exp;
 pub mod discrete_log;
 /**
 Implementations of ZKP. Variable naming and structure aims to follow https://crypto.ethz.ch/publications/files/Maurer15.pdf, but no explicit abstractions are done.
@@ -9,7 +10,6 @@ You can explore these implementations in the git history.
 */
 pub mod get_challenge;
 pub mod htdh2;
-pub mod correct_exp;
 
 #[cfg(test)]
 mod tests {
