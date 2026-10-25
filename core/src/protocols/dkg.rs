@@ -10,8 +10,7 @@ use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
 
-pub struct DKGPubData<G: Group> {
-    _marker: PhantomData<G>,
+pub struct DKGPubData {
     l: usize,     // width of the multi-ElGamal
     n: usize,     // number of participants
     t: usize,     // threshold (at least t participants are required to decrypt)
@@ -19,8 +18,9 @@ pub struct DKGPubData<G: Group> {
 }
 
 pub struct DKGProtocol<G: Group> {
-    pub pub_data: DKGPubData<G>,
+    pub pub_data: DKGPubData,
     pub trustee_index: usize,
+    _marker: PhantomData<G>,
 }
 
 // Data types for step 1
@@ -101,13 +101,13 @@ impl<G: Group> DKGProtocol<G> {
     pub fn new(l: usize, n: usize, t: usize, ctx: Vec<u8>, trustee_index: usize) -> Self {
         Self {
             pub_data: DKGPubData {
-                _marker: Default::default(),
                 l,
                 n,
                 t,
                 ctx,
             },
             trustee_index,
+            _marker: Default::default(),
         }
     }
 
