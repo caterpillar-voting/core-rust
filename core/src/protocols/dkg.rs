@@ -9,6 +9,7 @@ use crate::primitives::zkp::correct_exp::ZKPCorrectExp;
 use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
+use crate::primitives::encryption::{PublicKey, SecretKey};
 
 pub struct DKGPubData {
     l: usize,     // width of the multi-ElGamal
@@ -33,10 +34,10 @@ pub struct DKGMessageStep1<G: Group> {
 }
 
 // Data types for step 3
-pub struct DKGStateStep3<G: Group> {
-    sk: Vec<G::Scalar>, // own secret key.
-    pk: Vec<G::Point>,  // own public key.
-    gpk: Vec<G::Point>, // global public key.
+pub struct DKGResult<G: Group> {
+    sk: SecretKey<G>, // own secret key.
+    pk: PublicKey<G>,  // own public key.
+    gpk: PublicKey<G>, // global public key.
 }
 
 pub struct DKGFinalData<G: Group> {
@@ -118,7 +119,7 @@ impl<G: Group> DKGProtocol<G> {
     }
 
     // Check the zkps of others, compute evaluations of our secret polynomials at other trustees' points.
-    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> (DKGStateStep3<G>) {
+    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> (DKGResult<G>) {
         let l = self.pub_data.l;
         let n = self.pub_data.n;
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
@@ -181,7 +182,7 @@ impl<G: Group> DKGProtocol<G> {
                 gpki
             })
             .collect::<Vec<_>>();
-        (DKGStateStep3 { sk, pk, gpk })
+        (DKGResult { sk: SecretKey(sk), pk, gpk })
     }
 }
 
