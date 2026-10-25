@@ -20,6 +20,7 @@ pub struct DKGPubData<G: Group> {
 
 pub struct DKGProtocol<G: Group> {
     pub pub_data: DKGPubData<G>,
+    pub trustee: usize,
 }
 
 // Data types for step 1
@@ -97,7 +98,7 @@ fn lagrange_coeff<G: Group>(abscissae: &[G::Scalar]) -> Vec<G::Scalar> {
 }
 
 impl<G: Group> DKGProtocol<G> {
-    pub fn new(l: usize, n: usize, t: usize, ctx: Vec<u8>) -> Self {
+    pub fn new(l: usize, n: usize, t: usize, ctx: Vec<u8>, trustee: usize) -> Self {
         Self {
             pub_data: DKGPubData {
                 _marker: Default::default(),
@@ -106,16 +107,17 @@ impl<G: Group> DKGProtocol<G> {
                 t,
                 ctx,
             },
+            trustee,
         }
     }
 
     // Each participant/trustee generates its polynomial, commits to it, and add a zkp.
     // The parameter 'trustee' is the id of the trustee, i.e. an integer from 0 to n-1.
-    pub fn step_1<R: RngCore + CryptoRng>(&self, trustee: usize, rng: &mut R) -> (DKGStateStep1<G>, DKGOutMessageStep1<G>) {
+    pub fn step_1<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (DKGStateStep1<G>, DKGOutMessageStep1<G>) {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let mut ctx = self.pub_data.ctx.clone();
-        ctx.append(&mut trustee.to_le_bytes().to_vec());
+        ctx.append(&mut self.trustee.to_le_bytes().to_vec());
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
         let a_is = (0..l).map(|_| (0..t).map(|_| G::scalar_random(rng)).collect::<Vec<_>>()).collect::<Vec<_>>();
         let phi_is = (0..l).map(|i| (0..t).map(|j| G::basepoint() * &a_is[i][j]).collect::<Vec<_>>()).collect::<Vec<_>>();
@@ -130,12 +132,12 @@ impl<G: Group> DKGProtocol<G> {
     }
 
     // Check the zkps of others, compute evaluations of our secret polynomials at other trustees' points.
-    pub fn step_2(&self, trustee: usize, state1: &DKGStateStep1<G>, messages1: &DKGInMessageStep2<G>) -> (DKGStateStep2<G>, DKGOutMessageStep2<G>) {
+    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &DKGInMessageStep2<G>) -> (DKGStateStep2<G>, DKGOutMessageStep2<G>) {
         let l = self.pub_data.l;
         let n = self.pub_data.n;
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
         for k in 0..n {
-            if k == trustee {
+            if k == self.trustee {
                 continue;
             }
             let mut ctx = self.pub_data.ctx.clone();
@@ -155,14 +157,14 @@ impl<G: Group> DKGProtocol<G> {
     }
 
     // Check received data against stuff committed at step 1, and compute own secret and partial public key.
-    pub fn step_3(&self, trustee: usize, state2: &DKGStateStep2<G>, messages3: &DKGInMessageStep3<G>) -> (DKGStateStep3<G>, DKGOutMessageStep3<G>) {
+    pub fn step_3(&self, state2: &DKGStateStep2<G>, messages3: &DKGInMessageStep3<G>) -> (DKGStateStep3<G>, DKGOutMessageStep3<G>) {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let n = self.pub_data.n;
         let f_is = &messages3.f_is;
         for k in 0..n {
             // messages3[k] comes from trustee k.
-            if k == trustee {
+            if k == self.trustee {
                 continue;
             } // don't need to check our own data.
             let f_i = &f_is[k];
@@ -172,7 +174,7 @@ impl<G: Group> DKGProtocol<G> {
                 let mut ii = G::Scalar::from(1u64);
                 for j in 0..t {
                     val2 = val2 + &(state2.phi_is[k][i][j] * &ii);
-                    ii = ii * &G::Scalar::from((trustee + 1) as u64);
+                    ii = ii * &G::Scalar::from((self.trustee + 1) as u64);
                 }
                 assert_eq!(val, val2);
             }
