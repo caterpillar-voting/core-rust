@@ -98,12 +98,13 @@ fn lagrange_coeff<G: Group>(abscissae: &[G::Scalar]) -> Vec<G::Scalar> {
 }
 
 impl<G: Group> DKGProtocol<G> {
-    pub fn new(l: usize, n: usize, t: usize, ctx: Vec<u8>, trustee_index: usize) -> Self {
+    pub fn new(trustees_count: usize, trustee_threshold: usize, ctx: Vec<u8>, trustee_index: usize) -> Self {
+        // possibly check that trustee_threshold < trustees_count to nudge safe usage?
         Self {
             pub_data: DKGPubData {
-                l,
-                n,
-                t,
+                l: 1,
+                n: trustees_count,
+                t: trustee_threshold,
                 ctx,
             },
             trustee_index,
