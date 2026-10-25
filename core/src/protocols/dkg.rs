@@ -32,10 +32,6 @@ pub struct DKGMessageStep1<G: Group> {
     zkps: Vec<(G::Scalar, G::Scalar)>, // zkp that one knows the constant coefficient of the polynomials. len(zkps) = l
 }
 
-pub struct DKGMessageStep2<G: Group> {
-    f_is: Vec<Vec<G::Scalar>>, // Evaluations of the polynomials at the value k+1, where k is the recipient number seen as a G::Scalar. We also "send" to ourself, instead of storing in State, to simplify the code. len(f_is) = n, len(f_is[i]) = l.
-}
-
 // Data types for step 3
 pub struct DKGStateStep3<G: Group> {
     sk: Vec<G::Scalar>, // own secret key.
@@ -122,7 +118,7 @@ impl<G: Group> DKGProtocol<G> {
     }
 
     // Check the zkps of others, compute evaluations of our secret polynomials at other trustees' points.
-    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> (DKGMessageStep2<G>) {
+    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> (DKGStateStep3<G>) {
         let l = self.pub_data.l;
         let n = self.pub_data.n;
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
@@ -142,15 +138,10 @@ impl<G: Group> DKGProtocol<G> {
         let f_is = (0..n)
             .map(|_| (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((i + 1) as u64))).collect::<Vec<_>>())
             .collect::<Vec<_>>();
-        (DKGMessageStep2 { f_is })
-    }
 
-    // Check received data against stuff committed at step 1, and compute own secret and partial public key.
-    pub fn step_3(&self, messages1: &Vec<DKGMessageStep1<G>>, messages2: &DKGMessageStep2<G>) -> (DKGStateStep3<G>) {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let n = self.pub_data.n;
-        let f_is = &messages2.f_is;
         for k in 0..n {
             // messages3[k] comes from trustee k.
             if k == self.trustee_index {
