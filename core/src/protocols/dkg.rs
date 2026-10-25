@@ -20,7 +20,7 @@ pub struct DKGPubData<G: Group> {
 
 pub struct DKGProtocol<G: Group> {
     pub pub_data: DKGPubData<G>,
-    pub trustee: usize,
+    pub trustee_index: usize,
 }
 
 // Data types for step 1
@@ -98,7 +98,7 @@ fn lagrange_coeff<G: Group>(abscissae: &[G::Scalar]) -> Vec<G::Scalar> {
 }
 
 impl<G: Group> DKGProtocol<G> {
-    pub fn new(l: usize, n: usize, t: usize, ctx: Vec<u8>, trustee: usize) -> Self {
+    pub fn new(l: usize, n: usize, t: usize, ctx: Vec<u8>, trustee_index: usize) -> Self {
         Self {
             pub_data: DKGPubData {
                 _marker: Default::default(),
@@ -107,7 +107,7 @@ impl<G: Group> DKGProtocol<G> {
                 t,
                 ctx,
             },
-            trustee,
+            trustee_index,
         }
     }
 
@@ -117,7 +117,7 @@ impl<G: Group> DKGProtocol<G> {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let mut ctx = self.pub_data.ctx.clone();
-        ctx.append(&mut self.trustee.to_le_bytes().to_vec());
+        ctx.append(&mut self.trustee_index.to_le_bytes().to_vec());
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
         let a_is = (0..l).map(|_| (0..t).map(|_| G::scalar_random(rng)).collect::<Vec<_>>()).collect::<Vec<_>>();
         let phi_is = (0..l).map(|i| (0..t).map(|j| G::basepoint() * &a_is[i][j]).collect::<Vec<_>>()).collect::<Vec<_>>();
@@ -137,7 +137,7 @@ impl<G: Group> DKGProtocol<G> {
         let n = self.pub_data.n;
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
         for k in 0..n {
-            if k == self.trustee {
+            if k == self.trustee_index {
                 continue;
             }
             let mut ctx = self.pub_data.ctx.clone();
@@ -164,7 +164,7 @@ impl<G: Group> DKGProtocol<G> {
         let f_is = &messages3.f_is;
         for k in 0..n {
             // messages3[k] comes from trustee k.
-            if k == self.trustee {
+            if k == self.trustee_index {
                 continue;
             } // don't need to check our own data.
             let f_i = &f_is[k];
@@ -174,7 +174,7 @@ impl<G: Group> DKGProtocol<G> {
                 let mut ii = G::Scalar::from(1u64);
                 for j in 0..t {
                     val2 = val2 + &(state2.phi_is[k][i][j] * &ii);
-                    ii = ii * &G::Scalar::from((self.trustee + 1) as u64);
+                    ii = ii * &G::Scalar::from((self.trustee_index + 1) as u64);
                 }
                 assert_eq!(val, val2);
             }
