@@ -27,17 +27,12 @@ pub struct DKGProtocol<G: Group> {
 pub struct DKGStateStep1<G: Group> {
     a_is: Vec<Vec<G::Scalar>>, // the coefficients of the l secret polynomials. len(a_is) = l, len(a_is[i]) = t
 }
-pub struct DKGOutMessageStep1<G: Group> {
+pub struct DKGMessageStep1<G: Group> {
     phi_is: Vec<Vec<G::Point>>,        // commitments to the secret polynomials. len(phi_is) = l, len(phi_is[i]) = t
     zkps: Vec<(G::Scalar, G::Scalar)>, // zkp that one knows the constant coefficient of the polynomials. len(zkps) = l
 }
 
-// Data types for step 2
-pub struct DKGStateStep2<G: Group> {
-    phi_is: Vec<Vec<Vec<G::Point>>>, // remember the commitments to the secret polynomials, including our own. len(phi_is) = n, len(phi_is[i]) = l, len(phi_is[i][j]) = t
-}
-pub type DKGInMessageStep2<G: Group> = Vec<DKGOutMessageStep1<G>>; // same as out message from step 1, because this is a broadcast. len is n (we also receive our own message).
-pub struct DKGOutMessageStep2<G: Group> {
+pub struct DKGMessageStep2<G: Group> {
     f_is: Vec<Vec<G::Scalar>>, // Evaluations of the polynomials at the value k+1, where k is the recipient number seen as a G::Scalar. We also "send" to ourself, instead of storing in State, to simplify the code. len(f_is) = n, len(f_is[i]) = l.
 }
 
@@ -46,12 +41,6 @@ pub struct DKGStateStep3<G: Group> {
     sk: Vec<G::Scalar>, // own secret key.
     pk: Vec<G::Point>,  // own public key.
     gpk: Vec<G::Point>, // global public key.
-}
-pub struct DKGInMessageStep3<G: Group> {
-    f_is: Vec<Vec<G::Scalar>>, // Evaluations of polynomials for me. len(f_is) = n, len(f_is[i]) = l.
-}
-pub struct DKGOutMessageStep3<G: Group> {
-    _marker: PhantomData<G>,
 }
 
 pub struct DKGFinalData<G: Group> {
@@ -114,7 +103,7 @@ impl<G: Group> DKGProtocol<G> {
 
     // Each participant/trustee generates its polynomial, commits to it, and add a zkp.
     // The parameter 'trustee' is the id of the trustee, i.e. an integer from 0 to n-1.
-    pub fn step_1<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (DKGStateStep1<G>, DKGOutMessageStep1<G>) {
+    pub fn step_1<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (DKGStateStep1<G>, DKGMessageStep1<G>) {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let mut ctx = self.pub_data.ctx.clone();
@@ -129,11 +118,11 @@ impl<G: Group> DKGProtocol<G> {
                 zkp.prove(&phi_is[i][0], &a_is[i][0], &mut ctxi, rng)
             })
             .collect::<Vec<_>>();
-        (DKGStateStep1 { a_is }, DKGOutMessageStep1 { phi_is, zkps })
+        (DKGStateStep1 { a_is }, DKGMessageStep1 { phi_is, zkps })
     }
 
     // Check the zkps of others, compute evaluations of our secret polynomials at other trustees' points.
-    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &DKGInMessageStep2<G>) -> (DKGStateStep2<G>, DKGOutMessageStep2<G>) {
+    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> (DKGMessageStep2<G>) {
         let l = self.pub_data.l;
         let n = self.pub_data.n;
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
@@ -153,16 +142,15 @@ impl<G: Group> DKGProtocol<G> {
         let f_is = (0..n)
             .map(|_| (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((i + 1) as u64))).collect::<Vec<_>>())
             .collect::<Vec<_>>();
-        let state2 = (0..n).map(|k| messages1[k].phi_is.clone()).collect::<Vec<_>>();
-        (DKGStateStep2 { phi_is: state2 }, DKGOutMessageStep2 { f_is })
+        (DKGMessageStep2 { f_is })
     }
 
     // Check received data against stuff committed at step 1, and compute own secret and partial public key.
-    pub fn step_3(&self, state2: &DKGStateStep2<G>, messages3: &DKGInMessageStep3<G>) -> (DKGStateStep3<G>, DKGOutMessageStep3<G>) {
+    pub fn step_3(&self, messages1: &Vec<DKGMessageStep1<G>>, messages2: &DKGMessageStep2<G>) -> (DKGStateStep3<G>) {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let n = self.pub_data.n;
-        let f_is = &messages3.f_is;
+        let f_is = &messages2.f_is;
         for k in 0..n {
             // messages3[k] comes from trustee k.
             if k == self.trustee_index {
@@ -174,7 +162,7 @@ impl<G: Group> DKGProtocol<G> {
                 let mut val2 = G::identity();
                 let mut ii = G::Scalar::from(1u64);
                 for j in 0..t {
-                    val2 = val2 + &(state2.phi_is[k][i][j] * &ii);
+                    val2 = val2 + &(messages1[k].phi_is[i][j] * &ii);
                     ii = ii * &G::Scalar::from((self.trustee_index + 1) as u64);
                 }
                 assert_eq!(val, val2);
@@ -197,12 +185,12 @@ impl<G: Group> DKGProtocol<G> {
             .map(|i| {
                 let mut gpki = G::identity();
                 for k in 0..n {
-                    gpki = gpki + &state2.phi_is[k][i][0];
+                    gpki = gpki + &messages1[k].phi_is[i][0];
                 }
                 gpki
             })
             .collect::<Vec<_>>();
-        (DKGStateStep3 { sk, pk, gpk }, DKGOutMessageStep3 { _marker: Default::default() })
+        (DKGStateStep3 { sk, pk, gpk })
     }
 }
 
