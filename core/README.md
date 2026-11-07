@@ -1,9 +1,7 @@
 # README
 
-This is the documentation of the library.
-
 > [!NOTE]
-> So far, only encryption is documented, to collect feedback to the style of the documentation.
+> So far, only encryption is documented, to assess the style of the documentation.
 
 
 ## Public-key Encryption
