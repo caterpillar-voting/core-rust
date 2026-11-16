@@ -77,7 +77,7 @@ fn lagrange_coeff<G: Group>(abscissae: &[G::Scalar]) -> Vec<G::Scalar> {
                 }
                 assert!(abscissae[i] != abscissae[j]);
                 denom = denom * &(abscissae[j] - &abscissae[i]);
-                num = num * &G::Scalar::from(j as u64);
+                num = num * &abscissae[j];
             }
             assert!(denom != G::Scalar::from(0u64));
             denom = G::scalar_inverse(&denom).unwrap();
@@ -203,7 +203,7 @@ pub struct PartialDecryption<G: Group> {
 }
 
 pub fn partial_decrypt<G: Group, R: RngCore + CryptoRng>(
-    sk: &Vec<G::Scalar>,
+    sk: &SecretKey<G>,
     trustee: usize,
     pk_data: &DKGFinalData<G>,
     c: &[G::Point],
@@ -214,8 +214,8 @@ pub fn partial_decrypt<G: Group, R: RngCore + CryptoRng>(
     let zkp = ZKPCorrectExp::<G>::default();
     (0..l)
         .map(|i| {
-            let d = c[0] * &sk[i];
-            let pi = zkp.prove(&pk_data.pk[trustee][i], &c[0], &d, &sk[i], &ctx, rng); // FIXME: context should be bound to i and l.
+            let d = c[0] * &sk.0[i];
+            let pi = zkp.prove(&pk_data.pk[trustee][i], &c[0], &d, &sk.0[i], &ctx, rng); // FIXME: context should be bound to i and l.
             (d, pi)
         })
         .collect::<Vec<_>>()
@@ -248,8 +248,10 @@ pub fn collect_partial_dec<G: Group>(pk_data: &DKGFinalData<G>, c: &[G::Point], 
 
 #[cfg(test)]
 mod tests {
+    use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
-    use crate::protocols::dkg::{DKGMessageStep2, DKGProtocol};
+    use crate::primitives::encryption::el_gamal::ElGamal;
+    use crate::protocols::dkg::{DKGFinalData, DKGMessageStep2, DKGProtocol, PartialDecryption, collect_partial_dec, partial_decrypt};
     use rand::thread_rng;
 
     type G = RistrettoGroup;
@@ -298,5 +300,36 @@ mod tests {
             let resi = dkgs[i].step_3(&messages_step1, &collected_messages_step2[i]);
             result.push(resi);
         }
+        // Check they agree on the global public key and collect the final data
+        for i in 1..trustee_count {
+            assert_eq!(result[i].gpk, result[0].gpk);
+        }
+        let pk_data: DKGFinalData<G> = DKGFinalData {
+            l: 1,
+            n: trustee_count,
+            t: trustee_threshold,
+            pk: result.iter().map(|res| res.pk.clone()).collect(),
+            gpk: result[0].gpk.clone(),
+        };
+        let sk: Vec<_> = result.iter().map(|res| res.sk.clone()).collect();
+
+        // Prepare an encrypted message
+        let el_gamal = ElGamal::<G>::default();
+        let r = G::scalar_random(&mut rng);
+        let m = vec![G::point_random(&mut rng)];
+        let c = el_gamal.encrypt(&pk_data.gpk, &r, &m);
+        // Run partial decryptions
+        let mut part_dec = vec![];
+        for i in 0..trustee_count {
+            let res = partial_decrypt(&sk[i], i, &pk_data, &c, ctx, &mut rng);
+            part_dec.push(PartialDecryption {
+                trustee: i,
+                part_dec: res.iter().map(|x| x.0.clone()).collect(),
+                zkps: res.iter().map(|x| x.1.clone()).collect(),
+            });
+        }
+        // Recombine and check
+        let recombined = collect_partial_dec(&pk_data, &c, &part_dec, ctx);
+        assert_eq!(recombined, m);
     }
 }
