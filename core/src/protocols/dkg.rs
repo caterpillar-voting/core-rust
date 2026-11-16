@@ -11,6 +11,7 @@ use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
 
+#[derive(Clone)]
 pub struct DKGPubData {
     l: usize,     // width of the multi-ElGamal
     n: usize,     // number of participants
@@ -251,22 +252,32 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::el_gamal::ElGamal;
-    use crate::protocols::dkg::{DKGFinalData, DKGMessageStep2, DKGProtocol, PartialDecryption, collect_partial_dec, partial_decrypt};
+    use crate::protocols::dkg::{DKGFinalData, DKGMessageStep2, DKGProtocol, DKGPubData, PartialDecryption, collect_partial_dec, partial_decrypt};
     use rand::thread_rng;
+    use std::marker::PhantomData;
 
     type G = RistrettoGroup;
 
-    #[test]
-    fn test_dkg_full_run() {
+    fn test_dkg_full_run_aux(l: usize) {
         let mut rng = thread_rng();
         let trustee_count = 3usize;
         let trustee_threshold = 2usize;
         let ctx = "test_dkg".as_bytes();
 
         // Define context for each trustee
+        let dkg_pub_data = DKGPubData {
+            l,
+            n: trustee_count,
+            t: trustee_threshold,
+            ctx: ctx.to_vec(),
+        };
         let mut dkgs = vec![];
         for i in 0..trustee_count {
-            let dkg: DKGProtocol<G> = DKGProtocol::new(trustee_count, trustee_threshold, ctx, i);
+            let dkg = DKGProtocol {
+                pub_data: dkg_pub_data.clone(),
+                trustee_index: i,
+                _marker: PhantomData::<G>,
+            };
             dkgs.push(dkg);
         }
 
@@ -305,7 +316,7 @@ mod tests {
             assert_eq!(result[i].gpk, result[0].gpk);
         }
         let pk_data: DKGFinalData<G> = DKGFinalData {
-            l: 1,
+            l,
             n: trustee_count,
             t: trustee_threshold,
             pk: result.iter().map(|res| res.pk.clone()).collect(),
@@ -314,9 +325,9 @@ mod tests {
         let sk: Vec<_> = result.iter().map(|res| res.sk.clone()).collect();
 
         // Prepare an encrypted message
-        let el_gamal = ElGamal::<G>::default();
+        let el_gamal = ElGamal::<G>::new(l);
         let r = G::scalar_random(&mut rng);
-        let m = vec![G::point_random(&mut rng)];
+        let m = (0..l).map(|_| G::point_random(&mut rng)).collect::<Vec<_>>();
         let c = el_gamal.encrypt(&pk_data.gpk, &r, &m);
         // Run partial decryptions
         let mut part_dec = vec![];
@@ -331,5 +342,11 @@ mod tests {
         // Recombine and check
         let recombined = collect_partial_dec(&pk_data, &c, &part_dec, ctx);
         assert_eq!(recombined, m);
+    }
+
+    #[test]
+    pub fn test_dkg_full_run() {
+        test_dkg_full_run_aux(1);
+        test_dkg_full_run_aux(3);
     }
 }
