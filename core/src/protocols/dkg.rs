@@ -5,11 +5,11 @@
 // FIXME: add asserts for lengths of vectors.
 
 use crate::foundation::group::Group;
+use crate::primitives::encryption::{PublicKey, SecretKey};
 use crate::primitives::zkp::correct_exp::ZKPCorrectExp;
 use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
-use crate::primitives::encryption::{PublicKey, SecretKey};
 
 pub struct DKGPubData {
     l: usize,     // width of the multi-ElGamal
@@ -33,12 +33,12 @@ pub struct DKGMessageStep1<G: Group> {
     zkps: Vec<(G::Scalar, G::Scalar)>, // zkp that one knows the constant coefficient of the polynomials. len(zkps) = l
 }
 pub struct DKGMessageStep2<G: Group> {
-    f_is: Vec<Vec<G::Scalar>>,         // Evaluations of the polynomials at the value k+1, where k is the recipient number seen as a G::Scalar. We also "send" to ourself, instead of storing in State, to simplify the code. len(f_is) = n, len(f_is[i]) = l.
+    f_is: Vec<Vec<G::Scalar>>, // Evaluations of the polynomials at the value k+1, where k is the recipient number seen as a G::Scalar. We also "send" to ourself, instead of storing in State, to simplify the code. len(f_is) = n, len(f_is[i]) = l.
 }
 
 // Data types for step 3
 pub struct DKGResult<G: Group> {
-    sk: SecretKey<G>, // own secret key.
+    sk: SecretKey<G>,  // own secret key.
     pk: PublicKey<G>,  // own public key.
     gpk: PublicKey<G>, // global public key.
 }
@@ -55,7 +55,7 @@ pub struct DKGFinalData<G: Group> {
 fn pol_eval<G: Group>(pol: &[G::Scalar], x: &G::Scalar) -> G::Scalar {
     let t = pol.len();
     let mut res = pol[t - 1].clone();
-    for i in (0..(t - 2)).rev() {
+    for i in (0..(t - 1)).rev() {
         res = res * &x + &pol[i];
     }
     res
@@ -87,7 +87,8 @@ fn lagrange_coeff<G: Group>(abscissae: &[G::Scalar]) -> Vec<G::Scalar> {
 }
 
 impl<G: Group> DKGProtocol<G> {
-    pub fn new(trustees_count: usize, trustee_threshold: usize, ctx: Vec<u8>, trustee_index: usize) -> Self {
+    pub fn new(trustees_count: usize, trustee_threshold: usize, ctx: &[u8], trustee_index: usize) -> Self {
+        let ctx = ctx.to_vec();
         // possibly check that trustee_threshold < trustees_count to nudge safe usage?
         Self {
             pub_data: DKGPubData {
@@ -122,7 +123,7 @@ impl<G: Group> DKGProtocol<G> {
     }
 
     // Check the zkps of others, compute evaluations of our secret polynomials at other trustees' points.
-    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> (DKGMessageStep2<G>) {
+    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> DKGMessageStep2<G> {
         let l = self.pub_data.l;
         let n = self.pub_data.n;
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
@@ -140,20 +141,20 @@ impl<G: Group> DKGProtocol<G> {
             }
         }
         let f_is = (0..n)
-            .map(|_| (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((i + 1) as u64))).collect::<Vec<_>>())
+            .map(|k| (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((k + 1) as u64))).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
-        (DKGMessageStep2 { f_is })
+        DKGMessageStep2 { f_is }
     }
 
     // Check received data against stuff committed at step 1, and compute own secret and partial public key.
-    pub fn step_3(&self, messages1: &Vec<DKGMessageStep1<G>>, messages2: &DKGMessageStep2<G>) -> (DKGResult<G>) {
+    pub fn step_3(&self, messages1: &Vec<DKGMessageStep1<G>>, messages2: &DKGMessageStep2<G>) -> DKGResult<G> {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let n = self.pub_data.n;
         let f_is = &messages2.f_is;
         for k in 0..n {
-            // messages3[k] comes from trustee k.
+            // messages2[k] comes from trustee k.
             if k == self.trustee_index {
                 continue;
             } // don't need to check our own data.
@@ -191,7 +192,7 @@ impl<G: Group> DKGProtocol<G> {
                 gpki
             })
             .collect::<Vec<_>>();
-        (DKGResult { sk: SecretKey(sk), pk, gpk })
+        DKGResult { sk: SecretKey(sk), pk, gpk }
     }
 }
 
@@ -210,8 +211,6 @@ pub fn partial_decrypt<G: Group, R: RngCore + CryptoRng>(
     rng: &mut R,
 ) -> Vec<(G::Point, (G::Scalar, G::Scalar))> {
     let l = pk_data.l;
-    let n = pk_data.n;
-    let t = pk_data.t;
     let zkp = ZKPCorrectExp::<G>::default();
     (0..l)
         .map(|i| {
@@ -245,4 +244,59 @@ pub fn collect_partial_dec<G: Group>(pk_data: &DKGFinalData<G>, c: &[G::Point], 
             c[i + 1] - &d
         })
         .collect::<Vec<_>>()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::foundation::group::ristretto::RistrettoGroup;
+    use crate::protocols::dkg::{DKGMessageStep2, DKGProtocol};
+    use rand::thread_rng;
+
+    type G = RistrettoGroup;
+
+    #[test]
+    fn test_dkg_full_run() {
+        let mut rng = thread_rng();
+        let trustee_count = 3usize;
+        let trustee_threshold = 2usize;
+        let ctx = "test_dkg".as_bytes();
+
+        // Define context for each trustee
+        let mut dkgs = vec![];
+        for i in 0..trustee_count {
+            let dkg: DKGProtocol<G> = DKGProtocol::new(trustee_count, trustee_threshold, ctx, i);
+            dkgs.push(dkg);
+        }
+
+        // All trustees run step 1 and we collect the output (broadcasted).
+        let mut states_step1 = vec![];
+        let mut messages_step1 = vec![];
+        for i in 0..trustee_count {
+            let (st1, mes1) = dkgs[i].step_1(&mut rng);
+            states_step1.push(st1);
+            messages_step1.push(mes1);
+        }
+        // All trustees run step 2. The output is a list of messages, one for each trustee.
+        let mut messages_step2 = vec![];
+        for i in 0..trustee_count {
+            let mes2 = dkgs[i].step_2(&states_step1[i], &messages_step1);
+            messages_step2.push(mes2);
+        }
+        // Collect messages for each trustee.
+        let mut collected_messages_step2 = vec![];
+        for i in 0..trustee_count {
+            let mut aux = vec![];
+            for j in 0..trustee_count {
+                aux.push(messages_step2[j].f_is[i].clone());
+            }
+            let aux = DKGMessageStep2 { f_is: aux };
+            collected_messages_step2.push(aux);
+        }
+        // All trustess run step 3
+        let mut result = vec![];
+        for i in 0..trustee_count {
+            let resi = dkgs[i].step_3(&messages_step1, &collected_messages_step2[i]);
+            result.push(resi);
+        }
+    }
 }

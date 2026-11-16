@@ -2,7 +2,6 @@
 //!
 //! [`ristretto`]: https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/index.html
 
-use crate::foundation;
 use crate::foundation::group::_shared::independent_generators_default;
 use crate::foundation::group::ByteNormalize;
 use crate::foundation::group::Group;
