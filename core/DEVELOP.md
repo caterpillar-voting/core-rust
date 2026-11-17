@@ -47,7 +47,7 @@ primitives:
 
 protocols:
 - Shuffle (Groth05; MultiRecipient; Rerandomization-Mixnet) -> sample implementation already exists
-- DKG (ElectionGuard probably, maybe Belenios)
+- DKG (FROST: similar to ElectionGuard and Belenios, but with another choice for the zkp)
 - PET (https://dl.acm.org/doi/10.1007/978-3-030-59013-0_2) -> sample implementation already exists
 
 interface:
