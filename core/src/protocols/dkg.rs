@@ -21,7 +21,7 @@ pub struct DKGPubData {
 
 pub struct DKGProtocol<G: Group> {
     pub pub_data: DKGPubData,
-    pub trustee_index: usize,
+    pub trustee_index: usize, // TODO: use naming of "i", or perhaps "participant_index", to remain closer to eprint?
     _marker: PhantomData<G>,
 }
 
