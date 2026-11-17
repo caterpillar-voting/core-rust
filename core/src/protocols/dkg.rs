@@ -33,8 +33,13 @@ pub struct DKGMessageStep1<G: Group> {
     phi_is: Vec<Vec<G::Point>>,        // commitments to the secret polynomials. len(phi_is) = l, len(phi_is[i]) = t
     zkps: Vec<(G::Scalar, G::Scalar)>, // zkp that one knows the constant coefficient of the polynomials. len(zkps) = l
 }
+// TODO: This type serves for messages for a participant at the end of step 2, and for messages entering step 3.
+// The semantic is different in the two cases:
+// For the outgoing message, the f_is are the evaluations of the polynomials at the value k+1, where k is the recipient number seen as a G::Scalar. We also "send" to ourself, instead of storing in State, to simplify the code. len(f_is) = n, len(f_is[i]) = l.
+// For the ingoing message, the i-th entry of f_is comes from trustee i and contains the evaluations of the polynomials at the value k+1, where k is "self", i.e. the trustee that is currently running step 3.
+// Shall we have two separate types?
 pub struct DKGMessageStep2<G: Group> {
-    f_is: Vec<Vec<G::Scalar>>, // Evaluations of the polynomials at the value k+1, where k is the recipient number seen as a G::Scalar. We also "send" to ourself, instead of storing in State, to simplify the code. len(f_is) = n, len(f_is[i]) = l.
+    f_is: Vec<Vec<G::Scalar>>,
 }
 
 // Data types for step 3
@@ -203,23 +208,19 @@ pub struct PartialDecryption<G: Group> {
     zkps: Vec<(G::Scalar, G::Scalar)>,
 }
 
-pub fn partial_decrypt<G: Group, R: RngCore + CryptoRng>(
-    sk: &SecretKey<G>,
-    trustee: usize,
-    pk_data: &DKGFinalData<G>,
-    c: &[G::Point],
-    ctx: &[u8],
-    rng: &mut R,
-) -> Vec<(G::Point, (G::Scalar, G::Scalar))> {
+pub fn partial_decrypt<G: Group, R: RngCore + CryptoRng>(sk: &SecretKey<G>, trustee: usize, pk_data: &DKGFinalData<G>, c: &[G::Point], ctx: &[u8], rng: &mut R) -> PartialDecryption<G> {
     let l = pk_data.l;
     let zkp = ZKPCorrectExp::<G>::default();
-    (0..l)
+    let (part_dec, zkps) = (0..l)
         .map(|i| {
             let d = c[0] * &sk.0[i];
             let pi = zkp.prove(&pk_data.pk[trustee][i], &c[0], &d, &sk.0[i], &ctx, rng); // FIXME: context should be bound to i and l.
             (d, pi)
         })
         .collect::<Vec<_>>()
+        .into_iter()
+        .unzip();
+    PartialDecryption { trustee, part_dec, zkps }
 }
 
 pub fn collect_partial_dec<G: Group>(pk_data: &DKGFinalData<G>, c: &[G::Point], partial_dec: &[PartialDecryption<G>], ctx: &[u8]) -> Vec<G::Point> {
@@ -333,11 +334,7 @@ mod tests {
         let mut part_dec = vec![];
         for i in 0..trustee_count {
             let res = partial_decrypt(&sk[i], i, &pk_data, &c, ctx, &mut rng);
-            part_dec.push(PartialDecryption {
-                trustee: i,
-                part_dec: res.iter().map(|x| x.0.clone()).collect(),
-                zkps: res.iter().map(|x| x.1.clone()).collect(),
-            });
+            part_dec.push(res);
         }
         // Recombine and check
         let recombined = collect_partial_dec(&pk_data, &c, &part_dec, ctx);
