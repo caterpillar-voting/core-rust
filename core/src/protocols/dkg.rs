@@ -33,13 +33,12 @@ pub struct DKGMessageStep1<G: Group> {
     phi_is: Vec<Vec<G::Point>>,        // commitments to the secret polynomials. len(phi_is) = l, len(phi_is[i]) = t
     zkps: Vec<(G::Scalar, G::Scalar)>, // zkp that one knows the constant coefficient of the polynomials. len(zkps) = l
 }
-// TODO: This type serves for messages for a participant at the end of step 2, and for messages entering step 3.
-// The semantic is different in the two cases:
-// For the outgoing message, the f_is are the evaluations of the polynomials at the value k+1, where k is the recipient number seen as a G::Scalar. We also "send" to ourself, instead of storing in State, to simplify the code. len(f_is) = n, len(f_is[i]) = l.
+// This type serves for messages for a participant at the end of step 2, and for messages entering step 3.
+// For the outgoing message, the f_is are the evaluations of the polynomials at the value k+1, where k is the recipient number seen as a G::Scalar. len(f_is) = n, len(f_is[i]) = l.
 // For the ingoing message, the i-th entry of f_is comes from trustee i and contains the evaluations of the polynomials at the value k+1, where k is "self", i.e. the trustee that is currently running step 3.
-// Shall we have two separate types?
+#[derive(Clone)]
 pub struct DKGMessageStep2<G: Group> {
-    f_is: Vec<Vec<G::Scalar>>,
+    f_is: Vec<G::Scalar>,
 }
 
 // Data types for step 3
@@ -129,7 +128,7 @@ impl<G: Group> DKGProtocol<G> {
     }
 
     // Check the zkps of others, compute evaluations of our secret polynomials at other trustees' points.
-    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> DKGMessageStep2<G> {
+    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> Vec<DKGMessageStep2<G>> {
         let l = self.pub_data.l;
         let n = self.pub_data.n;
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
@@ -146,25 +145,25 @@ impl<G: Group> DKGProtocol<G> {
                 assert!(zkp.verify(&mes.phi_is[i][0], &mes.zkps[i].0, &mes.zkps[i].1, &mut ctxi));
             }
         }
-        let f_is = (0..n)
-            .map(|k| (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((k + 1) as u64))).collect::<Vec<_>>())
-            .collect::<Vec<_>>();
 
-        DKGMessageStep2 { f_is }
+        (0..n)
+            .map(|k| DKGMessageStep2 {
+                f_is: (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((k + 1) as u64))).collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
     }
 
     // Check received data against stuff committed at step 1, and compute own secret and partial public key.
-    pub fn step_3(&self, messages1: &Vec<DKGMessageStep1<G>>, messages2: &DKGMessageStep2<G>) -> DKGResult<G> {
+    pub fn step_3(&self, messages1: &Vec<DKGMessageStep1<G>>, messages2: &Vec<DKGMessageStep2<G>>) -> DKGResult<G> {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let n = self.pub_data.n;
-        let f_is = &messages2.f_is;
         for k in 0..n {
             // messages2[k] comes from trustee k.
             if k == self.trustee_index {
                 continue;
             } // don't need to check our own data.
-            let f_i = &f_is[k];
+            let f_i = &messages2[k].f_is;
             for i in 0..l {
                 let val = G::basepoint() * &f_i[i]; // g to the i-th polynomial of trustee k evaluated at my point (trustee+1).
                 let mut val2 = G::identity();
@@ -181,7 +180,7 @@ impl<G: Group> DKGProtocol<G> {
             .map(|i| {
                 let mut ski = G::Scalar::from(0u64);
                 for k in 0..n {
-                    ski = ski + &f_is[k][i];
+                    ski = ski + &messages2[k].f_is[i];
                 }
                 ski
             })
@@ -309,9 +308,8 @@ mod tests {
         for i in 0..trustee_count {
             let mut aux = vec![];
             for j in 0..trustee_count {
-                aux.push(messages_step2[j].f_is[i].clone());
+                aux.push(messages_step2[j][i].clone());
             }
-            let aux = DKGMessageStep2 { f_is: aux };
             collected_messages_step2.push(aux);
         }
         // All trustess run step 3
