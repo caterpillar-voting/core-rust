@@ -1,13 +1,13 @@
-use zeroize::{Zeroize, ZeroizeOnDrop};
 use zeroize::__internal::AssertZeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct BroadcastMessage<P> {
     pub payload: P,
     pub sender: usize,
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Message<P> {
     pub payload: P,
     pub sender: usize,

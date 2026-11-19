@@ -10,7 +10,7 @@ use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use crate::protocols::{BroadcastMessage, Message, SecretState};
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
-use zeroize::{Zeroize};
+use zeroize::Zeroize;
 
 #[derive(Clone)]
 pub struct DKGPubData {
@@ -46,17 +46,17 @@ pub struct DKGMessageStep2<G: Group> {
 
 // Data types for step 3
 pub struct DKGResult<G: Group> {
-    sk: SecretKey<G>,  // own secret key.
-    pk: PublicKey<G>,  // own public key.
-    gpk: PublicKey<G>, // global public key.
+    pub sk: SecretKey<G>,  // own secret key.
+    pub pk: PublicKey<G>,  // own public key.
+    pub gpk: PublicKey<G>, // global public key.
 }
 
 pub struct DKGFinalData<G: Group> {
-    l: usize,               // width of the multi-ElGamal
-    n: usize,               // number of participants
-    t: usize,               // threshold (at least t participants are required to decrypt)
-    pk: Vec<Vec<G::Point>>, // public key of each trustee. len(pk) = n, len(pk[i]) = l.
-    gpk: Vec<G::Point>,     // global public key.
+    pub l: usize,               // width of the multi-ElGamal
+    pub n: usize,               // number of participants
+    pub t: usize,               // threshold (at least t participants are required to decrypt)
+    pub pk: Vec<Vec<G::Point>>, // public key of each trustee. len(pk) = n, len(pk[i]) = l.
+    pub gpk: Vec<G::Point>,     // global public key.
 }
 
 // Horner scheme for polynomial evaluation.
