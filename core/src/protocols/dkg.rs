@@ -138,11 +138,12 @@ impl<G: Group> DKGProtocol<G> {
     }
 
     // Check the zkps of others, compute evaluations of our secret polynomials at other trustees' points.
-    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<BroadcastMessage<DKGMessageStep1<G>>>) -> Vec<DKGMessageStep2<G>> {
+    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<BroadcastMessage<DKGMessageStep1<G>>>) -> Vec<Message<DKGMessageStep2<G>>> {
         let l = self.pub_data.l;
         let n = self.pub_data.n;
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
 
+        // check ZKPs of other participants
         for k in 0..n {
             if k == self.trustee_index {
                 continue;
@@ -165,30 +166,58 @@ impl<G: Group> DKGProtocol<G> {
             }
         }
 
-        (0..n)
-            .map(|k| DKGMessageStep2 {
-                f_is: (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((k + 1) as u64))).collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>()
+        // evaluate polynomial for each trustee
+        let mut messages: Vec<Message<DKGMessageStep2<G>>> = vec![];
+        for k in 0..n {
+            // TODO: do not calculate here for trustee_index, move to step 3
+            /*
+            if k == self.trustee_index {
+                continue;
+            }
+            */
+
+            let message = Message {
+                payload: DKGMessageStep2 {
+                    f_is: (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((k + 1) as u64))).collect::<Vec<_>>()
+                },
+                sender: self.trustee_index,
+                receiver: vec![k]
+            };
+            messages.push(message)
+        }
+
+        messages
     }
 
     // Check received data against stuff committed at step 1, and compute own secret and partial public key.
-    pub fn step_3(&self, messages1: &Vec<DKGMessageStep1<G>>, messages2: &Vec<DKGMessageStep2<G>>) -> DKGResult<G> {
+    pub fn step_3(&self, messages1: &Vec<BroadcastMessage<DKGMessageStep1<G>>>, messages2: &Vec<Message<DKGMessageStep2<G>>>) -> DKGResult<G> {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let n = self.pub_data.n;
+
+        // verify shares of other participants
         for k in 0..n {
-            // messages2[k] comes from trustee k.
             if k == self.trustee_index {
                 continue;
-            } // don't need to check our own data.
-            let f_i = &messages2[k].f_is;
+            }
+
+            let message1 = messages1.iter()
+                .find(|m| m.sender == k)
+                .expect(&format!("Missing message 1 from {}", k));
+            assert_eq!(message1.payload.phi_is.len(), l);
+            assert_eq!(message1.payload.zkps.len(), l);
+
+            let message2 = messages2.iter()
+                .find(|m| m.sender == k)
+                .expect(&format!("Missing message 2 from {}", k));
+            assert_eq!(message2.payload.f_is.len(), l);
+
             for i in 0..l {
-                let val = G::basepoint() * &f_i[i]; // g to the i-th polynomial of trustee k evaluated at my point (trustee+1).
+                let val = G::basepoint() * &message2.payload.f_is[i]; // g to the i-th polynomial of trustee k evaluated at my point (trustee+1).
                 let mut val2 = G::identity();
                 let mut ii = G::Scalar::from(1u64);
                 for j in 0..t {
-                    val2 = val2 + &(messages1[k].phi_is[i][j] * &ii);
+                    val2 = val2 + &(message1.payload.phi_is[i][j] * &ii);
                     ii = ii * &G::Scalar::from((self.trustee_index + 1) as u64);
                 }
                 assert_eq!(val, val2);
@@ -199,7 +228,9 @@ impl<G: Group> DKGProtocol<G> {
             .map(|i| {
                 let mut ski = G::Scalar::from(0u64);
                 for k in 0..n {
-                    ski = ski + &messages2[k].f_is[i];
+                    let message2 = messages2.iter()
+                        .find(|m| m.sender == k).unwrap();
+                    ski = ski + &message2.payload.f_is[i];
                 }
                 ski
             })
@@ -211,7 +242,10 @@ impl<G: Group> DKGProtocol<G> {
             .map(|i| {
                 let mut gpki = G::identity();
                 for k in 0..n {
-                    gpki = gpki + &messages1[k].phi_is[i][0];
+                    let message1 = messages1.iter()
+                        .find(|m| m.sender == k)
+                        .unwrap();
+                    gpki = gpki + &message1.payload.phi_is[i][0];
                 }
                 gpki
             })
