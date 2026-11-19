@@ -169,12 +169,9 @@ impl<G: Group> DKGProtocol<G> {
         // evaluate polynomial for each trustee
         let mut messages: Vec<Message<DKGMessageStep2<G>>> = vec![];
         for k in 0..n {
-            // TODO: do not calculate here for trustee_index, move to step 3
-            /*
             if k == self.trustee_index {
                 continue;
             }
-            */
 
             let message = Message {
                 payload: DKGMessageStep2 {
@@ -190,7 +187,7 @@ impl<G: Group> DKGProtocol<G> {
     }
 
     // Check received data against stuff committed at step 1, and compute own secret and partial public key.
-    pub fn step_3(&self, messages1: &Vec<BroadcastMessage<DKGMessageStep1<G>>>, messages2: &Vec<Message<DKGMessageStep2<G>>>) -> DKGResult<G> {
+    pub fn step_3(&self, state1: &DKGStateStep1<G>, messages1: &Vec<BroadcastMessage<DKGMessageStep1<G>>>, messages2: &Vec<Message<DKGMessageStep2<G>>>) -> DKGResult<G> {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
         let n = self.pub_data.n;
@@ -228,9 +225,13 @@ impl<G: Group> DKGProtocol<G> {
             .map(|i| {
                 let mut ski = G::Scalar::from(0u64);
                 for k in 0..n {
-                    let message2 = messages2.iter()
-                        .find(|m| m.sender == k).unwrap();
-                    ski = ski + &message2.payload.f_is[i];
+                    if k == self.trustee_index {
+                        ski = ski + &pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((k + 1) as u64));
+                    } else {
+                        let message2 = messages2.iter()
+                            .find(|m| m.sender == k).unwrap();
+                        ski = ski + &message2.payload.f_is[i];
+                    }
                 }
                 ski
             })
@@ -313,7 +314,7 @@ mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::el_gamal::ElGamal;
-    use crate::protocols::dkg::{DKGFinalData, DKGMessageStep2, DKGProtocol, DKGPubData, collect_partial_dec, partial_decrypt};
+    use crate::protocols::dkg::{DKGFinalData, DKGProtocol, DKGPubData, collect_partial_dec, partial_decrypt};
     use rand::thread_rng;
     use std::marker::PhantomData;
 
@@ -353,22 +354,22 @@ mod tests {
         // All trustees run step 2. The output is a list of messages, one for each trustee.
         let mut messages_step2 = vec![];
         for i in 0..trustee_count {
-            let mes2 = dkgs[i].step_2(&states_step1[i], &messages_step1);
-            messages_step2.push(mes2);
+            let mut mes2 = dkgs[i].step_2(&states_step1[i], &messages_step1);
+            messages_step2.append(&mut mes2);
         }
         // Collect messages for each trustee.
         let mut collected_messages_step2 = vec![];
         for i in 0..trustee_count {
-            let mut aux = vec![];
-            for j in 0..trustee_count {
-                aux.push(messages_step2[j][i].clone());
-            }
-            collected_messages_step2.push(aux);
+            let messages_for_trustee = messages_step2.iter()
+                .filter(|m| m.receiver.contains(&i))
+                .cloned()
+                .collect::<Vec<_>>();
+            collected_messages_step2.push(messages_for_trustee);
         }
         // All trustess run step 3
         let mut result = vec![];
         for i in 0..trustee_count {
-            let resi = dkgs[i].step_3(&messages_step1, &collected_messages_step2[i]);
+            let resi = dkgs[i].step_3(&states_step1[i], &messages_step1, &collected_messages_step2[i]);
             result.push(resi);
         }
         // Check they agree on the global public key and collect the final data
