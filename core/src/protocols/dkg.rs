@@ -10,6 +10,7 @@ use crate::primitives::zkp::correct_exp::ZKPCorrectExp;
 use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
+use crate::protocols::{BroadcastMessage, Message};
 
 #[derive(Clone)]
 pub struct DKGPubData {
@@ -109,12 +110,14 @@ impl<G: Group> DKGProtocol<G> {
 
     // Each participant/trustee generates its polynomial, commits to it, and add a zkp.
     // The parameter 'trustee' is the id of the trustee, i.e. an integer from 0 to n-1.
-    pub fn step_1<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (DKGStateStep1<G>, DKGMessageStep1<G>) {
+    pub fn step_1<R: RngCore + CryptoRng>(&self, rng: &mut R) -> (DKGStateStep1<G>, BroadcastMessage<DKGMessageStep1<G>>) {
         let l = self.pub_data.l;
         let t = self.pub_data.t;
+        let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
+
         let mut ctx = self.pub_data.ctx.clone();
         ctx.append(&mut self.trustee_index.to_le_bytes().to_vec());
-        let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
+
         let a_is = (0..l).map(|_| (0..t).map(|_| G::scalar_random(rng)).collect::<Vec<_>>()).collect::<Vec<_>>();
         let phi_is = (0..l).map(|i| (0..t).map(|j| G::basepoint() * &a_is[i][j]).collect::<Vec<_>>()).collect::<Vec<_>>();
         let zkps = (0..l)
@@ -124,25 +127,41 @@ impl<G: Group> DKGProtocol<G> {
                 zkp.prove(&phi_is[i][0], &a_is[i][0], &mut ctxi, rng)
             })
             .collect::<Vec<_>>();
-        (DKGStateStep1 { a_is }, DKGMessageStep1 { phi_is, zkps })
+
+        (
+            DKGStateStep1 { a_is },
+            BroadcastMessage {
+                payload: DKGMessageStep1 { phi_is, zkps },
+                sender: self.trustee_index,
+            }
+        )
     }
 
     // Check the zkps of others, compute evaluations of our secret polynomials at other trustees' points.
-    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<DKGMessageStep1<G>>) -> Vec<DKGMessageStep2<G>> {
+    pub fn step_2(&self, state1: &DKGStateStep1<G>, messages1: &Vec<BroadcastMessage<DKGMessageStep1<G>>>) -> Vec<DKGMessageStep2<G>> {
         let l = self.pub_data.l;
         let n = self.pub_data.n;
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
+
         for k in 0..n {
             if k == self.trustee_index {
                 continue;
             }
+
             let mut ctx = self.pub_data.ctx.clone();
             ctx.append(&mut k.to_le_bytes().to_vec());
-            let mes = &messages1[k];
+
+            let message1 = messages1.iter()
+                .find(|m| m.sender == k)
+                .expect(&format!("Missing message from {}", k));
+            let payload = &message1.payload;
+            assert_eq!(payload.phi_is.len(), l);
+            assert_eq!(payload.zkps.len(), l);
+
             for i in 0..l {
                 let mut ctxi = ctx.clone();
                 ctxi.append(&mut i.to_le_bytes().to_vec());
-                assert!(zkp.verify(&mes.phi_is[i][0], &mes.zkps[i].0, &mes.zkps[i].1, &mut ctxi));
+                assert!(zkp.verify(&payload.phi_is[i][0], &payload.zkps[i].0, &payload.zkps[i].1, &mut ctxi));
             }
         }
 
