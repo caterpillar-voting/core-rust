@@ -4,7 +4,7 @@
 // TODO: during step 1, we do l zkps, where l is the width of the multi-ElGamal. We could perhaps have a global dedicated zkp that is cheaper.
 
 use crate::foundation::group::Group;
-use crate::primitives::encryption::{PublicKey, SecretKey};
+use crate::primitives::encryption::{Context, PublicKey, SecretKey};
 use crate::primitives::zkp::correct_exp::ZKPCorrectExp;
 use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use crate::protocols::{BroadcastMessage, Message, SecretState};
@@ -17,7 +17,7 @@ pub struct DKGPubData {
     l: usize,     // width of the multi-ElGamal
     n: usize,     // number of participants
     t: usize,     // threshold (at least t participants are required to decrypt)
-    ctx: Vec<u8>, // context
+    ctx: Context, // context
 }
 
 pub struct DKGProtocol<G: Group> {
@@ -163,7 +163,7 @@ impl<G: Group> DKGProtocol<G> {
             for i in 0..l {
                 let mut ctxi = ctx.clone();
                 ctxi.append(&mut i.to_le_bytes().to_vec());
-                assert!(zkp.verify(&payload.phi_is[i][0], &payload.zkps[i].0, &payload.zkps[i].1, &mut ctxi)); // TODO: why is for phi_is only 0 relevant?
+                assert!(zkp.verify(&payload.phi_is[i][0], &payload.zkps[i].0, &payload.zkps[i].1, &mut ctxi));
             }
         }
 
