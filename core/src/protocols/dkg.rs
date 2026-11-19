@@ -8,9 +8,9 @@ use crate::foundation::group::Group;
 use crate::primitives::encryption::{PublicKey, SecretKey};
 use crate::primitives::zkp::correct_exp::ZKPCorrectExp;
 use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
+use crate::protocols::{BroadcastMessage, Message};
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
-use crate::protocols::{BroadcastMessage, Message};
 
 #[derive(Clone)]
 pub struct DKGPubData {
@@ -30,6 +30,7 @@ pub struct DKGProtocol<G: Group> {
 pub struct DKGStateStep1<G: Group> {
     a_is: Vec<Vec<G::Scalar>>, // the coefficients of the l secret polynomials. len(a_is) = l, len(a_is[i]) = t
 }
+#[derive(Clone)]
 pub struct DKGMessageStep1<G: Group> {
     phi_is: Vec<Vec<G::Point>>,        // commitments to the secret polynomials. len(phi_is) = l, len(phi_is[i]) = t
     zkps: Vec<(G::Scalar, G::Scalar)>, // zkp that one knows the constant coefficient of the polynomials. len(zkps) = l
@@ -133,7 +134,7 @@ impl<G: Group> DKGProtocol<G> {
             BroadcastMessage {
                 payload: DKGMessageStep1 { phi_is, zkps },
                 sender: self.trustee_index,
-            }
+            },
         )
     }
 
@@ -144,6 +145,7 @@ impl<G: Group> DKGProtocol<G> {
         let zkp: ZKPDiscreteLog<G> = ZKPDiscreteLog::default();
 
         // check ZKPs of other participants
+        assert_eq!(messages1.len(), n);
         for k in 0..n {
             if k == self.trustee_index {
                 continue;
@@ -152,9 +154,7 @@ impl<G: Group> DKGProtocol<G> {
             let mut ctx = self.pub_data.ctx.clone();
             ctx.append(&mut k.to_le_bytes().to_vec());
 
-            let message1 = messages1.iter()
-                .find(|m| m.sender == k)
-                .expect(&format!("Missing message from {}", k));
+            let message1 = messages1.iter().find(|m| m.sender == k).expect(&format!("Missing message from {}", k));
             let payload = &message1.payload;
             assert_eq!(payload.phi_is.len(), l);
             assert_eq!(payload.zkps.len(), l);
@@ -162,7 +162,7 @@ impl<G: Group> DKGProtocol<G> {
             for i in 0..l {
                 let mut ctxi = ctx.clone();
                 ctxi.append(&mut i.to_le_bytes().to_vec());
-                assert!(zkp.verify(&payload.phi_is[i][0], &payload.zkps[i].0, &payload.zkps[i].1, &mut ctxi));
+                assert!(zkp.verify(&payload.phi_is[i][0], &payload.zkps[i].0, &payload.zkps[i].1, &mut ctxi)); // TODO: why phi_is only 0 relevant?
             }
         }
 
@@ -175,10 +175,10 @@ impl<G: Group> DKGProtocol<G> {
 
             let message = Message {
                 payload: DKGMessageStep2 {
-                    f_is: (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((k + 1) as u64))).collect::<Vec<_>>()
+                    f_is: (0..l).map(|i| pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((k + 1) as u64))).collect::<Vec<_>>(),
                 },
                 sender: self.trustee_index,
-                receiver: vec![k]
+                receiver: vec![k],
             };
             messages.push(message)
         }
@@ -193,33 +193,35 @@ impl<G: Group> DKGProtocol<G> {
         let n = self.pub_data.n;
 
         // verify shares of other participants
+        assert_eq!(messages1.len(), n);
+        assert_eq!(messages2.len(), n - 1);
         for k in 0..n {
             if k == self.trustee_index {
                 continue;
             }
 
-            let message1 = messages1.iter()
-                .find(|m| m.sender == k)
-                .expect(&format!("Missing message 1 from {}", k));
+            let message1 = messages1.iter().find(|m| m.sender == k).expect(&format!("Missing message 1 from {}", k));
             assert_eq!(message1.payload.phi_is.len(), l);
             assert_eq!(message1.payload.zkps.len(), l);
 
-            let message2 = messages2.iter()
-                .find(|m| m.sender == k)
-                .expect(&format!("Missing message 2 from {}", k));
+            let message2 = messages2.iter().find(|m| m.sender == k).expect(&format!("Missing message 2 from {}", k));
             assert_eq!(message2.payload.f_is.len(), l);
 
             for i in 0..l {
                 let val = G::basepoint() * &message2.payload.f_is[i]; // g to the i-th polynomial of trustee k evaluated at my point (trustee+1).
                 let mut val2 = G::identity();
                 let mut ii = G::Scalar::from(1u64);
+
+                let pi_is_i = &message1.payload.phi_is[i];
+                assert_eq!(pi_is_i.len(), t);
                 for j in 0..t {
-                    val2 = val2 + &(message1.payload.phi_is[i][j] * &ii);
+                    val2 = val2 + &(pi_is_i[j] * &ii);
                     ii = ii * &G::Scalar::from((self.trustee_index + 1) as u64);
                 }
                 assert_eq!(val, val2);
             }
         }
+
         // Secret key
         let sk = (0..l)
             .map(|i| {
@@ -228,29 +230,29 @@ impl<G: Group> DKGProtocol<G> {
                     if k == self.trustee_index {
                         ski = ski + &pol_eval::<G>(&*state1.a_is[i], &G::Scalar::from((k + 1) as u64));
                     } else {
-                        let message2 = messages2.iter()
-                            .find(|m| m.sender == k).unwrap();
+                        let message2 = messages2.iter().find(|m| m.sender == k).expect(&format!("Missing message 2 from {}", k));
                         ski = ski + &message2.payload.f_is[i];
                     }
                 }
                 ski
             })
             .collect::<Vec<_>>();
+
         // Public key
         let pk = sk.iter().map(|s| G::basepoint() * &s).collect::<Vec<_>>();
+
         // Global public key
         let gpk = (0..l)
             .map(|i| {
                 let mut gpki = G::identity();
                 for k in 0..n {
-                    let message1 = messages1.iter()
-                        .find(|m| m.sender == k)
-                        .unwrap();
+                    let message1 = messages1.iter().find(|m| m.sender == k).expect(&format!("Missing message 1 from {}", k));
                     gpki = gpki + &message1.payload.phi_is[i][0];
                 }
                 gpki
             })
             .collect::<Vec<_>>();
+
         DKGResult { sk: SecretKey(sk), pk, gpk }
     }
 }
@@ -261,6 +263,7 @@ pub struct PartialDecryption<G: Group> {
     zkps: Vec<(G::Scalar, G::Scalar)>,
 }
 
+// TODO: move out into distributed_decryption protocol
 pub fn partial_decrypt<G: Group, R: RngCore + CryptoRng>(sk: &SecretKey<G>, trustee: usize, pk_data: &DKGFinalData<G>, c: &[G::Point], ctx: &[u8], rng: &mut R) -> PartialDecryption<G> {
     let l = pk_data.l;
     let zkp = ZKPCorrectExp::<G>::default();
@@ -351,21 +354,21 @@ mod tests {
             states_step1.push(st1);
             messages_step1.push(mes1);
         }
+
         // All trustees run step 2. The output is a list of messages, one for each trustee.
         let mut messages_step2 = vec![];
         for i in 0..trustee_count {
             let mut mes2 = dkgs[i].step_2(&states_step1[i], &messages_step1);
             messages_step2.append(&mut mes2);
         }
+
         // Collect messages for each trustee.
         let mut collected_messages_step2 = vec![];
         for i in 0..trustee_count {
-            let messages_for_trustee = messages_step2.iter()
-                .filter(|m| m.receiver.contains(&i))
-                .cloned()
-                .collect::<Vec<_>>();
+            let messages_for_trustee = messages_step2.iter().filter(|m| m.receiver.contains(&i)).cloned().collect::<Vec<_>>();
             collected_messages_step2.push(messages_for_trustee);
         }
+
         // All trustess run step 3
         let mut result = vec![];
         for i in 0..trustee_count {
