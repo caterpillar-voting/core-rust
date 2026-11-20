@@ -47,7 +47,6 @@ primitives:
 
 protocols:
 - Shuffle (Groth05; MultiRecipient; Rerandomization-Mixnet) -> sample implementation already exists
-- DKG (FROST: similar to ElectionGuard and Belenios, but with another choice for the zkp)
 - PET (https://dl.acm.org/doi/10.1007/978-3-030-59013-0_2) -> sample implementation already exists
 
 interface:
@@ -61,4 +60,3 @@ minor technical:
 - mul by basepoint separate overload for optimizations; use separate type? use if/else in mul overload?
 - Remove Clone/Default in group; or can group/point/scalar architecture to avoid this ugly clone?
 - get_challenge required to be stateless (in contrast to ScalarMessageEncoder.decoder); is this a problem?
-
