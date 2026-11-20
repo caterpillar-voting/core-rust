@@ -5,7 +5,6 @@
 
 use crate::foundation::group::Group;
 use crate::primitives::encryption::{Context, PublicKey, SecretKey};
-use crate::primitives::zkp::correct_exp::ZKPCorrectExp;
 use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use crate::protocols::{BroadcastMessage, Message, SecretState};
 use rand_core::{CryptoRng, RngCore};
@@ -69,30 +68,6 @@ fn pol_eval<G: Group>(pol: &[G::Scalar], x: &G::Scalar) -> G::Scalar {
     res
 }
 
-// Lagrange coefficients
-fn lagrange_coeff<G: Group>(abscissae: &[G::Scalar]) -> Vec<G::Scalar> {
-    let n = abscissae.len();
-    for &x in abscissae {
-        assert!(x != G::Scalar::from(0u64));
-    }
-    (0..n)
-        .map(|i| {
-            let mut denom = G::Scalar::from(1u64);
-            let mut num = G::Scalar::from(1u64);
-            for j in 0..n {
-                if i == j {
-                    continue;
-                }
-                assert!(abscissae[i] != abscissae[j]);
-                denom = denom * &(abscissae[j] - &abscissae[i]);
-                num = num * &abscissae[j];
-            }
-            assert!(denom != G::Scalar::from(0u64));
-            denom = G::scalar_inverse(&denom).unwrap();
-            num * &denom
-        })
-        .collect::<Vec<_>>()
-}
 
 impl<G: Group> DKGProtocol<G> {
     pub fn new(trustees_count: usize, trustee_threshold: usize, ctx: &[u8], trustee_index: usize) -> Self {
@@ -258,67 +233,13 @@ impl<G: Group> DKGProtocol<G> {
     }
 }
 
-pub struct PartialDecryption<G: Group> {
-    trustee: usize,
-    part_dec: Vec<G::Point>,
-    zkps: Vec<(G::Scalar, G::Scalar)>,
-}
-
-// TODO: move out into distributed_decryption protocol
-pub fn partial_decrypt<G: Group, R: RngCore + CryptoRng>(sk: &SecretKey<G>, trustee: usize, pk_data: &DKGFinalData<G>, c: &[G::Point], ctx: &[u8], rng: &mut R) -> PartialDecryption<G> {
-    let l = pk_data.l;
-    let zkp = ZKPCorrectExp::<G>::default();
-    let (part_dec, zkps) = (0..l)
-        .map(|i| {
-            let mut ctxi = ctx.to_vec();
-            ctxi.append(&mut trustee.to_le_bytes().to_vec());
-            ctxi.append(&mut i.to_le_bytes().to_vec());
-            let d = c[0] * &sk.0[i];
-            let pi = zkp.prove(&pk_data.pk[trustee][i], &c[0], &d, &sk.0[i], &ctx, rng);
-            (d, pi)
-        })
-        .collect::<Vec<_>>()
-        .into_iter()
-        .unzip();
-    PartialDecryption { trustee, part_dec, zkps }
-}
-
-pub fn collect_partial_dec<G: Group>(pk_data: &DKGFinalData<G>, c: &[G::Point], partial_dec: &[PartialDecryption<G>], ctx: &[u8]) -> Vec<G::Point> {
-    let n = pk_data.n;
-    let l = pk_data.l;
-    let t = pk_data.t;
-    assert!(partial_dec.len() >= t);
-    let zkp = ZKPCorrectExp::<G>::default();
-    let trustees = partial_dec.iter().map(|p| G::Scalar::from((1 + p.trustee) as u64)).collect::<Vec<_>>();
-    let lagrange_coeff = lagrange_coeff::<G>(&trustees);
-    for k in 0..n {
-        let p = &partial_dec[k];
-        for i in 0..l {
-            let mut ctxi = ctx.to_vec();
-            ctxi.append(&mut k.to_le_bytes().to_vec());
-            ctxi.append(&mut i.to_le_bytes().to_vec());
-            let d = p.part_dec[i];
-            let pi = p.zkps[i];
-            assert!(zkp.verify(&pk_data.pk[p.trustee][i], &c[0], &d, &pi.0, &pi.1, &ctx));
-        }
-    }
-    (0..l)
-        .map(|i| {
-            let mut d = G::identity();
-            for j in 0..partial_dec.len() {
-                d = d + &(partial_dec[j].part_dec[i] * &lagrange_coeff[j]);
-            }
-            c[i + 1] - &d
-        })
-        .collect::<Vec<_>>()
-}
-
 #[cfg(test)]
 mod tests {
     use crate::foundation::group::Group;
     use crate::foundation::group::ristretto::RistrettoGroup;
     use crate::primitives::encryption::el_gamal::ElGamal;
-    use crate::protocols::dkg::{DKGFinalData, DKGProtocol, DKGPubData, collect_partial_dec, partial_decrypt};
+    use crate::protocols::distributed_decryption::{collect_partial_dec, partial_decrypt};
+    use crate::protocols::dkg::{DKGFinalData, DKGProtocol, DKGPubData};
     use rand::thread_rng;
     use std::marker::PhantomData;
 

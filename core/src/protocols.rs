@@ -18,3 +18,4 @@ pub struct Message<P> {
 pub struct SecretState<P: AssertZeroize>(pub P);
 
 pub mod dkg;
+mod distributed_decryption;
