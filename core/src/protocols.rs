@@ -17,5 +17,5 @@ pub struct Message<P> {
 #[derive(Clone, Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct SecretState<P: AssertZeroize>(pub P);
 
-pub mod dkg;
 mod distributed_decryption;
+pub mod dkg;

@@ -68,7 +68,6 @@ fn pol_eval<G: Group>(pol: &[G::Scalar], x: &G::Scalar) -> G::Scalar {
     res
 }
 
-
 impl<G: Group> DKGProtocol<G> {
     pub fn new(trustees_count: usize, trustee_threshold: usize, ctx: &[u8], trustee_index: usize) -> Self {
         let ctx = ctx.to_vec();
