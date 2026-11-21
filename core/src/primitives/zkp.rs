@@ -1,3 +1,4 @@
+pub mod correct_exp;
 pub mod discrete_log;
 /**
 Implementations of ZKP. Variable naming and structure aims to follow https://crypto.ethz.ch/publications/files/Maurer15.pdf, but no explicit abstractions are done.

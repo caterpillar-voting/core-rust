@@ -150,6 +150,13 @@ impl Group for RistrettoGroup {
         rng.try_fill_bytes(&mut uniform_bytes).unwrap();
         RistrettoScalar(RistrettoScalarRaw::from_bytes_mod_order_wide(&uniform_bytes))
     }
+
+    fn scalar_inverse(scalar: &Self::Scalar) -> Option<Self::Scalar> {
+        if scalar == &Self::Scalar::from(0u64) {
+            return None;
+        }
+        Some(RistrettoScalar(scalar.0.invert()))
+    }
 }
 
 // region:    --- Tests
