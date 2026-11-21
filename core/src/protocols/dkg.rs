@@ -9,7 +9,7 @@ use crate::primitives::zkp::discrete_log::ZKPDiscreteLog;
 use crate::protocols::{BroadcastMessage, Message, SecretState};
 use rand_core::{CryptoRng, RngCore};
 use std::marker::PhantomData;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Clone)]
 pub struct DKGPubData {
@@ -26,7 +26,7 @@ pub struct DKGProtocol<G: Group> {
 }
 
 // Data types for step 1
-#[derive(Zeroize)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct DKGStateStep1<G: Group> {
     a_is: Vec<Vec<G::Scalar>>, // the coefficients of the l secret polynomials. len(a_is) = l, len(a_is[i]) = t
 }
