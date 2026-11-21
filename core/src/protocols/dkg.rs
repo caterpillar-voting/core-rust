@@ -51,11 +51,11 @@ pub struct DKGResult<G: Group> {
 }
 
 pub struct DKGFinalData<G: Group> {
-    pub l: usize,               // width of the multi-ElGamal
-    pub n: usize,               // number of participants
-    pub t: usize,               // threshold (at least t participants are required to decrypt)
-    pub pk: Vec<Vec<G::Point>>, // public key of each trustee. len(pk) = n, len(pk[i]) = l.
-    pub gpk: Vec<G::Point>,     // global public key.
+    pub l: usize,              // width of the multi-ElGamal
+    pub n: usize,              // number of participants
+    pub t: usize,              // threshold (at least t participants are required to decrypt)
+    pub pk: Vec<PublicKey<G>>, // public key of each trustee. len(pk) = n, len(pk[i]) = l.
+    pub gpk: PublicKey<G>,     // global public key.
 }
 
 // Horner scheme for polynomial evaluation.
@@ -181,6 +181,7 @@ impl<G: Group> DKGProtocol<G> {
 
             let message2 = messages2.iter().find(|m| m.sender == k).expect(&format!("Missing message 2 from {}", k));
             assert_eq!(message2.payload.f_is.len(), l);
+            assert_eq!(message2.receiver[0], self.trustee_index);
 
             for i in 0..l {
                 let val = G::basepoint() * &message2.payload.f_is[i]; // g to the i-th polynomial of trustee k evaluated at my point (trustee+1).
@@ -206,6 +207,7 @@ impl<G: Group> DKGProtocol<G> {
                         ski = ski + &pol_eval::<G>(&*state1.0.a_is[i], &G::Scalar::from((k + 1) as u64));
                     } else {
                         let message2 = messages2.iter().find(|m| m.sender == k).expect(&format!("Missing message 2 from {}", k));
+                        assert_eq!(message2.receiver[0], self.trustee_index);
                         ski = ski + &message2.payload.f_is[i];
                     }
                 }
